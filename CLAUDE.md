@@ -15,3 +15,4 @@ A financial analysis app for students. Portfolio project. Full spec to come.
 ## Setup
 - Python 3.12, managed with `uv`. Code lives in `src/finance_analyzer/`.
 - Run: `uv run finance-analyzer`
+“Always follow SPEC.md. If a request goes beyond v1 scope, say so before building it.”

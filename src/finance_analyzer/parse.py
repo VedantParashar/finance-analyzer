@@ -11,9 +11,10 @@ REVENUE_TAGS = [
 
 
 def _annual_values(facts: dict, tags: list[str]) -> list[tuple[str, int, str]]:
-    """Merge full-year 10-K values across tags, keeping the latest filing for each period."""
+    """Merge full-year 10-K values across tags, keeping the latest filing for each year end."""
     us_gaap = facts.get("facts", {}).get("us-gaap", {})
-    best: dict[tuple[str, str], dict] = {}  # (start, end) -> chosen fact
+    # Keyed by end only: filings sometimes disagree on a year's start date by a day.
+    best: dict[str, dict] = {}  # fiscal year end -> chosen fact
     for tag in tags:
         for fact in us_gaap.get(tag, {}).get("units", {}).get("USD", []):
             if fact["form"] != "10-K" or "start" not in fact:
@@ -21,10 +22,10 @@ def _annual_values(facts: dict, tags: list[str]) -> list[tuple[str, int, str]]:
             days = (date.fromisoformat(fact["end"]) - date.fromisoformat(fact["start"])).days
             if not 350 <= days <= 380:  # full years only; 52/53-week years are 364 or 371 days
                 continue
-            period = (fact["start"], fact["end"])
+            end = fact["end"]
             # Strictly later only, so on a same-day tie the earlier tag in the list wins.
-            if period not in best or fact["filed"] > best[period]["filed"]:
-                best[period] = fact
+            if end not in best or fact["filed"] > best[end]["filed"]:
+                best[end] = fact
     return sorted((f["end"], f["val"], f["accn"]) for f in best.values())
 
 

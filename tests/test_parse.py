@@ -56,5 +56,23 @@ def test_same_day_tie_goes_to_earlier_tag():
     assert annual_revenue(tie) == [("2018-09-29", 2, "A")]
 
 
+def test_start_dates_one_day_apart_count_as_one_year():
+    facts = {
+        "facts": {
+            "us-gaap": {
+                "Revenues": {
+                    "units": {
+                        "USD": [
+                            fact("2017-09-30", "2018-09-29", 200, "10-K", "2018-11-05", "OLD"),
+                            fact("2017-10-01", "2018-09-29", 210, "10-K", "2019-10-31", "NEW"),
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    assert annual_revenue(facts) == [("2018-09-29", 210, "NEW")]
+
+
 def test_missing_tags_give_empty_list():
     assert annual_revenue({"facts": {"us-gaap": {}}}) == []
