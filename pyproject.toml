@@ -7,7 +7,9 @@ authors = [
     { name = "Vedant Parashar", email = "vedantparashar18@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "httpx>=0.28.1",
+]
 
 [project.scripts]
 finance-analyzer = "finance_analyzer:main"
@@ -15,3 +17,8 @@ finance-analyzer = "finance_analyzer:main"
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]

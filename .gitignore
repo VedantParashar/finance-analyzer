@@ -19,5 +19,8 @@ wheels/
 .coverage
 htmlcov/
 
+# Downloaded data (SEC cache, DuckDB file)
+data/
+
 # macOS
 .DS_Store
