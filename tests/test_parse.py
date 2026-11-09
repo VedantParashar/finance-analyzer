@@ -135,6 +135,18 @@ def test_balance_check_with_reported_liabilities():
     assert balance_checks(off_by_50) == [(YEAR_END, False, 50, False)]
 
 
+def test_balance_check_allows_a_small_difference_and_still_reports_it():
+    def with_liabilities(liabilities):
+        return company(
+            Assets=[instant(YEAR_END, 100_000, FILED, "A")],
+            Liabilities=[instant(YEAR_END, liabilities, FILED, "L")],
+            StockholdersEquity=[instant(YEAR_END, 30_000, FILED, "EQ")],
+        )
+
+    assert balance_checks(with_liabilities(70_050)) == [(YEAR_END, True, -50, False)]  # 0.05%
+    assert balance_checks(with_liabilities(70_150)) == [(YEAR_END, False, -150, False)]  # 0.15%
+
+
 def test_balance_check_with_derived_liabilities_uses_reported_total():
     balanced = company(
         Assets=[instant(YEAR_END, 1000, FILED, "A")],

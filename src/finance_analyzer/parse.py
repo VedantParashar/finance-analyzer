@@ -6,6 +6,8 @@ from typing import NamedTuple
 from finance_analyzer.edgar import fetch_company_facts
 from finance_analyzer.schema import ITEMS, LIABILITIES_AND_EQUITY, LineItem
 
+BALANCE_TOLERANCE = 0.001  # 0.1% of total assets, so small rounding differences still pass
+
 
 class LineItemRow(NamedTuple):
     item: str
@@ -112,6 +114,6 @@ def balance_checks(facts: dict) -> list[BalanceCheck]:
         derived = liabilities[end].derived
         other_side = reported_total[end] if derived else liabilities[end].value + equity[end].value
         difference = assets[end].value - other_side
-        # shortcut: exact match only, add a tolerance if rounding causes false failures
-        checks.append(BalanceCheck(end, difference == 0, difference, derived))
+        passed = abs(difference) <= BALANCE_TOLERANCE * abs(assets[end].value)
+        checks.append(BalanceCheck(end, passed, difference, derived))
     return checks
