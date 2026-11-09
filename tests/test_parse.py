@@ -41,6 +41,16 @@ def test_instant_restatement_latest_filing_wins():
     assert _annual_values(facts, ITEMS["total_assets"]) == [("2018-09-29", 510, "NEW")]
 
 
+def test_amended_10k_restatement_wins():
+    facts = company(
+        Assets=[
+            instant("2018-09-29", 500, "2018-11-05", "ORIGINAL"),
+            {**instant("2018-09-29", 510, "2019-01-25", "AMENDED"), "form": "10-K/A"},
+        ]
+    )
+    assert _annual_values(facts, ITEMS["total_assets"]) == [("2018-09-29", 510, "AMENDED")]
+
+
 def test_flows_and_instants_do_not_mix():
     facts = company(
         # A period under an instant tag, and a snapshot under a flow tag: both ignored.

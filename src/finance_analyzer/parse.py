@@ -52,7 +52,7 @@ def _annual_values(facts: dict, item: LineItem) -> list[tuple[str, int | float, 
     best: dict[str, dict] = {}  # fiscal year end -> chosen fact
     for tag in item.tags:
         for fact in us_gaap.get(tag, {}).get("units", {}).get(item.unit, []):
-            if fact["form"] != "10-K" or not is_annual(fact):
+            if fact["form"] not in ("10-K", "10-K/A") or not is_annual(fact):
                 continue
             end = fact["end"]
             # Strictly later only, so on a same-day tie the earlier tag in the list wins.
