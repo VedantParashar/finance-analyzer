@@ -1,4 +1,6 @@
-from finance_analyzer.parse import _annual_values, annual_line_items, annual_revenue, balance_checks
+import pytest
+
+from finance_analyzer.parse import _annual_values, _line_items, annual_line_items, annual_revenue, balance_checks
 from finance_analyzer.schema import ITEMS
 
 YEAR_END = "2018-09-29"
@@ -176,6 +178,104 @@ def test_revenue_falls_back_to_goods_tag():
         }
     }
     assert annual_revenue(facts) == [(YEAR_END, 7, "G")]
+
+
+FY1, FY2, FY3, FY4 = "2016-12-31", "2017-12-31", "2018-12-31", "2019-12-31"
+FILINGS = {"A": "2018-02-01", "B": "2019-02-01", "C": "2020-02-01"}
+
+
+def annual(end, val, accn):
+    start = f"{int(end[:4]) - 1}-12-31"
+    return fact(start, end, val, "10-K", FILINGS[accn], accn)
+
+
+def per_share_company(rows, income=lambda end, accn: 1000):
+    """Company facts from (fiscal year end, EPS, filing) rows, with net income in the same filings."""
+    return {
+        "facts": {
+            "us-gaap": {
+                "EarningsPerShareDiluted": {"units": {"USD/shares": [annual(e, v, a) for e, v, a in rows]}},
+                "NetIncomeLoss": {"units": {"USD": [annual(e, income(e, a), a) for e, _, a in rows]}},
+            }
+        }
+    }
+
+
+def eps_rows(facts):
+    return [(r.fiscal_year_end, r.value, r.derivation) for r in _line_items(facts) if r.item == "diluted_eps"]
+
+
+def one_change(old, new, older_year):
+    """FY2's EPS changes from old to new in filing B; FY1 was last reported before that, in A."""
+    return [(FY1, older_year, "A"), (FY2, old, "A"), (FY2, new, "B")]
+
+
+@pytest.mark.parametrize(
+    "old, new, older_year, rescaled, derivation",
+    [
+        (9.0, 4.5, 8.0, 4.0, "split-adjusted ÷2"),
+        (44.15, 6.31, 27.68, 27.68 / 7, "split-adjusted ÷7"),
+        (1.74, 0.17, 3.85, 0.385, "split-adjusted ÷10"),  # NVDA: rounded ratio is 10.24
+        (9.0, 6.0, 3.0, 2.0, "split-adjusted ÷1.5"),  # 3-for-2
+        (5.0, 4.0, 2.0, 1.6, "split-adjusted ÷1.25"),  # 5-for-4
+        (-5.72, -1.14, -6.93, -6.93 / 5, "split-adjusted ÷5"),  # a loss per share still splits
+        (0.5, 5.0, 0.3, 3.0, "split-adjusted ×10"),  # reverse split
+    ],
+)
+def test_split_rescales_older_values(old, new, older_year, rescaled, derivation):
+    rows = eps_rows(per_share_company(one_change(old, new, older_year)))
+    assert rows == [(FY1, pytest.approx(rescaled), derivation), (FY2, new, "")]
+
+
+@pytest.mark.parametrize(
+    "old, new",
+    [
+        (5.36, 6.78),  # Apple's FY2008 restatement: not a split ratio
+        (0.02, 0.01),  # looks like 2-for-1 but is one cent of rounding
+        (0.05, 0.04),  # looks like 5-for-4 but is one cent of rounding
+        (2.0, -1.0),  # sign change
+    ],
+)
+def test_changes_that_are_not_splits_leave_values_alone(old, new):
+    rows = eps_rows(per_share_company(one_change(old, new, 8.0)))
+    assert rows == [(FY1, 8.0, ""), (FY2, new, "")]
+
+
+def test_stacked_splits_multiply():
+    facts = per_share_company(
+        [(FY1, 8.0, "A"), (FY2, 9.0, "A"), (FY2, 4.5, "B"), (FY3, 5.0, "B"), (FY3, 1.25, "C"), (FY4, 1.5, "C")]
+    )
+    assert eps_rows(facts) == [
+        (FY1, 1.0, "split-adjusted ÷8"),
+        (FY2, 1.125, "split-adjusted ÷4"),
+        (FY3, 1.25, ""),
+        (FY4, 1.5, ""),
+    ]
+
+
+def test_split_ratio_rejected_when_net_income_moved():
+    halved_profit = lambda end, accn: 500 if accn == "B" else 1000
+    facts = per_share_company(one_change(9.0, 4.5, 8.0), income=halved_profit)
+    assert eps_rows(facts) == [(FY1, 8.0, ""), (FY2, 4.5, "")]
+
+
+def test_split_accepted_with_small_restatement():
+    restated = lambda end, accn: 998 if accn == "B" else 1000  # KO's 2012 split moved income 0.2%
+    facts = per_share_company(one_change(9.0, 4.5, 8.0), income=restated)
+    assert eps_rows(facts) == [(FY1, 4.0, "split-adjusted ÷2"), (FY2, 4.5, "")]
+
+
+def test_split_needs_net_income_to_confirm():
+    facts = per_share_company(one_change(9.0, 4.5, 8.0))
+    del facts["facts"]["us-gaap"]["NetIncomeLoss"]
+    assert eps_rows(facts) == [(FY1, 8.0, ""), (FY2, 4.5, "")]
+
+
+def test_splits_do_not_touch_dollar_items():
+    facts = per_share_company(one_change(9.0, 4.5, 8.0))
+    facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [annual(FY1, 800, "A"), annual(FY2, 900, "B")]}}
+    revenue = [(r.value, r.derivation) for r in _line_items(facts) if r.item == "revenue"]
+    assert revenue == [(800, ""), (900, "")]
 
 
 def test_instants_need_a_flow_to_define_year_ends():
