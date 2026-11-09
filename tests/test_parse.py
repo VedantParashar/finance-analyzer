@@ -91,8 +91,8 @@ def line_items(monkeypatch, facts):
 def test_annual_line_items_returns_rows_in_schema_order(monkeypatch):
     facts = company(Assets=[instant(YEAR_END, 500, FILED, "A")])
     assert line_items(monkeypatch, facts) == [
-        ("revenue", YEAR_END, 1, "R", False),
-        ("total_assets", YEAR_END, 500, "A", False),
+        ("revenue", YEAR_END, 1, "R", ""),
+        ("total_assets", YEAR_END, 500, "A", ""),
     ]
 
 
@@ -101,7 +101,8 @@ def test_liabilities_derived_when_not_reported(monkeypatch):
         LiabilitiesAndStockholdersEquity=[instant(YEAR_END, 1000, FILED, "BS")],
         StockholdersEquity=[instant(YEAR_END, 300, FILED, "EQ")],
     )
-    assert ("total_liabilities", YEAR_END, 700, "BS", True) in line_items(monkeypatch, facts)
+    derived = ("total_liabilities", YEAR_END, 700, "BS", "liabilities = total − equity")
+    assert derived in line_items(monkeypatch, facts)
 
 
 def test_reported_liabilities_are_not_replaced_by_derived(monkeypatch):
@@ -111,7 +112,7 @@ def test_reported_liabilities_are_not_replaced_by_derived(monkeypatch):
         StockholdersEquity=[instant(YEAR_END, 300, FILED, "EQ")],
     )
     rows = [row for row in line_items(monkeypatch, facts) if row.item == "total_liabilities"]
-    assert rows == [("total_liabilities", YEAR_END, 650, "L", False)]
+    assert rows == [("total_liabilities", YEAR_END, 650, "L", "")]
 
 
 def test_no_derived_liabilities_without_equity(monkeypatch):

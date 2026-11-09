@@ -7,9 +7,9 @@ from finance_analyzer.parse import LineItemRow
 
 YEAR_END = "2018-09-29"
 ROWS = [
-    LineItemRow("total_liabilities", YEAR_END, 700, "B", True),
-    LineItemRow("revenue", YEAR_END, 100, "A", False),
-    LineItemRow("diluted_eps", YEAR_END, 2.98, "A", False),
+    LineItemRow("total_liabilities", YEAR_END, 700, "B", "liabilities = total − equity"),
+    LineItemRow("revenue", YEAR_END, 100, "A", ""),
+    LineItemRow("diluted_eps", YEAR_END, 2.98, "A", ""),
 ]
 
 
@@ -28,9 +28,9 @@ def test_round_trip_keeps_every_field_in_schema_order(monkeypatch):
 
     saved = store.get_company("TEST")
     assert [row.item for row in saved] == ["revenue", "diluted_eps", "total_liabilities"]
-    assert saved[0][:7] == ("TEST", "revenue", date(2018, 9, 29), 100, "USD", "A", False)
+    assert saved[0][:7] == ("TEST", "revenue", date(2018, 9, 29), 100, "USD", "A", "")
     assert saved[1].value == 2.98 and saved[1].unit == "USD/shares"
-    assert saved[2].derived is True
+    assert saved[2].derivation == "liabilities = total − equity"
     assert saved[0].loaded_at == saved[2].loaded_at
 
 
@@ -38,7 +38,7 @@ def test_reload_replaces_old_rows_without_duplicates(monkeypatch):
     parser_returns(monkeypatch, ROWS)
     store.load_company("TEST")
 
-    parser_returns(monkeypatch, [LineItemRow("revenue", YEAR_END, 110, "NEW", False)])
+    parser_returns(monkeypatch, [LineItemRow("revenue", YEAR_END, 110, "NEW", "")])
     store.load_company("TEST")
 
     assert [(row.item, row.value) for row in store.get_company("TEST")] == [("revenue", 110)]
@@ -69,8 +69,8 @@ def test_failed_save_undoes_the_whole_load(monkeypatch):
     parser_returns(monkeypatch, ROWS)
     store.load_company("TEST")
 
-    bad_row = LineItemRow("diluted_eps", YEAR_END, None, "A", False)  # value can't be NULL
-    parser_returns(monkeypatch, [LineItemRow("revenue", YEAR_END, 999, "A", False), bad_row])
+    bad_row = LineItemRow("diluted_eps", YEAR_END, None, "A", "")  # value can't be NULL
+    parser_returns(monkeypatch, [LineItemRow("revenue", YEAR_END, 999, "A", ""), bad_row])
     with pytest.raises(Exception):
         store.load_company("TEST")
 

@@ -14,7 +14,7 @@ class LineItemRow(NamedTuple):
     fiscal_year_end: str
     value: int | float
     accn: str
-    derived: bool  # True when we calculated the value instead of reading it from a filing
+    derivation: str  # empty = as reported, otherwise how we calculated the value
 
 
 class BalanceCheck(NamedTuple):
@@ -73,7 +73,7 @@ def _derived_liabilities(facts: dict) -> list[LineItemRow]:
     reported = {end for end, _, _ in _annual_values(facts, ITEMS["total_liabilities"])}
     equity = {end: value for end, value, _ in _annual_values(facts, ITEMS["total_equity"])}
     return [
-        LineItemRow("total_liabilities", end, total - equity[end], accn, True)
+        LineItemRow("total_liabilities", end, total - equity[end], accn, "liabilities = total − equity")
         for end, total, accn in _annual_values(facts, LIABILITIES_AND_EQUITY)
         if end not in reported and end in equity
     ]
@@ -81,7 +81,7 @@ def _derived_liabilities(facts: dict) -> list[LineItemRow]:
 
 def _line_items(facts: dict) -> list[LineItemRow]:
     rows = [
-        LineItemRow(item.name, end, value, accn, False)
+        LineItemRow(item.name, end, value, accn, "")
         for item in ITEMS.values()
         for end, value, accn in _annual_values(facts, item)
     ]
@@ -111,7 +111,7 @@ def balance_checks(facts: dict) -> list[BalanceCheck]:
 
     checks = []
     for end in sorted(assets.keys() & liabilities.keys() & equity.keys()):
-        derived = liabilities[end].derived
+        derived = bool(liabilities[end].derivation)
         other_side = reported_total[end] if derived else liabilities[end].value + equity[end].value
         difference = assets[end].value - other_side
         passed = abs(difference) <= BALANCE_TOLERANCE * abs(assets[end].value)

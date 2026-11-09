@@ -19,7 +19,7 @@ CREATE_TABLE = """
         value DOUBLE NOT NULL,
         unit VARCHAR NOT NULL,
         accn VARCHAR NOT NULL,
-        derived BOOLEAN NOT NULL,
+        derivation VARCHAR NOT NULL,
         loaded_at TIMESTAMP NOT NULL,
         PRIMARY KEY (ticker, item, fiscal_year_end)
     )
@@ -33,7 +33,7 @@ class StoredLineItem(NamedTuple):
     value: float
     unit: str
     accn: str
-    derived: bool
+    derivation: str  # empty = as reported, otherwise how we calculated the value
     loaded_at: datetime
 
 
@@ -59,7 +59,7 @@ def load_company(ticker: str) -> int:
         connection.executemany(
             "INSERT INTO line_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                (ticker, r.item, r.fiscal_year_end, r.value, ITEMS[r.item].unit, r.accn, r.derived, loaded_at)
+                (ticker, r.item, r.fiscal_year_end, r.value, ITEMS[r.item].unit, r.accn, r.derivation, loaded_at)
                 for r in rows
             ],
         )
