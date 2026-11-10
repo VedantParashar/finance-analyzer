@@ -12,6 +12,9 @@ from finance_analyzer.schema import (
     ITEMS,
     LIABILITIES_AND_EQUITY,
     LONG_TERM_DEBT_LAST_RESORT,
+    MARKETABLE_SECURITIES_ANY_TERM,
+    MARKETABLE_SECURITIES_NONCURRENT,
+    OTHER_SHORT_TERM_INVESTMENTS,
     SHORT_TERM_BORROWING_PARTS,
     SHORT_TERM_BORROWINGS,
     TEMPORARY_EQUITY_PARTS,
@@ -193,6 +196,31 @@ def _short_term_debt_rows(facts: dict) -> list[LineItemRow]:
     return rows
 
 
+def _short_term_investments_rows(facts: dict) -> list[LineItemRow]:
+    """Marketable securities plus other short-term investments, which can be separate balance sheet lines."""
+    securities = _by_end(facts, ITEMS["short_term_investments"])
+    any_term = _by_end(facts, MARKETABLE_SECURITIES_ANY_TERM)
+    noncurrent = _by_end(facts, MARKETABLE_SECURITIES_NONCURRENT)
+    investments = _by_end(facts, OTHER_SHORT_TERM_INVESTMENTS)
+
+    rows = []
+    for end in securities.keys() | any_term.keys() | investments.keys():
+        marketable, derivation = securities.get(end), ""
+        if marketable is None and end in any_term and end not in noncurrent:
+            marketable, derivation = any_term[end], "MarketableSecurities assumed current"
+        other = investments.get(end)
+        if marketable is not None and other is not None and marketable[0] != other[0]:
+            value, accn = marketable[0] + other[0], marketable[1]
+            derivation = "short-term investments = marketable securities + short-term investments"
+        elif marketable is not None or other is not None:
+            # Equal values in both groups are one line tagged twice (Tesla FY2021), so count it once.
+            value, accn = marketable if marketable is not None else other
+        else:
+            continue  # only MarketableSecurities, in a year it may include long-dated securities
+        rows.append(LineItemRow("short_term_investments", end, value, accn, derivation))
+    return rows
+
+
 def _long_term_debt_rows(facts: dict) -> list[LineItemRow]:
     """Non-current debt, falling back to the ambiguous LongTermDebt tag only where nothing else exists."""
     rows = _item_rows(facts, ITEMS["long_term_debt"])
@@ -230,6 +258,7 @@ def _line_items(facts: dict) -> list[LineItemRow]:
     built_from_parts = {
         "temporary_equity": _temporary_equity_rows,
         "short_term_debt": _short_term_debt_rows,
+        "short_term_investments": _short_term_investments_rows,
         "long_term_debt": _long_term_debt_rows,
     }
     rows = [

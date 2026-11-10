@@ -66,7 +66,14 @@ ITEMS = {
         LineItem("diluted_shares", ("WeightedAverageNumberOfDilutedSharesOutstanding",), "shares", "flow"),
         # Balance sheet
         LineItem("cash", ("CashAndCashEquivalentsAtCarryingValue",), "USD", "instant"),
-        LineItem("short_term_investments", ("MarketableSecuritiesCurrent",), "USD", "instant"),
+        LineItem(
+            # Marketable securities; built together with OTHER_SHORT_TERM_INVESTMENTS, which some
+            # companies (KO) show as a separate balance sheet line.
+            "short_term_investments",
+            ("MarketableSecuritiesCurrent",),
+            "USD",
+            "instant",
+        ),
         LineItem("inventory", ("InventoryNet",), "USD", "instant"),
         LineItem("current_assets", ("AssetsCurrent",), "USD", "instant"),
         LineItem("total_assets", ("Assets",), "USD", "instant"),
@@ -161,6 +168,17 @@ CURRENT_MATURITIES_OF_LONG_TERM_DEBT = LineItem(
     ("LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
     "USD",
     "instant",
+)
+
+# Short-term investment parts. MarketableSecurities has meant the current line wherever we've seen it
+# (KO after FY2020, NVDA), but could be the total at a company that also holds long-dated securities,
+# so it's only used in years with no MarketableSecuritiesNoncurrent.
+MARKETABLE_SECURITIES_ANY_TERM = LineItem("marketable securities", ("MarketableSecurities",), "USD", "instant")
+MARKETABLE_SECURITIES_NONCURRENT = LineItem(
+    "non-current marketable securities", ("MarketableSecuritiesNoncurrent",), "USD", "instant"
+)
+OTHER_SHORT_TERM_INVESTMENTS = LineItem(
+    "short-term investments", ("ShortTermInvestments", "OtherShortTermInvestments"), "USD", "instant"
 )
 
 # Usually means total debt including the current part (Apple, KO, NVDA), but Tesla uses it for

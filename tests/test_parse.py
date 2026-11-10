@@ -393,6 +393,43 @@ def test_share_counts_multiply_across_a_split():
     assert rows_for(facts, "diluted_shares") == [(200, "A", "split-adjusted ×2"), (220, "B", "")]
 
 
+def test_separate_investment_lines_are_added():
+    # Like KO FY2025: "Marketable securities" and "Short-term investments" are two lines.
+    facts = company(
+        MarketableSecurities=[instant(YEAR_END, 1934, FILED, "K")],
+        OtherShortTermInvestments=[instant(YEAR_END, 3602, FILED, "K")],
+    )
+    derivation = "short-term investments = marketable securities + short-term investments"
+    assert rows_for(facts, "short_term_investments") == [(5536, "K", derivation)]
+
+
+def test_one_investment_line_tagged_twice_counts_once():
+    # Like Tesla FY2021: the same 131 under both tags.
+    facts = company(
+        MarketableSecuritiesCurrent=[instant(YEAR_END, 131, FILED, "T")],
+        ShortTermInvestments=[instant(YEAR_END, 131, FILED, "T")],
+    )
+    assert rows_for(facts, "short_term_investments") == [(131, "T", "")]
+
+
+def test_marketable_securities_fallback_is_labelled():
+    facts = company(MarketableSecurities=[instant(YEAR_END, 2348, FILED, "K")])
+    assert rows_for(facts, "short_term_investments") == [(2348, "K", "MarketableSecurities assumed current")]
+
+
+def test_marketable_securities_fallback_skipped_when_long_dated_securities_exist():
+    facts = company(
+        MarketableSecurities=[instant(YEAR_END, 100, FILED, "A")],  # could be current + non-current
+        MarketableSecuritiesNoncurrent=[instant(YEAR_END, 80, FILED, "A")],
+    )
+    assert rows_for(facts, "short_term_investments") == []
+
+
+def test_single_investment_tag_is_as_reported():
+    facts = company(ShortTermInvestments=[instant(YEAR_END, 27546, FILED, "T")])
+    assert rows_for(facts, "short_term_investments") == [(27546, "T", "")]
+
+
 def test_instants_need_a_flow_to_define_year_ends():
     facts = {"facts": {"us-gaap": {"Assets": {"units": {"USD": [instant("2018-09-29", 5, "2018-11-05", "A")]}}}}}
     assert _annual_values(facts, ITEMS["total_assets"]) == []
