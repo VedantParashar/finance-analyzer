@@ -7,7 +7,7 @@ from datetime import date
 from typing import NamedTuple
 
 from finance_analyzer.edgar import fetch_company_facts
-from finance_analyzer.schema import ITEMS, LIABILITIES_AND_EQUITY, LineItem
+from finance_analyzer.schema import ITEMS, LIABILITIES_AND_EQUITY, TEMPORARY_EQUITY_PARTS, LineItem
 
 BALANCE_TOLERANCE = 0.001  # 0.1% of total assets, so small rounding differences still pass
 SPLIT_NET_INCOME_TOLERANCE = 0.01  # 1%: real splits can arrive alongside small restatements
@@ -124,15 +124,38 @@ def annual_revenue(facts: dict) -> list[tuple[str, int, str]]:
     return _annual_values(facts, ITEMS["revenue"])
 
 
+def _temporary_equity_rows(facts: dict) -> list[LineItemRow]:
+    """Temporary equity: the sum of its two parts, or the total tag when neither part is reported."""
+    minority, parent = (
+        {end: (value, accn) for end, value, accn in _annual_values(facts, part)} for part in TEMPORARY_EQUITY_PARTS
+    )
+    from_parts = minority.keys() | parent.keys()
+    rows = [row for row in _item_rows(facts, ITEMS["temporary_equity"]) if row.fiscal_year_end not in from_parts]
+    for end in from_parts:
+        if end in minority and end in parent:
+            value, accn = minority[end][0] + parent[end][0], minority[end][1]
+            derivation = "temporary equity = redeemable minority interest + parent's temporary equity"
+        else:
+            (value, accn), derivation = minority.get(end) or parent[end], ""
+        rows.append(LineItemRow("temporary_equity", end, value, accn, derivation))
+    return rows
+
+
 def _derived_liabilities(facts: dict) -> list[LineItemRow]:
-    """Liabilities for year ends that report none: the balance sheet total minus total equity."""
+    """Liabilities for year ends that report none: the balance sheet total minus everything else on that side."""
     reported = {end for end, _, _ in _annual_values(facts, ITEMS["total_liabilities"])}
     equity = {end: value for end, value, _ in _annual_values(facts, ITEMS["total_equity"])}
-    return [
-        LineItemRow("total_liabilities", end, total - equity[end], accn, "liabilities = total − equity")
-        for end, total, accn in _annual_values(facts, LIABILITIES_AND_EQUITY)
-        if end not in reported and end in equity
-    ]
+    temporary = {row.fiscal_year_end: row.value for row in _temporary_equity_rows(facts)}
+    rows = []
+    for end, total, accn in _annual_values(facts, LIABILITIES_AND_EQUITY):
+        if end in reported or end not in equity:
+            continue
+        if temporary.get(end):
+            value, derivation = total - equity[end] - temporary[end], "liabilities = total − equity − temporary equity"
+        else:
+            value, derivation = total - equity[end], "liabilities = total − equity"
+        rows.append(LineItemRow("total_liabilities", end, value, accn, derivation))
+    return rows
 
 
 def _item_rows(facts: dict, item: LineItem) -> list[LineItemRow]:
@@ -151,8 +174,13 @@ def _item_rows(facts: dict, item: LineItem) -> list[LineItemRow]:
 
 
 def _line_items(facts: dict) -> list[LineItemRow]:
-    rows = [row for item in ITEMS.values() for row in _item_rows(facts, item)]
-    rows += _derived_liabilities(facts)
+    rows = [
+        row
+        for item in ITEMS.values()
+        if item.name != "temporary_equity"  # built from its parts below
+        for row in _item_rows(facts, item)
+    ]
+    rows += _temporary_equity_rows(facts) + _derived_liabilities(facts)
     order = list(ITEMS)
     return sorted(rows, key=lambda row: (order.index(row.item), row.fiscal_year_end))
 
@@ -165,8 +193,9 @@ def annual_line_items(ticker: str) -> list[LineItemRow]:
 def balance_checks(facts: dict) -> list[BalanceCheck]:
     """Check each year's balance sheet adds up, oldest year first.
 
-    Derived liabilities make assets = liabilities + equity true by construction,
-    so those years are checked against the reported balance sheet total instead.
+    Reported liabilities: assets = liabilities + temporary equity + total equity.
+    Derived liabilities make that true by construction, so those years are checked
+    against the reported balance sheet total instead.
     """
     rows = _line_items(facts)
 
@@ -174,12 +203,14 @@ def balance_checks(facts: dict) -> list[BalanceCheck]:
         return {row.fiscal_year_end: row for row in rows if row.item == name}
 
     assets, liabilities, equity = by_end("total_assets"), by_end("total_liabilities"), by_end("total_equity")
+    temporary = {end: row.value for end, row in by_end("temporary_equity").items()}
     reported_total = {end: value for end, value, _ in _annual_values(facts, LIABILITIES_AND_EQUITY)}
 
     checks = []
     for end in sorted(assets.keys() & liabilities.keys() & equity.keys()):
         derived = bool(liabilities[end].derivation)
-        other_side = reported_total[end] if derived else liabilities[end].value + equity[end].value
+        reported_sum = liabilities[end].value + temporary.get(end, 0) + equity[end].value
+        other_side = reported_total[end] if derived else reported_sum
         difference = assets[end].value - other_side
         passed = abs(difference) <= BALANCE_TOLERANCE * abs(assets[end].value)
         checks.append(BalanceCheck(end, passed, difference, derived))

@@ -278,6 +278,66 @@ def test_splits_do_not_touch_dollar_items():
     assert revenue == [(800, ""), (900, "")]
 
 
+SUM_OF_PARTS = "temporary equity = redeemable minority interest + parent's temporary equity"
+
+
+def temporary_equity(facts):
+    return [row for row in _line_items(facts) if row.item == "temporary_equity"]
+
+
+def test_temporary_equity_adds_both_parts_and_balances():
+    # Like Tesla FY2020: the "including" total tag leaves out the parent's part.
+    facts = company(
+        Assets=[instant(YEAR_END, 1000, FILED, "A")],
+        Liabilities=[instant(YEAR_END, 600, FILED, "A")],
+        StockholdersEquity=[instant(YEAR_END, 335, FILED, "A")],
+        RedeemableNoncontrollingInterestEquityCarryingAmount=[instant(YEAR_END, 60, FILED, "A")],
+        TemporaryEquityCarryingAmountAttributableToParent=[instant(YEAR_END, 5, FILED, "A")],
+        TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests=[
+            instant(YEAR_END, 60, FILED, "A")
+        ],
+    )
+    assert temporary_equity(facts) == [("temporary_equity", YEAR_END, 65, "A", SUM_OF_PARTS)]
+    assert balance_checks(facts) == [(YEAR_END, True, 0, False)]
+
+
+def test_temporary_equity_from_one_part_is_as_reported():
+    facts = company(TemporaryEquityValueExcludingAdditionalPaidInCapital=[instant(YEAR_END, 87, FILED, "N")])
+    assert temporary_equity(facts) == [("temporary_equity", YEAR_END, 87, "N", "")]
+
+
+def test_temporary_equity_total_tag_used_only_without_parts():
+    facts = company(
+        TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests=[
+            instant(YEAR_END, 40, FILED, "T")
+        ]
+    )
+    assert temporary_equity(facts) == [("temporary_equity", YEAR_END, 40, "T", "")]
+
+
+def test_derived_liabilities_subtract_temporary_equity():
+    facts = company(
+        Assets=[instant(YEAR_END, 1000, FILED, "A")],
+        LiabilitiesAndStockholdersEquity=[instant(YEAR_END, 1000, FILED, "BS")],
+        StockholdersEquity=[instant(YEAR_END, 300, FILED, "EQ")],
+        RedeemableNoncontrollingInterestEquityCarryingAmount=[instant(YEAR_END, 50, FILED, "BS")],
+    )
+    liabilities = [row for row in _line_items(facts) if row.item == "total_liabilities"]
+    assert liabilities == [
+        ("total_liabilities", YEAR_END, 650, "BS", "liabilities = total − equity − temporary equity")
+    ]
+    assert balance_checks(facts) == [(YEAR_END, True, 0, True)]
+
+
+def test_unexplained_gap_still_fails():
+    facts = company(
+        Assets=[instant(YEAR_END, 1000, FILED, "A")],
+        Liabilities=[instant(YEAR_END, 600, FILED, "A")],
+        StockholdersEquity=[instant(YEAR_END, 335, FILED, "A")],
+    )
+    assert balance_checks(facts) == [(YEAR_END, False, 65, False)]
+
+
 def test_instants_need_a_flow_to_define_year_ends():
     facts = {"facts": {"us-gaap": {"Assets": {"units": {"USD": [instant("2018-09-29", 5, "2018-11-05", "A")]}}}}}
     assert _annual_values(facts, ITEMS["total_assets"]) == []
