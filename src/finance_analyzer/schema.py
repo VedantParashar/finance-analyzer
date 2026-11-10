@@ -15,6 +15,7 @@ class LineItem:
 ITEMS = {
     item.name: item
     for item in (
+        # Income statement
         LineItem(
             "revenue",
             (
@@ -35,6 +36,23 @@ ITEMS = {
         ),
         LineItem("operating_income", ("OperatingIncomeLoss",), "USD", "flow"),
         LineItem(
+            "interest_expense",
+            # Many companies moved to the "Nonoperating" tag in 2022-23.
+            ("InterestExpense", "InterestExpenseNonoperating", "InterestExpenseDebt"),
+            "USD",
+            "flow",
+        ),
+        LineItem(
+            "pretax_income",
+            (
+                "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+                "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+            ),
+            "USD",
+            "flow",
+        ),
+        LineItem("income_tax", ("IncomeTaxExpenseBenefit",), "USD", "flow"),
+        LineItem(
             "net_income",
             (
                 "NetIncomeLoss",
@@ -44,7 +62,30 @@ ITEMS = {
             "flow",
         ),
         LineItem("diluted_eps", ("EarningsPerShareDiluted",), "USD/shares", "flow"),
+        # Weighted average over the year, as used for EPS, not the count on the last day.
+        LineItem("diluted_shares", ("WeightedAverageNumberOfDilutedSharesOutstanding",), "shares", "flow"),
+        # Balance sheet
+        LineItem("cash", ("CashAndCashEquivalentsAtCarryingValue",), "USD", "instant"),
+        LineItem("short_term_investments", ("MarketableSecuritiesCurrent",), "USD", "instant"),
+        LineItem("inventory", ("InventoryNet",), "USD", "instant"),
+        LineItem("current_assets", ("AssetsCurrent",), "USD", "instant"),
         LineItem("total_assets", ("Assets",), "USD", "instant"),
+        LineItem(
+            # The reported total; when it's missing we add up SHORT_TERM_BORROWINGS (or its parts)
+            # and CURRENT_MATURITIES_OF_LONG_TERM_DEBT.
+            "short_term_debt",
+            ("DebtCurrent",),
+            "USD",
+            "instant",
+        ),
+        LineItem("current_liabilities", ("LiabilitiesCurrent",), "USD", "instant"),
+        LineItem(
+            # LONG_TERM_DEBT_LAST_RESORT fills years where neither tag is reported.
+            "long_term_debt",
+            ("LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations"),
+            "USD",
+            "instant",
+        ),
         LineItem("total_liabilities", ("Liabilities",), "USD", "instant"),
         LineItem(
             # Sits between liabilities and equity: stakes or notes that may have to be paid out in cash.
@@ -67,6 +108,7 @@ ITEMS = {
         ),
         # Parent company's owners only: the right denominator for ROE.
         LineItem("shareholders_equity", ("StockholdersEquity",), "USD", "instant"),
+        # Cash flow statement
         LineItem(
             "operating_cash_flow",
             (
@@ -106,3 +148,21 @@ TEMPORARY_EQUITY_PARTS = (
         "instant",
     ),
 )
+
+# Short-term debt parts, used when DebtCurrent isn't reported.
+# ShortTermBorrowings already includes the two parts after it, so it replaces them, never adds to them.
+SHORT_TERM_BORROWINGS = LineItem("short-term borrowings", ("ShortTermBorrowings",), "USD", "instant")
+SHORT_TERM_BORROWING_PARTS = (
+    LineItem("commercial paper", ("CommercialPaper",), "USD", "instant"),
+    LineItem("other short-term borrowings", ("OtherShortTermBorrowings",), "USD", "instant"),
+)
+CURRENT_MATURITIES_OF_LONG_TERM_DEBT = LineItem(
+    "current maturities of long-term debt",
+    ("LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
+    "USD",
+    "instant",
+)
+
+# Usually means total debt including the current part (Apple, KO, NVDA), but Tesla uses it for
+# the non-current part only. Used only when no non-current tag is reported, and labelled as such.
+LONG_TERM_DEBT_LAST_RESORT = LineItem("long_term_debt", ("LongTermDebt",), "USD", "instant")

@@ -338,6 +338,61 @@ def test_unexplained_gap_still_fails():
     assert balance_checks(facts) == [(YEAR_END, False, 65, False)]
 
 
+def rows_for(facts, name):
+    return [(row.value, row.accn, row.derivation) for row in _line_items(facts) if row.item == name]
+
+
+def test_short_term_debt_uses_reported_total():
+    facts = company(
+        DebtCurrent=[instant(YEAR_END, 999, FILED, "T")],
+        LongTermDebtCurrent=[instant(YEAR_END, 999, FILED, "T")],
+    )
+    assert rows_for(facts, "short_term_debt") == [(999, "T", "")]
+
+
+def test_short_term_debt_adds_parts_when_total_missing():
+    # Like Apple: commercial paper plus the current part of long-term debt.
+    facts = company(
+        CommercialPaper=[instant(YEAR_END, 1997, FILED, "P")],
+        OtherShortTermBorrowings=[instant(YEAR_END, 3, FILED, "P")],
+        LongTermDebtCurrent=[instant(YEAR_END, 9906, FILED, "P")],
+    )
+    derivation = (
+        "short-term debt = commercial paper + other short-term borrowings + current maturities of long-term debt"
+    )
+    assert rows_for(facts, "short_term_debt") == [(11906, "P", derivation)]
+
+
+def test_short_term_borrowings_replace_their_parts():
+    # Like KO 2022: ShortTermBorrowings (2,373) already equals commercial paper + other (2,146 + 227).
+    facts = company(
+        ShortTermBorrowings=[instant(YEAR_END, 2373, FILED, "K")],
+        CommercialPaper=[instant(YEAR_END, 2146, FILED, "K")],
+        OtherShortTermBorrowings=[instant(YEAR_END, 227, FILED, "K")],
+        LongTermDebtAndCapitalLeaseObligationsCurrent=[instant(YEAR_END, 399, FILED, "K")],
+    )
+    derivation = "short-term debt = short-term borrowings + current maturities of long-term debt"
+    assert rows_for(facts, "short_term_debt") == [(2772, "K", derivation)]
+
+
+def test_long_term_debt_tag_is_a_labelled_last_resort():
+    tesla_like = company(LongTermDebt=[instant(YEAR_END, 6584, FILED, "T")])
+    assert rows_for(tesla_like, "long_term_debt") == [(6584, "T", "LongTermDebt assumed non-current")]
+
+    apple_like = company(
+        LongTermDebt=[instant(YEAR_END, 78114, FILED, "A")],  # total: would double count the current part
+        LongTermDebtNoncurrent=[instant(YEAR_END, 68208, FILED, "A")],
+    )
+    assert rows_for(apple_like, "long_term_debt") == [(68208, "A", "")]
+
+
+def test_share_counts_multiply_across_a_split():
+    facts = per_share_company(one_change(9.0, 4.5, 8.0))  # a 2-for-1 seen in filing B
+    shares = [annual(FY1, 100, "A"), annual(FY2, 220, "B")]
+    facts["facts"]["us-gaap"]["WeightedAverageNumberOfDilutedSharesOutstanding"] = {"units": {"shares": shares}}
+    assert rows_for(facts, "diluted_shares") == [(200, "A", "split-adjusted ×2"), (220, "B", "")]
+
+
 def test_instants_need_a_flow_to_define_year_ends():
     facts = {"facts": {"us-gaap": {"Assets": {"units": {"USD": [instant("2018-09-29", 5, "2018-11-05", "A")]}}}}}
     assert _annual_values(facts, ITEMS["total_assets"]) == []

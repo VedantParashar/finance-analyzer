@@ -7,7 +7,16 @@ from datetime import date
 from typing import NamedTuple
 
 from finance_analyzer.edgar import fetch_company_facts
-from finance_analyzer.schema import ITEMS, LIABILITIES_AND_EQUITY, TEMPORARY_EQUITY_PARTS, LineItem
+from finance_analyzer.schema import (
+    CURRENT_MATURITIES_OF_LONG_TERM_DEBT,
+    ITEMS,
+    LIABILITIES_AND_EQUITY,
+    LONG_TERM_DEBT_LAST_RESORT,
+    SHORT_TERM_BORROWING_PARTS,
+    SHORT_TERM_BORROWINGS,
+    TEMPORARY_EQUITY_PARTS,
+    LineItem,
+)
 
 BALANCE_TOLERANCE = 0.001  # 0.1% of total assets, so small rounding differences still pass
 SPLIT_NET_INCOME_TOLERANCE = 0.01  # 1%: real splits can arrive alongside small restatements
@@ -158,29 +167,77 @@ def _derived_liabilities(facts: dict) -> list[LineItemRow]:
     return rows
 
 
+def _by_end(facts: dict, item: LineItem) -> dict[str, tuple[int | float, str]]:
+    return {end: (value, accn) for end, value, accn in _annual_values(facts, item)}
+
+
+def _short_term_debt_rows(facts: dict) -> list[LineItemRow]:
+    """DebtCurrent where reported, otherwise borrowings plus current maturities of long-term debt."""
+    total = _by_end(facts, ITEMS["short_term_debt"])
+    borrowings = _by_end(facts, SHORT_TERM_BORROWINGS)
+    borrowing_parts = [(part.name, _by_end(facts, part)) for part in SHORT_TERM_BORROWING_PARTS]
+    maturities = _by_end(facts, CURRENT_MATURITIES_OF_LONG_TERM_DEBT)
+
+    rows = [LineItemRow("short_term_debt", end, value, accn, "") for end, (value, accn) in total.items()]
+    ends = borrowings.keys() | maturities.keys() | {end for _, part in borrowing_parts for end in part}
+    for end in ends - total.keys():
+        if end in borrowings:
+            parts = [(SHORT_TERM_BORROWINGS.name, borrowings[end])]
+        else:
+            parts = [(name, part[end]) for name, part in borrowing_parts if end in part]
+        if end in maturities:
+            parts.append((CURRENT_MATURITIES_OF_LONG_TERM_DEBT.name, maturities[end]))
+        value = sum(value for _, (value, _) in parts)
+        derivation = "short-term debt = " + " + ".join(name for name, _ in parts)
+        rows.append(LineItemRow("short_term_debt", end, value, parts[0][1][1], derivation))
+    return rows
+
+
+def _long_term_debt_rows(facts: dict) -> list[LineItemRow]:
+    """Non-current debt, falling back to the ambiguous LongTermDebt tag only where nothing else exists."""
+    rows = _item_rows(facts, ITEMS["long_term_debt"])
+    covered = {row.fiscal_year_end for row in rows}
+    rows += [
+        LineItemRow("long_term_debt", end, value, accn, "LongTermDebt assumed non-current")
+        for end, value, accn in _annual_values(facts, LONG_TERM_DEBT_LAST_RESORT)
+        if end not in covered
+    ]
+    return rows
+
+
+def _scale_text(multiplier: float) -> str:
+    return f"split-adjusted ×{multiplier:g}" if multiplier > 1 else f"split-adjusted ÷{1 / multiplier:g}"
+
+
 def _item_rows(facts: dict, item: LineItem) -> list[LineItemRow]:
-    """A line item's rows, with per-share values rescaled to the latest share basis."""
-    splits = _splits(facts, item) if item.unit == "USD/shares" else {}
+    """A line item's rows, with per-share values and share counts rescaled to the latest share basis."""
+    # Splits are detected from EPS; share counts move the opposite way to per-share values.
+    splits = _splits(facts, ITEMS["diluted_eps"]) if item.unit in ("USD/shares", "shares") else {}
     rows = []
     for fact in _annual_facts(facts, item):
         # Only splits first seen in a later filing: this filing already reflects earlier ones.
         factor = math.prod(ratio for filed, ratio in splits.items() if filed > fact["filed"])
         value, derivation = fact["val"], ""
-        if factor != 1:
-            value /= factor
-            derivation = f"split-adjusted ÷{factor:g}" if factor > 1 else f"split-adjusted ×{1 / factor:g}"
+        if factor != 1 and item.unit == "shares":
+            value, derivation = value * factor, _scale_text(factor)
+        elif factor != 1:
+            value, derivation = value / factor, _scale_text(1 / factor)
         rows.append(LineItemRow(item.name, fact["end"], value, fact["accn"], derivation))
     return rows
 
 
 def _line_items(facts: dict) -> list[LineItemRow]:
+    built_from_parts = {
+        "temporary_equity": _temporary_equity_rows,
+        "short_term_debt": _short_term_debt_rows,
+        "long_term_debt": _long_term_debt_rows,
+    }
     rows = [
         row
         for item in ITEMS.values()
-        if item.name != "temporary_equity"  # built from its parts below
-        for row in _item_rows(facts, item)
+        for row in (built_from_parts[item.name](facts) if item.name in built_from_parts else _item_rows(facts, item))
     ]
-    rows += _temporary_equity_rows(facts) + _derived_liabilities(facts)
+    rows += _derived_liabilities(facts)
     order = list(ITEMS)
     return sorted(rows, key=lambda row: (order.index(row.item), row.fiscal_year_end))
 
