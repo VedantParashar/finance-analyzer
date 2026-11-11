@@ -13,3 +13,15 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       # The tests use fake data only, so no SEC_USER_AGENT or network is needed.
       - run: uv run --locked pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t finance-analyzer .
+      # Start the app and wait for Streamlit's health check, so a broken image fails the build.
+      - run: |
+          docker run -d --name app -p 8501:8501 finance-analyzer
+          for i in $(seq 1 30); do curl -sf localhost:8501/_stcore/health && exit 0; sleep 1; done
+          docker logs app
+          exit 1

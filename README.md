@@ -54,6 +54,19 @@ uv run --env-file .env finance-analyzer
 Then open http://localhost:8501. The first view of a company downloads its filings (a few seconds);
 after that it's read from the local database.
 
+### Or with Docker (one command)
+
+With [Docker](https://docs.docker.com/get-docker/) installed and `.env` filled in:
+
+```bash
+docker compose up --build
+```
+
+Then open http://localhost:8501. The database and downloads are kept in `./data`, shared with the
+non-Docker setup. Stop with Ctrl+C.
+
+### Tests
+
 Run the tests (they use fake data, no network needed):
 
 ```bash
