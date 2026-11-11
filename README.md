@@ -31,7 +31,8 @@ Built for finance and business students doing case studies, stock pitches and th
 
 Metrics: gross, operating and net margin · ROE, ROA, ROIC · current and quick ratio · debt/equity,
 interest coverage, equity multiplier · asset turnover · free cash flow and FCF margin · revenue and EPS
-growth (1-year and 3-year CAGR) · DuPont.
+growth (1-year and 3-year CAGR) · DuPont · and, at today's share price, market cap, P/E, P/B, EV/EBIT and
+FCF yield.
 
 ## Setup
 
@@ -87,6 +88,8 @@ flowchart LR
     parse --> store[(store.py<br/>DuckDB file)]
     store --> metrics[metrics.py<br/>ratios + DuPont, pure functions]
     metrics --> app[app.py<br/>Streamlit pages]
+    yahoo[(Yahoo Finance)] --> prices[prices.py<br/>share price + market cap]
+    prices --> app
     metrics --> export[export.py<br/>Excel with live formulas]
     learning[learning.json<br/>meaning, what's good, traps] --> app
 ```
@@ -108,6 +111,9 @@ flowchart LR
 - SEC submissions API (same documentation) for the company name and industry code (SIC),
   used to spot banks and insurers.
 
+- [Yahoo Finance](https://finance.yahoo.com/) through the [yfinance](https://github.com/ranaroussi/yfinance)
+  package for today's share price and market cap. It's unofficial, so it can stop working without notice.
+
 Downloads are cached in `data/cache/` and parsed rows stored in `data/finance.duckdb` (both git-ignored).
 
 ## Limitations
@@ -115,7 +121,9 @@ Downloads are cached in `data/cache/` and parsed rows stored in `data/finance.du
 - **US companies only.** Banks and insurers are out of scope: they get a warning and many ratios show as
   unavailable.
 - **Annual data only** (10-K and 10-K/A), no quarters.
-- **No share price yet**, so no P/E or market cap (planned with yfinance).
+- **Valuation mixes dates:** today's share price against the last full fiscal year (not the last twelve
+  months), so P/E here differs from finance websites. If Yahoo Finance doesn't answer, the five valuation
+  metrics show "unavailable" and everything else still works.
 - **Tag choices are tested on five companies** (AAPL, KO, TSLA, NVDA, JPM), so other companies may report
   an item under a tag we don't read yet. Known data issues:
   - [#1](https://github.com/VedantParashar/finance-analyzer/issues/1) absent items are only treated as zero

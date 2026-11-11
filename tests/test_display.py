@@ -3,13 +3,14 @@ from datetime import date, datetime
 import pytest
 
 from finance_analyzer import display
-from finance_analyzer.metrics import FORMULAS
+from finance_analyzer.metrics import FORMULAS, PRICE_FORMULAS
 from finance_analyzer.parse import BalanceCheck
 from finance_analyzer.store import StoredLineItem
 
 
 def test_every_metric_has_a_label_and_every_grouped_metric_exists():
-    assert display.LABELS.keys() == FORMULAS.keys()
+    assert display.LABELS.keys() == FORMULAS.keys() | PRICE_FORMULAS.keys()
+    assert set(display.PRICE_METRICS) == PRICE_FORMULAS.keys()
     grouped = [name for names in display.GROUPS.values() for name in names]
     assert len(grouped) == len(set(grouped)) and set(grouped) == FORMULAS.keys() - {"dupont"}
 
@@ -22,6 +23,8 @@ def test_every_metric_has_a_label_and_every_grouped_metric_exists():
         ("free_cash_flow", 136_056_000_000, "$136,056M"),
         ("free_cash_flow", -2_500_000, "-$2M"),
         ("roe", None, "—"),
+        ("pe", 27.993, "27.99×"),
+        ("pe", None, "unavailable"),
     ],
 )
 def test_format_metric(name, value, expected):
@@ -98,7 +101,7 @@ def test_year_end_note_names_each_year_end():
 
 
 def test_every_metric_has_learning_text():
-    assert display.LEARNING.keys() == FORMULAS.keys()
+    assert display.LEARNING.keys() == FORMULAS.keys() | PRICE_FORMULAS.keys()
     for name, text in display.LEARNING.items():
         assert text.keys() == {"meaning", "good", "traps"}, name
         assert all(value.strip() for value in text.values()), name

@@ -7,10 +7,11 @@ import httpx
 import plotly.graph_objects as go
 import streamlit as st
 
-from finance_analyzer import display, edgar, export, parse, store
-from finance_analyzer.metrics import FORMULA_TEXT, Metric, company_metrics
+from finance_analyzer import display, edgar, export, parse, prices, store
+from finance_analyzer.metrics import FORMULA_TEXT, Metric, company_metrics, price_metrics
 
 YEARS_SHOWN = 5
+QUOTE_MINUTES = 15  # how long a share price is reused before asking Yahoo Finance again
 
 
 # shortcut: cached for the life of the app, so a reload from the command line needs an app restart
@@ -30,6 +31,23 @@ def balance_checks(ticker: str) -> list[parse.BalanceCheck]:
     """The balance check for each year, from the SEC download already cached on disk by load()."""
     # Re-reads the facts because the check needs the reported balance sheet total, which isn't a stored item.
     return parse.balance_checks(edgar.fetch_company_facts(ticker))
+
+
+# Only successes are cached: an exception passes straight through, so the next page run tries again.
+@st.cache_data(ttl=QUOTE_MINUTES * 60, show_spinner=False)
+def quote(ticker: str) -> prices.Quote:
+    return prices.fetch_quote(ticker)
+
+
+def valuation(ticker: str, rows: list[store.StoredLineItem]) -> tuple[dict[str, Metric], str]:
+    """The price-based metrics, and a sentence saying where the price came from or why there isn't one."""
+    try:
+        latest = quote(ticker)
+    except prices.PriceUnavailable as error:
+        return price_metrics(rows, None), f"Share price unavailable: {error}. The rest of the page doesn't need it."
+    return price_metrics(rows, latest.market_cap), (
+        f"Share price ${latest.price:,.2f} from Yahoo Finance, fetched {latest.fetched_at:%b %-d, %Y at %H:%M} UTC."
+    )
 
 
 def load_or_explain(ticker: str):
@@ -129,6 +147,16 @@ def company_page() -> None:
         for column, name in zip(st.columns(4), names):
             with column:
                 metric_card(name, latest[name], prior.get(name))
+
+    st.subheader("Valuation at today's price")
+    valuation_metrics, price_note = valuation(ticker, rows)
+    st.caption(
+        f"{price_note} Profit, equity, debt and cash flow are from {labels[-1]}, the last full fiscal year, so "
+        "these differ from sites that use the last twelve months."
+    )
+    for column, name in zip(st.columns(5), display.PRICE_METRICS):
+        with column:
+            metric_card(name, valuation_metrics[name], None)
 
     st.subheader("Trends")
     by_key = {(row.item, row.fiscal_year_end): row.value / 1e6 for row in rows}
@@ -235,16 +263,21 @@ def compare_page() -> None:
     st.subheader("Latest fiscal year")
     columns = {ticker: f"{ticker} {display.fiscal_year(end)} ({end:%b %-d})" for ticker, end in latest_ends.items()}
     names = [name for group in display.GROUPS.values() for name in group]
+    latest = {
+        ticker: {**metrics[latest_ends[ticker]], **valuation(ticker, rows)[0]}
+        for ticker, (rows, metrics, _) in companies.items()
+    }
     table, missing = [], []
-    for name in names:
+    for name in names + display.PRICE_METRICS:
         line = {"Metric": display.LABELS[name]}
-        for ticker, (_, metrics, _) in companies.items():
-            metric = metrics[latest_ends[ticker]][name]
+        for ticker in companies:
+            metric = latest[ticker][name]
             line[columns[ticker]] = display.format_metric(name, metric.value)
             if metric.reason:
                 missing.append(f"{display.LABELS[name]}, {ticker}: {metric.reason}")
         table.append(line)
     st.dataframe(table, hide_index=True)
+    st.caption("The last five rows use today's share price from Yahoo Finance; the rest come from the annual reports.")
     if missing:
         with st.expander("Why some values are missing"):
             st.markdown("\n".join(f"- {line}" for line in missing))

@@ -166,6 +166,23 @@ FORMULAS: dict[str, Callable[[_Inputs], float]] = {
     "dupont": _dupont,
 }
 
+def _enterprise_value(m: _Inputs, market_cap: float) -> float:
+    value = market_cap + _total_debt(m) - m.get("cash") - m.get("short_term_investments")
+    m.used["enterprise value"] = value
+    return value
+
+
+# Valuation: today's market cap (from outside the filings) against the latest fiscal year's figures.
+PRICE_FORMULAS: dict[str, Callable[[_Inputs, float], float]] = {
+    "market_cap": lambda m, cap: cap,
+    # Market cap ÷ net income rather than price ÷ EPS: the same ratio, but a stock split after the
+    # year-end changes the price and not the stored EPS, while market cap is unaffected.
+    "pe": lambda m, cap: _divide(cap, m.get("net_income"), "net income"),
+    "pb": lambda m, cap: _divide(cap, m.get("shareholders_equity"), "shareholders' equity"),
+    "ev_ebit": lambda m, cap: _divide(_enterprise_value(m, cap), m.get("operating_income"), "operating income"),
+    "fcf_yield": lambda m, cap: _free_cash_flow(m) / cap,
+}
+
 # The same formulas in words, for showing next to the numbers in Metric.inputs.
 FORMULA_TEXT = {
     "gross_margin": "(revenue − cost of revenue) ÷ revenue",
@@ -189,6 +206,12 @@ FORMULA_TEXT = {
     "eps_cagr_3y": "(diluted EPS ÷ diluted EPS 3 years earlier)^(1/3) − 1",
     "equity_multiplier": "average total assets ÷ average shareholders' equity",
     "dupont": "net margin × asset turnover × equity multiplier (= ROE)",
+    "market_cap": "share price × shares outstanding (from Yahoo Finance)",
+    "pe": "market cap ÷ net income (the same as share price ÷ earnings per share)",
+    "pb": "market cap ÷ shareholders' equity",
+    "ev_ebit": "enterprise value ÷ operating income, where enterprise value = market cap + short-term debt + "
+    "long-term debt − cash − short-term investments",
+    "fcf_yield": "(operating cash flow − capital expenditure) ÷ market cap",
 }
 
 
@@ -204,9 +227,28 @@ def company_metrics(rows: Iterable[StoredLineItem]) -> dict[date, dict[str, Metr
         results[end] = {}
         for name, formula in FORMULAS.items():
             inputs = _Inputs(by_key, reported, years, end)
-            try:
-                value, reason = formula(inputs), ""
-            except _CannotCalculate as error:
-                value, reason = None, str(error)
-            results[end][name] = Metric(value, inputs.used, reason, tuple(inputs.notes))
+            results[end][name] = _run(lambda: formula(inputs), inputs)
+    return results
+
+
+def _run(calculate: Callable[[], float], inputs: _Inputs) -> Metric:
+    try:
+        value, reason = calculate(), ""
+    except _CannotCalculate as error:
+        value, reason = None, str(error)
+    return Metric(value, inputs.used, reason, tuple(inputs.notes))
+
+
+def price_metrics(rows: Iterable[StoredLineItem], market_cap: float | None) -> dict[str, Metric]:
+    """The valuation metrics for the latest fiscal year in the rows; all unavailable without a market cap."""
+    if market_cap is None:
+        return {name: Metric(None, {}, "share price unavailable") for name in PRICE_FORMULAS}
+    rows = list(rows)
+    by_key = {(row.item, row.fiscal_year_end): row for row in rows}
+    years = sorted({row.fiscal_year_end for row in rows})
+    results = {}
+    for name, formula in PRICE_FORMULAS.items():
+        inputs = _Inputs(by_key, {row.item for row in rows}, years, years[-1])
+        inputs.used["market cap"] = market_cap
+        results[name] = _run(lambda: formula(inputs, market_cap), inputs)
     return results

@@ -93,5 +93,30 @@
     "meaning": "Splits ROE into three drivers: net margin (profit per sales dollar) × asset turnover (sales per asset dollar) × equity multiplier (assets per equity dollar). It shows whether a high ROE comes from profitability, efficiency or leverage.",
     "good": "ROE driven by margin and turnover is generally higher quality than ROE driven by a large equity multiplier.",
     "traps": "Because each factor here uses averaged balances, the product equals ROE exactly. Sources that use year-end balances will give slightly different numbers."
+  },
+  "market_cap": {
+    "meaning": "Market capitalisation: what it would cost to buy every share at today's price. It is the stock market's current value for the whole company's equity.",
+    "good": "There is no good or bad size. It tells you what kind of company it is (roughly: under $2 billion small, $2–10 billion mid, above $10 billion large) and is the starting point for every valuation ratio.",
+    "traps": "It moves with the share price every day, while the other numbers on this page come from the last annual report. It values the equity only, ignoring debt (see EV / EBIT). For companies with several share classes, Yahoo's figure may not cover all of them."
+  },
+  "pe": {
+    "meaning": "Price-to-earnings: how many dollars investors pay today for each dollar of last year's profit. A P/E of 20 means the company would take 20 years to earn its price at the current profit level.",
+    "good": "Often 15–25 for established US companies; fast growers trade higher and slow or risky businesses lower. Compare with similar companies and with the company's own history, and always alongside growth.",
+    "traps": "This uses the last full fiscal year's profit, so it will differ from websites that use the last twelve months or analyst forecasts. One-off gains or losses distort it. It shows as unavailable when profit is negative. A low P/E can mean cheap, or that the market expects profits to fall."
+  },
+  "pb": {
+    "meaning": "Price-to-book: the market value of the company compared with shareholders' equity on the balance sheet (what the accounts say the owners' stake is worth).",
+    "good": "Around 1–3 is typical for asset-heavy businesses. Software and brand-led companies are often far higher, because their most valuable assets (code, brands, people) are not on the balance sheet.",
+    "traps": "Share buybacks shrink equity and push P/B up without the company becoming more expensive in any real sense; Apple is an example. It shows as unavailable when equity is zero or negative. It is most useful for banks and other asset-based businesses."
+  },
+  "ev_ebit": {
+    "meaning": "Enterprise value to operating profit. Enterprise value is the price of the whole business: the equity (market cap) plus its debt, minus the cash you would get with it. EBIT (earnings before interest and tax) is operating income.",
+    "good": "Roughly 10–20 for many mature companies; higher for fast growers. Because it includes debt, it compares companies with different amounts of borrowing more fairly than P/E does.",
+    "traps": "Enterprise value here is simplified: it leaves out leases, pensions, preferred shares and minority interests. Debt and cash come from the last annual report, market cap from today. It shows as unavailable when operating income is negative, and the debt figure has the limits noted under debt / equity."
+  },
+  "fcf_yield": {
+    "meaning": "Free cash flow yield: the cash the business produced last year after investment, as a percentage of what the whole company costs today. Think of it as the cash return you would get if you owned all of it.",
+    "good": "Above about 4–5% is often seen as attractive, and it is worth comparing with the yield on government bonds. Fast-growing companies usually have low yields because investors are paying for future cash.",
+    "traps": "Free cash flow swings from year to year with investment and payment timing, so one year can mislead. A very high yield can be a warning that the market expects cash flow to fall. It can be negative."
   }
 }
