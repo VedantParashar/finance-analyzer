@@ -57,6 +57,9 @@ def fetch_company_info(ticker: str) -> dict:
     return {"name": data["name"], "sic": int(data["sic"] or 0), "industry": data["sicDescription"]}
 
 
-def is_bank_or_insurer(sic: int) -> bool:
-    """SIC 6020–6039 are banks and savings institutions, 6311–6411 insurers: out of scope for v1."""
-    return 6020 <= sic <= 6039 or 6311 <= sic <= 6411
+def is_financial(sic: int) -> bool:
+    """SIC 6000–6499: banks, lenders, brokers and insurers, whose statements don't fit the standard ratios.
+
+    Real estate and holding companies (6500–6799) are left out on purpose.
+    """
+    return 6000 <= sic <= 6499

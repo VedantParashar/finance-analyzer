@@ -37,10 +37,10 @@ def load_or_explain(ticker: str):
 
 
 def bank_banner(ticker: str, info: dict) -> None:
-    if edgar.is_bank_or_insurer(info["sic"]):
+    if edgar.is_financial(info["sic"]):
         st.warning(
-            f"{ticker} is classified as {info['industry']} (SIC {info['sic']}). Banks and insurers are outside "
-            "this app's scope: ratios like gross margin, current ratio and ROIC don't apply to them, so many "
+            f"{ticker} is classified as {info['industry']} (SIC {info['sic']}). Banks, brokers and insurers are "
+            "outside this app's scope: ratios like gross margin, current ratio and ROIC don't apply to them, so many "
             "show as unavailable and the rest need care."
         )
 

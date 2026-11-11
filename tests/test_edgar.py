@@ -37,6 +37,18 @@ def test_fetch_company_info_reads_name_and_industry(fake_cache, tmp_path):
     assert edgar.fetch_company_info("AAPL") == {"name": "Apple Inc.", "sic": 3571, "industry": "Electronic Computers"}
 
 
-@pytest.mark.parametrize("sic, expected", [(6021, True), (6035, True), (6331, True), (3571, False), (6199, False)])
-def test_banks_and_insurers_by_sic(sic, expected):
-    assert edgar.is_bank_or_insurer(sic) is expected
+@pytest.mark.parametrize(
+    "sic, expected",
+    [
+        (6021, True),  # JPMorgan: national commercial bank
+        (6211, True),  # Goldman Sachs: security broker/dealer
+        (6331, True),  # Berkshire Hathaway: fire, marine & casualty insurance
+        (6000, True),
+        (6499, True),
+        (5999, False),
+        (6500, False),  # real estate starts here
+        (3571, False),  # Apple
+    ],
+)
+def test_financial_companies_by_sic(sic, expected):
+    assert edgar.is_financial(sic) is expected
