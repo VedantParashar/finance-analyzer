@@ -362,3 +362,39 @@ closed once the next branch exists.
   them means running the app and saving two browser screenshots.
 - **2026-11-11 · outcome:** both images checked by eye, no errors on either page. README's placeholder
   note removed; the image links already pointed at these paths. 148 tests pass.
+
+---
+
+# Session 3 (queue of 4)
+
+Same rules and format as session 2.
+
+## S3 Task 1 — Docs and access
+
+- **2026-11-11 · blocked, not done:** "commit the LEARNING.md I placed in the repo". The only
+  `LEARNING.md` on disk is byte-for-byte the one already committed on Nov 6 (git shows no change), and
+  no other copy was found in the repo, Downloads, Desktop or Documents. Nothing to commit.
+  **Rejected:** writing one myself (the instruction was "as-is"). The suggested entries from session 2
+  are still in this log under S2 tasks 4, 5 and 6.
+- **2026-11-11 · decision:** README now opens with a "Try it" badge button and the live link, then
+  "Use it online", "Run it on your computer" (uv, Docker), "Supported companies" (a four-row table:
+  works, works with a warning, may have gaps, doesn't work yet) and "Report a problem". The test
+  instructions moved to CONTRIBUTING.md. The badge image is served by shields.io.
+- **2026-11-11 · note:** `curl` to the live URL gets a redirect to Streamlit's login handshake, which
+  public apps also do, so I couldn't confirm from here that the app is set to public. The README says
+  hosted apps go to sleep when unused (well known for Community Cloud, not in the docs I read).
+- **2026-11-11 · decision:** CHANGELOG.md has one entry, 1.0.0 dated 2026-11-11, grouped as data,
+  metrics, screens, data checks, project and known limits. `pyproject.toml` version went 0.1.0 → 1.0.0
+  (and `uv.lock` with it) so the package agrees with the changelog. **Not done:** a git tag or GitHub
+  release (not asked for; it would be created from master, which is yours).
+- **2026-11-11 · decision:** issue templates are GitHub's form format (`.yml`), so ticker and screenshot
+  are required fields on a bug report. They apply the existing `bug` and `enhancement` labels.
+- **2026-11-11 · decision:** repo settings changed with `gh repo edit` (this is live now, not part of
+  the PR): description "Free app that helps students analyse and compare public companies from SEC
+  filings, and teaches what every ratio means."; homepage https://datadough.streamlit.app; topics
+  finance, financial-analysis, fundamental-analysis, sec-edgar, xbrl, streamlit, duckdb, python,
+  education, students.
+- **2026-11-11 · note for the owner:** the `.devcontainer/devcontainer.json` you added uses Python 3.11
+  and installs from `requirements.txt`; this project needs Python 3.12 and has no `requirements.txt`,
+  so a Codespace would fail to start the app. Left untouched.
+- **2026-11-11 · outcome:** docs only; 148 tests pass, `uv lock --check` clean.

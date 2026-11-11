@@ -1,0 +1,52 @@
+name: Bug report
+description: A wrong number, a missing value or an error in the app
+labels: ["bug"]
+body:
+  - type: input
+    id: ticker
+    attributes:
+      label: Ticker
+      description: Which company (or companies) were you looking at?
+      placeholder: e.g. AAPL
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      options:
+        - Online (datadough.streamlit.app)
+        - On my computer
+    validations:
+      required: true
+  - type: dropdown
+    id: page
+    attributes:
+      label: Page
+      options:
+        - Company
+        - Compare
+        - Excel export
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What went wrong?
+      description: Which line item or metric, which year, and what you saw.
+      placeholder: "Interest coverage for FY2025 shows — but the 10-K reports interest expense of $1.2bn."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: The right value and where it comes from (a link to the filing helps a lot).
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Drag an image into this box. Please include the part of the page with the problem.
+    validations:
+      required: true
