@@ -9,8 +9,6 @@ Built for finance and business students doing case studies, stock pitches and th
 
 ## Screenshots
 
-> _Placeholders: add images to `docs/screenshots/` and they'll show here._
-
 | Company page | Compare page |
 |---|---|
 | ![Company page](docs/screenshots/company.png) | ![Compare page](docs/screenshots/compare.png) |
