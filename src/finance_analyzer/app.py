@@ -7,7 +7,7 @@ import httpx
 import plotly.graph_objects as go
 import streamlit as st
 
-from finance_analyzer import display, edgar, export, store
+from finance_analyzer import display, edgar, export, parse, store
 from finance_analyzer.metrics import FORMULA_TEXT, Metric, company_metrics
 
 YEARS_SHOWN = 5
@@ -23,6 +23,13 @@ def load(ticker: str) -> tuple[list[store.StoredLineItem], dict, dict]:
         store.load_company(ticker)
         rows = store.get_company(ticker)
     return rows, company_metrics(rows), info
+
+
+@st.cache_data(show_spinner=False)
+def balance_checks(ticker: str) -> list[parse.BalanceCheck]:
+    """The balance check for each year, from the SEC download already cached on disk by load()."""
+    # Re-reads the facts because the check needs the reported balance sheet total, which isn't a stored item.
+    return parse.balance_checks(edgar.fetch_company_facts(ticker))
 
 
 def load_or_explain(ticker: str):
@@ -150,6 +157,33 @@ def company_page() -> None:
     )
 
     dupont_section(metrics, years, labels)
+    data_checks_section(ticker, rows)
+
+
+def data_checks_section(ticker: str, rows: list[store.StoredLineItem]) -> None:
+    st.subheader("Data checks")
+    st.caption(
+        "Two checks on the downloaded data, for every year stored (not just the five shown above): "
+        "does the balance sheet add up, and is any year missing? The oldest year usually can't be checked: "
+        "a company's first filings in this format repeat earlier income statements but not the balance sheet."
+    )
+    table = display.balance_check_table(rows, balance_checks(ticker))
+    gaps = display.missing_years(sorted({row.fiscal_year_end for row in rows}))
+    results = [line["Assets = liabilities + equity"] for line in table]
+    balanced, failed = sum(r.startswith("✓") for r in results), sum(r.startswith("✗") for r in results)
+    unchecked = len(table) - balanced - failed
+    st.markdown(
+        f"{'⚠' if failed else '✓'} **Balance check:** {balanced} of {len(table)} years balance, {failed} "
+        f"{'doesn\'t' if failed == 1 else 'don\'t'}, {unchecked} couldn't be checked."
+    )
+    with st.expander("Balance check by year", expanded=bool(failed)):
+        st.dataframe(table, hide_index=True)
+    if gaps:
+        st.markdown(f"⚠ **Missing years:** {len(gaps)} gap{'s' if len(gaps) > 1 else ''}.")
+        st.markdown("\n".join(f"- {line}" for line in gaps))
+    else:
+        first, last = table[-1]["Fiscal year"], table[0]["Fiscal year"]
+        st.markdown(f"✓ **Missing years:** none, every year from {first} to {last} is stored.")
 
 
 def dupont_section(metrics: dict, years: list, labels: list[str]) -> None:

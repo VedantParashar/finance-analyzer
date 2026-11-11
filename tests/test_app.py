@@ -6,8 +6,8 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-from finance_analyzer import edgar, store
-from finance_analyzer.parse import LineItemRow
+from finance_analyzer import edgar, parse, store
+from finance_analyzer.parse import BalanceCheck, LineItemRow
 from test_metrics import AAPL, M
 
 APP = str(Path(__file__).parents[1] / "src" / "finance_analyzer" / "app.py")
@@ -33,6 +33,10 @@ def parsed_rows(ticker):
 def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "DB_PATH", tmp_path / "test.duckdb")
     monkeypatch.setattr(store, "annual_line_items", parsed_rows)
+    # FY2026 balances, FY2025 is off by $65M; the two older years have no balance sheet at all.
+    checks = [BalanceCheck("2025-09-27", False, 65 * M, False), BalanceCheck("2026-09-26", True, 0, False)]
+    monkeypatch.setattr(edgar, "fetch_company_facts", lambda ticker: {})
+    monkeypatch.setattr(parse, "balance_checks", lambda facts: checks)
     monkeypatch.setattr(edgar, "fetch_company_info", lambda ticker: INFO[ticker] if ticker in INFO else parsed_rows(ticker))
     st.cache_data.clear()
 
@@ -52,12 +56,23 @@ def test_company_page_loads_and_shows_every_section():
     assert not app.exception and not app.error
     assert store.get_company("AAPL"), "the company was saved on first view"
     assert app.header[0].value == "Apple Inc. (AAPL)"
-    assert [s.value for s in app.subheader] == ["Line items", "Metrics for FY2026", "Trends", "DuPont breakdown"]
+    assert [s.value for s in app.subheader] == [
+        "Line items", "Metrics for FY2026", "Trends", "DuPont breakdown", "Data checks"
+    ]
     assert len(app.metric) == 18 + 4  # every grouped metric card plus the four DuPont tiles
     assert "Not available: interest_expense not reported for FY2026" in [c.value for c in app.caption]
     assert not app.warning
     assert app.get("download_button"), "Excel export offered"
     assert any("What it means" in m.value for m in app.markdown), "learning text on the cards"
+
+
+def test_company_page_shows_the_data_checks():
+    app = company("AAPL")
+    markdown = [m.value for m in app.markdown]
+    assert "⚠ **Balance check:** 1 of 4 years balance, 1 doesn't, 2 couldn't be checked." in markdown
+    assert "✓ **Missing years:** none, every year from FY2023 to FY2026 is stored." in markdown
+    checks = app.dataframe[-1].value
+    assert list(checks["Assets = liabilities + equity"]) == ["✓ Balances", "✗ Doesn't balance", "Not checked", "Not checked"]
 
 
 @pytest.mark.parametrize("ticker", ["JPM", "GS", "BRK-B"])
