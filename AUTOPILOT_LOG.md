@@ -25,3 +25,32 @@ Format: date · task · decision · why · alternatives rejected.
   **Why:** later tasks need earlier code (the compare page needs app.py). **Rejected:** branching every
   task from master (would leave tasks 4–6 without the code they build on); stopping the queue.
   The owner merges the stack in order (see the summary at the top).
+
+## Task 3 — Single-company Streamlit page
+
+- **2026-11-11 · decision:** app lives at `src/finance_analyzer/app.py`; `uv run finance-analyzer` now
+  starts it (was a hello-world). **Why:** keeps all code in the package and keeps the run command in
+  CLAUDE.md working. **Rejected:** `app.py` at the repo root (a second code location).
+- **2026-11-11 · decision:** bank/insurer detection by SEC SIC code (6020–6039 banks, 6311–6411
+  insurers) from the SEC submissions API, read through the existing disk cache. **Why:** the SEC's own
+  classification, no extra service. **Rejected:** a `companies` table in DuckDB (the disk cache already
+  means one download per company); a hard-coded ticker list. **Risk:** a bank holding company filed
+  under another code (e.g. 6199, 6719) won't get the banner.
+- **2026-11-11 · decision:** formula text in `metrics.py` (`FORMULA_TEXT`) beside `FORMULAS`, with a
+  test that the keys match. Formatting lives in a new Streamlit-free `display.py` so it's unit-tested.
+- **2026-11-11 · decision:** the formula expander shows the formula in words, then every entry of
+  `Metric.inputs` with its value, then the result. **Why:** generic for all 19 metrics. **Rejected:**
+  hand-written substituted formulas per metric (19 templates to keep in sync).
+- **2026-11-11 · decision:** YoY change shown as percentage points for ratios, × for multiples, % for
+  free cash flow; debt/equity colours a rise red.
+- **2026-11-11 · decision:** one `st.cache_data` function returns rows, metrics and company info, and
+  loads from the SEC on first view. Cached for the app's lifetime (shortcut comment in code; matches
+  issue #4). Errors (unknown ticker, no `SEC_USER_AGENT`, network) show as `st.error`, never a crash.
+- **2026-11-11 · decision:** `.streamlit/config.toml` turns off Streamlit's anonymous usage statistics.
+  **Why:** the app should keep everything local.
+- **2026-11-11 · decision:** didn't edit `LEARNING.md` (the owner's own notes). Suggested entries:
+  Streamlit (Python script → web page, reruns top to bottom on every click), Plotly (interactive
+  charts), `st.cache_data` (remembers a function's result), SIC code (the SEC's 4-digit industry code).
+- **2026-11-11 · outcome:** 108 tests pass, including 4 `AppTest` smoke tests (offline, temp database).
+  Rendered against the real database: AAPL, KO, TSLA, NVDA, JPM all load with no exception; JPM shows
+  the banner. `uv run finance-analyzer --server.headless true` starts and `/_stcore/health` returns ok.
