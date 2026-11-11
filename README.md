@@ -133,4 +133,4 @@ Downloads are cached in `data/cache/` and parsed rows stored in `data/finance.du
 
 ## License
 
-No license chosen yet.
+[MIT](LICENSE): free to use, change and share, as long as the copyright notice stays with it.
