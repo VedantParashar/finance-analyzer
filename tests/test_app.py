@@ -1,5 +1,6 @@
 """Smoke tests: run the real pages against a temporary database, with no network."""
 
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -168,3 +169,18 @@ def test_compare_shows_table_and_chart_for_each_company():
 def test_compare_reports_an_unknown_ticker():
     app = compare("AAPL NOPE")
     assert not app.exception and "Unknown ticker" in app.error[0].value
+
+
+def test_cloud_entry_point_runs_the_same_app():
+    app = AppTest.from_file(str(Path(__file__).parents[1] / "streamlit_app.py"), default_timeout=30).run()
+    assert not app.exception and "Enter a US stock ticker" in app.info[0].value
+
+
+def test_sec_user_agent_comes_from_secrets_before_the_environment(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "From env env@example.com")
+    AppTest.from_file(APP).run()
+    assert os.environ["SEC_USER_AGENT"] == "From env env@example.com", "no secret set: the environment is used"
+    app = AppTest.from_file(APP)
+    app.secrets["SEC_USER_AGENT"] = "From secrets secrets@example.com"
+    app.run()
+    assert not app.exception and os.environ["SEC_USER_AGENT"] == "From secrets secrets@example.com"
