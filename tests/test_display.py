@@ -83,10 +83,6 @@ def test_line_item_table_marks_derived_values_and_gaps():
     assert derivations == ["Total liabilities, FY2025: liabilities = total − equity"]
 
 
-def test_parse_tickers():
-    assert display.parse_tickers(" aapl, KO nvda,,ko ") == ["AAPL", "KO", "NVDA"]
-
-
 def test_year_end_note_ignores_52_53_week_drift():
     assert display.year_end_note({"AAPL": date(2026, 9, 26), "MSFT": date(2026, 9, 30)}) == ""
     assert display.year_end_note({"KO": date(2025, 12, 31), "NVDA": date(2026, 1, 25)}) == ""

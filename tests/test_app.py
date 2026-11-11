@@ -7,7 +7,9 @@ from pathlib import Path
 import httpx
 import pytest
 import streamlit as st
+from streamlit.proto.WidgetStates_pb2 import WidgetState
 from streamlit.testing.v1 import AppTest
+from streamlit.testing.v1.element_tree import Selectbox
 
 from finance_analyzer import edgar, parse, prices, store
 from finance_analyzer.parse import BalanceCheck, LineItemRow
@@ -22,9 +24,24 @@ INFO = {
 }
 
 
+COMPANIES = [edgar.Company(ticker, info["name"], "0000000001") for ticker, info in INFO.items()] + [
+    edgar.Company("APLE", "Apple Hospitality REIT, Inc.", "0000000002"),  # so "apple" matches two names
+]
+
+
+def typed_or_picked(box):
+    """What the browser sends for a search box: the text, whether picked from the list or typed in.
+
+    AppTest's own version only accepts listed options, so it can't test typed tickers and names.
+    """
+    state = WidgetState()
+    state.id = box.id
+    if box.value is not None:
+        state.string_value = str(box.format_func(box.value))
+    return state
+
+
 def parsed_rows(ticker):
-    if ticker not in INFO:
-        raise ValueError(f"Unknown ticker: {ticker!r}")
     return [
         LineItemRow(item, end.isoformat(), value if item == "diluted_eps" else value * M, "accn", "")
         for end, items in AAPL.items()
@@ -42,18 +59,60 @@ def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(edgar, "fetch_company_facts", lambda ticker: {})
     monkeypatch.setattr(parse, "balance_checks", lambda facts: checks)
     monkeypatch.setattr(prices, "fetch_quote", lambda ticker: prices.Quote(250.0, 3.7e12, datetime(2026, 11, 11, 15, 30)))
-    monkeypatch.setattr(edgar, "fetch_company_info", lambda ticker: INFO[ticker] if ticker in INFO else parsed_rows(ticker))
+    monkeypatch.setattr(edgar, "fetch_company_info", lambda ticker: INFO.get(ticker, INFO["AAPL"]))
+    monkeypatch.setattr(edgar, "list_companies", lambda: COMPANIES)
+    monkeypatch.setattr(Selectbox, "_widget_state", property(typed_or_picked))
     st.cache_data.clear()
 
 
 def company(ticker):
     app = AppTest.from_file(APP, default_timeout=30).run()
-    return app.text_input[0].input(ticker).run()
+    return app.selectbox[0].set_value(ticker).run()
 
 
-def test_empty_page_asks_for_a_ticker():
+def test_empty_page_asks_for_a_company_and_offers_examples():
     app = AppTest.from_file(APP).run()
-    assert not app.exception and "Enter a US stock ticker" in app.info[0].value
+    assert not app.exception and "Search for a company" in app.info[0].value
+    assert [b.label for b in app.button] == ["AAPL"]  # the only example in the test's company list
+    app = app.button[0].click().run()
+    assert not app.exception and app.header[0].value == "Apple Inc. (AAPL)"
+
+
+@pytest.mark.parametrize(
+    "typed, header",
+    [
+        ("AAPL — Apple Inc.", "Apple Inc. (AAPL)"),  # a suggestion picked from the list
+        ("aapl", "Apple Inc. (AAPL)"),
+        ("brk.b", "Berkshire Hathaway Inc (BRK-B)"),
+        ("BRK B", "Berkshire Hathaway Inc (BRK-B)"),
+        ("goldman", "Goldman Sachs Group Inc (GS)"),  # the only company with that word in its name
+    ],
+)
+def test_search_accepts_suggestions_ticker_formats_and_names(typed, header):
+    app = company(typed)
+    assert not app.exception and not app.error and app.header[0].value == header
+
+
+def test_ambiguous_name_asks_which_company():
+    app = company("apple")
+    assert not app.exception and not app.header
+    assert "Did you mean: **AAPL** (Apple Inc.), **APLE** (Apple Hospitality REIT, Inc.)?" in app.warning[0].value
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        edgar.NoFinancialStatements("SPY is listed with the SEC but has no financial statements there."),
+        parse.NoAnnualReports("NEWCO has no annual report (10-K) in the SEC's data."),
+    ],
+)
+def test_fund_or_company_without_annual_reports_gets_its_own_message(monkeypatch, error):
+    def fail(ticker):
+        raise error
+
+    monkeypatch.setattr(store, "annual_line_items", fail)
+    app = company("AAPL")
+    assert not app.exception and app.error[0].value == str(error)
 
 
 def test_company_page_loads_and_shows_every_section():
@@ -133,7 +192,7 @@ def test_financial_company_gets_a_warning(ticker):
 
 def test_unknown_ticker_shows_an_error():
     app = company("NOPE")
-    assert not app.exception and "Unknown ticker" in app.error[0].value
+    assert not app.exception and "No company found for “NOPE”" in app.error[0].value
 
 
 def compare_script():
@@ -144,16 +203,23 @@ def compare_script():
 
 def compare(tickers):
     app = AppTest.from_function(compare_script, default_timeout=30).run()
-    return app.text_input[0].input(tickers).run()
+    return app.multiselect[0].set_value(tickers).run()
 
 
-def test_compare_needs_two_to_four_tickers():
-    assert "Enter 2 to 4 tickers" in compare("AAPL").info[0].value
-    assert "Enter 2 to 4 tickers" in compare("AAPL KO TSLA NVDA JPM").info[0].value
+def test_compare_needs_at_least_two_different_companies():
+    assert "Pick 2 to 4 companies" in compare(["AAPL"]).info[0].value
+    assert "Pick 2 to 4 companies" in compare(["AAPL", "aapl"]).info[0].value
+
+
+def test_compare_example_button_fills_the_search_box():
+    app = AppTest.from_function(compare_script, default_timeout=30).run()
+    assert [b.label for b in app.button] == ["AAPL vs MSFT vs NVDA", "KO vs PEP", "WMT vs COST vs TGT"]
+    app = app.button[0].click().run()
+    assert not app.exception and app.multiselect[0].value == ["AAPL — Apple Inc."]  # the only one in the test list
 
 
 def test_compare_shows_table_and_chart_for_each_company():
-    app = compare("aapl, jpm")
+    app = compare(["aapl", "JPM — JPMorgan Chase & Co."])
     assert not app.exception and not app.error
     assert [s.value for s in app.subheader] == ["Latest fiscal year", "Over time"]
     table = app.dataframe[0].value
@@ -167,13 +233,13 @@ def test_compare_shows_table_and_chart_for_each_company():
 
 
 def test_compare_reports_an_unknown_ticker():
-    app = compare("AAPL NOPE")
-    assert not app.exception and "Unknown ticker" in app.error[0].value
+    app = compare(["AAPL", "NOPE"])
+    assert not app.exception and "No company found for “NOPE”" in app.error[0].value
 
 
 def test_cloud_entry_point_runs_the_same_app():
     app = AppTest.from_file(str(Path(__file__).parents[1] / "streamlit_app.py"), default_timeout=30).run()
-    assert not app.exception and "Enter a US stock ticker" in app.info[0].value
+    assert not app.exception and "Search for a company" in app.info[0].value
 
 
 def test_sec_user_agent_comes_from_secrets_before_the_environment(monkeypatch):

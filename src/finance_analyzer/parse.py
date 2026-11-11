@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from datetime import date
 from typing import NamedTuple
 
-from finance_analyzer.edgar import fetch_company_facts
+from finance_analyzer.edgar import NoFinancialStatements, fetch_company_facts
 from finance_analyzer.schema import (
     CURRENT_MATURITIES_OF_LONG_TERM_DEBT,
     ITEMS,
@@ -271,9 +271,27 @@ def _line_items(facts: dict) -> list[LineItemRow]:
     return sorted(rows, key=lambda row: (order.index(row.item), row.fiscal_year_end))
 
 
+class NoAnnualReports(ValueError):
+    """The company has financial data at the SEC, but none of it comes from an annual report we read."""
+
+
 def annual_line_items(ticker: str) -> list[LineItemRow]:
     """Every standard line item for a ticker, by schema order then oldest year first."""
-    return _line_items(fetch_company_facts(ticker))
+    facts = fetch_company_facts(ticker)
+    name = ticker.strip().upper()
+    if not any(facts.get("facts", {}).get(taxonomy) for taxonomy in ("us-gaap", "ifrs-full")):
+        raise NoFinancialStatements(
+            f"{name} files with the SEC but reports no financial statements as data. "
+            "It's probably an ETF or a fund, which this app can't analyse."
+        )
+    rows = _line_items(facts)
+    if not rows:
+        raise NoAnnualReports(
+            f"{name} has no annual report (10-K) in the SEC's data. That usually means a company that listed "
+            "recently and hasn't filed its first one yet, or a foreign company that files a 20-F or 40-F, "
+            "which this app doesn't read yet."
+        )
+    return rows
 
 
 def balance_checks(facts: dict) -> list[BalanceCheck]:

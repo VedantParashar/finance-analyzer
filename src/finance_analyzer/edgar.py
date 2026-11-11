@@ -4,6 +4,7 @@ import json
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import NamedTuple
 
 import httpx
 
@@ -66,26 +67,94 @@ def _submissions_path(cik: str) -> Path:
     return CACHE_DIR / "submissions" / f"CIK{cik}.json"
 
 
+class Company(NamedTuple):
+    ticker: str  # as the SEC writes it, e.g. "BRK-B"
+    name: str
+    cik: str  # zero-padded to the 10 digits the SEC API expects
+
+
+class UnknownTicker(ValueError):
+    """No company in the SEC's list has this ticker."""
+
+
+class NoFinancialStatements(ValueError):
+    """The SEC lists the ticker but has no financial statement data for it (ETFs, funds, some trusts)."""
+
+
+def list_companies() -> list[Company]:
+    """Every ticker the SEC lists, largest companies first (the SEC's own order)."""
+    companies = _get_json(TICKERS_URL, _tickers_path())
+    return [Company(c["ticker"], c["title"], f"{c['cik_str']:010d}") for c in companies.values()]
+
+
+def _compact(text: str) -> str:
+    """Letters and digits only, uppercased: "BRK.B", "brk b" and "BRK-B" all become "BRKB"."""
+    return "".join(character for character in text.upper() if character.isalnum())
+
+
+def find_ticker(text: str) -> Company | None:
+    """The company whose ticker this is, whatever separator was typed (BRK.B, BRK-B, brk b)."""
+    companies = list_companies()
+    wanted = text.strip().upper()
+    for company in companies:
+        if company.ticker == wanted:  # an exact match wins over a look-alike with other punctuation
+            return company
+    return next((c for c in companies if wanted and _compact(c.ticker) == _compact(wanted)), None)
+
+
+def search_companies(text: str, limit: int = 8) -> list[Company]:
+    """Companies with a name word starting with every word typed, or a ticker starting with it; largest first."""
+    words = _words(text)
+    start = _compact(text)
+    if not start:
+        return []
+
+    def name_matches(company: Company) -> bool:
+        # Word starts, not anywhere in the name, so "apple" finds Apple but not Pineapple.
+        name_words = _words(company.name)
+        return all(any(part.startswith(word) for part in name_words) for word in words)
+
+    matches = [c for c in list_companies() if name_matches(c) or _compact(c.ticker).startswith(start)]
+    return matches[:limit]
+
+
+def _words(text: str) -> list[str]:
+    """Lowercase words with punctuation dropped: "Coca-Cola Co." gives coca, cola, co."""
+    return "".join(character if character.isalnum() else " " for character in text.lower()).split()
+
+
 def get_cik(ticker: str) -> str:
     """Look up a ticker's CIK, zero-padded to the 10 digits the SEC API expects."""
-    companies = _get_json(TICKERS_URL, _tickers_path())
-    wanted = ticker.strip().upper()
-    for company in companies.values():
-        if company["ticker"] == wanted:
-            return f"{company['cik_str']:010d}"
-    raise ValueError(f"Unknown ticker: {ticker!r}")
+    company = find_ticker(ticker)
+    if company is None:
+        raise UnknownTicker(f"No company found for ticker {ticker.strip().upper()!r}.")
+    return company.cik
+
+
+def _update_facts(cik: str, ticker: str) -> None:
+    try:
+        _update_cache(FACTS_URL.format(cik=cik), _facts_path(cik))
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code != 404:
+            raise
+        # The SEC answers "not found" for filers that have never sent financial statements as data.
+        raise NoFinancialStatements(
+            f"{ticker.strip().upper()} is listed with the SEC but has no financial statements there. "
+            "It's probably an ETF or a fund, which this app can't analyse."
+        ) from error
 
 
 def fetch_company_facts(ticker: str) -> dict:
     """Return the SEC company facts JSON for a ticker."""
     cik = get_cik(ticker)
-    return _get_json(FACTS_URL.format(cik=cik), _facts_path(cik))
+    _update_facts(cik, ticker)
+    return json.loads(_facts_path(cik).read_text())
 
 
 def facts_downloaded_at(ticker: str) -> datetime:
     """When the company's facts were last downloaded, downloading them first if missing or too old."""
     cik = get_cik(ticker)
-    _update_cache(FACTS_URL.format(cik=cik), _facts_path(cik))
+    _update_facts(cik, ticker)
     return _downloaded_at(_facts_path(cik))
 
 

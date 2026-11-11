@@ -26,7 +26,7 @@ def test_get_cik_pads_to_ten_digits_and_ignores_case(fake_cache):
 
 
 def test_get_cik_unknown_ticker_raises(fake_cache):
-    with pytest.raises(ValueError, match="Unknown ticker"):
+    with pytest.raises(edgar.UnknownTicker, match="No company found for ticker 'NOPE'"):
         edgar.get_cik("NOPE")
 
 
@@ -118,3 +118,52 @@ def test_failed_refresh_raises_and_keeps_the_old_files(fake_cache, sec):
     with pytest.raises(httpx.ConnectError):
         edgar.refresh("AAPL")
     assert edgar.fetch_company_facts("AAPL") == {"entityName": "Apple Inc."}
+
+
+@pytest.fixture
+def listed(monkeypatch):
+    companies = [
+        edgar.Company("AAPL", "Apple Inc.", "0000320193"),
+        edgar.Company("BRK-B", "BERKSHIRE HATHAWAY INC", "0001067983"),
+        edgar.Company("F", "FORD MOTOR CO", "0000037996"),
+        edgar.Company("SHO.PRI", "Sunstone Hotel Investors, Inc.", "0001295810"),
+        edgar.Company("APLE", "Apple Hospitality REIT, Inc.", "0001418121"),
+        edgar.Company("FORD", "FORWARD INDUSTRIES, INC.", "0000038264"),
+        edgar.Company("MLP", "MAUI LAND & PINEAPPLE CO INC", "0000063330"),
+        edgar.Company("COKE", "Coca-Cola Consolidated, Inc.", "0000317540"),
+    ]
+    monkeypatch.setattr(edgar, "list_companies", lambda: companies)
+
+
+@pytest.mark.parametrize(
+    "typed, ticker",
+    [("BRK-B", "BRK-B"), ("brk.b", "BRK-B"), (" brk b ", "BRK-B"), ("BRK/B", "BRK-B"), ("brkb", "BRK-B"),
+     ("sho.pri", "SHO.PRI"), ("sho-pri", "SHO.PRI"), ("f", "F"), ("ford", "FORD")],
+)
+def test_find_ticker_accepts_any_separator(listed, typed, ticker):
+    assert edgar.find_ticker(typed).ticker == ticker
+
+
+@pytest.mark.parametrize("typed", ["NOPE", "", "  ", ".", "apple"])
+def test_find_ticker_returns_none_when_nothing_matches(listed, typed):
+    assert edgar.find_ticker(typed) is None
+
+
+def test_search_companies_matches_names_and_ticker_starts_in_list_order(listed):
+    assert [c.ticker for c in edgar.search_companies("apple")] == ["AAPL", "APLE"]
+    assert [c.ticker for c in edgar.search_companies("hathaway berkshire")] == ["BRK-B"]  # every word, any order
+    assert [c.ticker for c in edgar.search_companies("for")] == ["F", "FORD"]  # name "FORD MOTOR", ticker "FORD"
+    assert [c.ticker for c in edgar.search_companies("apple", limit=1)] == ["AAPL"]
+    assert [c.ticker for c in edgar.search_companies("coca cola")] == ["COKE"]  # punctuation in the name ignored
+    assert [c.ticker for c in edgar.search_companies("pine")] == ["MLP"]
+    assert edgar.search_companies("zzz") == [] and edgar.search_companies(" ") == []
+
+
+def test_fund_without_statements_gets_a_clear_error(fake_cache, tmp_path, monkeypatch):
+    """The SEC answers 404 for filers with no financial data, such as SPY."""
+    (tmp_path / "companyfacts" / "CIK0000320193.json").unlink()
+    monkeypatch.setenv("SEC_USER_AGENT", "Test test@example.com")
+    not_found = lambda url, **kwargs: httpx.Response(404, request=httpx.Request("GET", url))
+    monkeypatch.setattr(edgar.httpx, "get", not_found)
+    with pytest.raises(edgar.NoFinancialStatements, match="AAPL is listed with the SEC but has no financial statements"):
+        edgar.fetch_company_facts("aapl")
