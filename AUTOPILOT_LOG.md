@@ -187,3 +187,14 @@ closed once the next branch exists.
   the package metadata agrees with the file. **Rejected:** a license header in every source file (MIT
   doesn't need it).
 - **2026-11-11 · outcome:** no code change; 118 tests pass, `uv lock --check` still clean.
+
+## S2 Task 2 — Wider finance banner
+
+- **2026-11-11 · decision:** the banner now covers SIC 6000–6499 (banks, lenders, brokers, insurers).
+  Renamed `is_bank_or_insurer` to `is_financial` and the text to "Banks, brokers and insurers", since
+  Goldman Sachs (6211) is neither a bank nor an insurer by SIC. **Rejected:** going to 6799 (would
+  catch real estate and REITs, which wasn't asked for).
+- **2026-11-11 · note:** Visa (7389) and S&P Global (7320) are filed under business services, so they
+  still get no banner. SIC codes describe how the SEC files a company, not what students call "finance".
+- **2026-11-11 · outcome:** 123 tests pass (boundaries 5999/6000/6499/6500; page test for JPM, GS and
+  BRK-B). Real data: JPM (6021), GS (6211) and BRK-B (6331) all load with the banner; AAPL has none.

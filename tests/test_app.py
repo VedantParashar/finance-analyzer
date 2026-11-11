@@ -14,6 +14,8 @@ APP = str(Path(__file__).parents[1] / "src" / "finance_analyzer" / "app.py")
 INFO = {
     "AAPL": {"name": "Apple Inc.", "sic": 3571, "industry": "Electronic Computers"},
     "JPM": {"name": "JPMorgan Chase & Co.", "sic": 6021, "industry": "National Commercial Banks"},
+    "GS": {"name": "Goldman Sachs Group Inc", "sic": 6211, "industry": "Security Brokers, Dealers & Flotation Companies"},
+    "BRK-B": {"name": "Berkshire Hathaway Inc", "sic": 6331, "industry": "Fire, Marine & Casualty Insurance"},
 }
 
 
@@ -58,9 +60,11 @@ def test_company_page_loads_and_shows_every_section():
     assert any("What it means" in m.value for m in app.markdown), "learning text on the cards"
 
 
-def test_bank_gets_a_warning():
-    app = company("JPM")
-    assert not app.exception and "outside this app's scope" in app.warning[0].value
+@pytest.mark.parametrize("ticker", ["JPM", "GS", "BRK-B"])
+def test_financial_company_gets_a_warning(ticker):
+    app = company(ticker)
+    assert not app.exception and not app.error
+    assert "outside this app's scope" in app.warning[0].value
 
 
 def test_unknown_ticker_shows_an_error():
