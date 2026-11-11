@@ -6,13 +6,8 @@
 every push and PR) · company page · compare page · learning layer · Excel export with live formulas ·
 README · Dockerfile + `docker compose up --build`. 118 tests pass locally and on GitHub Actions.
 
-**Not merged: you need to merge the stack.** `gh pr merge --squash` was blocked by Claude Code's
-permission classifier, so nothing reached master. Each PR targets the previous one's branch:
-#7 (CI) ← #8 (company page) ← #9 (compare) ← #10 (learning) ← #11 (Excel) ← #12 (README) ← #13 (Docker).
-Merge them in that order. Use merge commits (`gh pr merge N --merge --delete-branch`): GitHub then
-retargets the next PR to master and its diff stays clean. Squash-merging a stacked PR rewrites its
-commits, so every later PR would show them again and likely conflict on this log file. To get one
-squash commit for everything instead, retarget #13 to master, squash it, and close #7–#12.
+**Merged:** everything is on master. #7 (CI) was merged first; #8–#12 were closed as included in #13,
+which merged the rest of the stack (company page, compare, learning layer, Excel, README, Docker).
 
 **Left in SPEC v1:** price metrics from yfinance (#15); showing the data checks (balance check,
 missing years) in the UI (#14).
@@ -22,7 +17,8 @@ refreshes · #5 LongTermDebt total vs non-current · #6 NVDA FY2026 short-term i
 in UI · #15 yfinance price metrics.
 
 **The 5 decisions most worth your review:**
-1. **Stacked PRs instead of merges** (above). Nothing is on master until you merge.
+1. **Stacked PRs instead of merges.** Claude Code's permission classifier blocked `gh pr merge`, so
+   each task became a PR on top of the previous one, and you merged them yourself.
 2. **Banks and insurers are detected by SEC SIC code** (6020–6039, 6311–6411). A bank holding company
    filed under another code (e.g. 6199 or 6719) would get no banner.
 3. **Excel metric cells are formulas only where the engine could calculate.** Elsewhere they say "n/a",
