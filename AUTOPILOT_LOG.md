@@ -218,3 +218,37 @@ closed once the next branch exists.
   balance sheet); TSLA FY2014–15 fail by $58M and $47M (known, #3); GS shows one gap, FY2008 (Nov) to
   FY2009 (Dec), which is its real change of year-end. **New findings, not fixed:** JPM FY2009 and BRK-B
   FY2014, FY2015, FY2020 and FY2023 don't balance. Both are financial companies, out of v1 scope.
+
+## S2 Task 4 — Price metrics from yfinance (#15)
+
+- **2026-11-11 · decision:** new adapter `prices.py` asks yfinance's `fast_info` for the last price and
+  market cap. Every failure (unknown symbol, no connection, rate limit, missing or zero values, a
+  non-USD quote) becomes one `PriceUnavailable` error with the reason. **Why:** yfinance scrapes Yahoo
+  and raises many unrelated error types, so this is the one place a catch-all is right.
+- **2026-11-11 · decision:** the five metrics live in the engine as `metrics.price_metrics(rows,
+  market_cap)`: pure, no network, same `Metric` shape (value, inputs, reason) as the other ratios. They
+  use the latest stored fiscal year.
+- **2026-11-11 · decision:** P/E is market cap ÷ net income, not price ÷ EPS. **Why:** it's the same
+  ratio, but a stock split after the year-end changes the price and not the stored EPS, which would
+  give a wrong P/E; market cap doesn't change in a split. **Rejected:** price ÷ diluted EPS.
+- **2026-11-11 · decision:** enterprise value = market cap + short-term debt + long-term debt − cash −
+  short-term investments, matching the invested-capital definition already used for ROIC.
+  **Left out:** leases, pensions, preferred shares, minority interests (said in the learning text).
+- **2026-11-11 · decision:** company page gets a "Valuation at today's price" section of five cards,
+  with a caption giving the price, when it was fetched and that the company figures are last fiscal
+  year's (so P/E differs from websites using the last twelve months). The compare table gets the same
+  five rows. **Not done:** valuation in the Excel export (a price would go stale inside a saved file)
+  and in the compare page's over-time chart (there is only today's price).
+- **2026-11-11 · decision:** prices are reused for 15 minutes; a failure isn't cached, so the next
+  page run tries again. When it fails the cards read "unavailable" with the reason.
+- **2026-11-11 · decision:** learning text for the five metrics added to `learning.json`, written by
+  Claude like the rest. **Owner should review**, especially the "what's good" ranges.
+- **2026-11-11 · outcome:** 139 tests pass; yfinance is mocked in every test. Real data (Nov 11):
+  AAPL market cap $5,168,080M, P/E 39.10 (= 5,168,080 ÷ 132,175, checked by hand), FCF yield 2.6%;
+  KO P/E 32.02; BRK-B EV/EBIT unavailable (no operating income reported).
+  **Not checked:** companies with several share classes (GOOGL), where Yahoo's market cap may not
+  cover every class.
+- **Suggested for `LEARNING.md`:** *Market cap* = share price × number of shares: the price tag for the
+  whole company. *yfinance* = a Python package that reads Yahoo Finance's website; free, but unofficial,
+  so the app must cope when it fails. *Mock* = a fake stand-in used in tests (here for yfinance) so
+  tests never need the internet.

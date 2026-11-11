@@ -1,12 +1,13 @@
 """Smoke tests: run the real pages against a temporary database, with no network."""
 
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-from finance_analyzer import edgar, parse, store
+from finance_analyzer import edgar, parse, prices, store
 from finance_analyzer.parse import BalanceCheck, LineItemRow
 from test_metrics import AAPL, M
 
@@ -37,6 +38,7 @@ def offline(monkeypatch, tmp_path):
     checks = [BalanceCheck("2025-09-27", False, 65 * M, False), BalanceCheck("2026-09-26", True, 0, False)]
     monkeypatch.setattr(edgar, "fetch_company_facts", lambda ticker: {})
     monkeypatch.setattr(parse, "balance_checks", lambda facts: checks)
+    monkeypatch.setattr(prices, "fetch_quote", lambda ticker: prices.Quote(250.0, 3.7e12, datetime(2026, 11, 11, 15, 30)))
     monkeypatch.setattr(edgar, "fetch_company_info", lambda ticker: INFO[ticker] if ticker in INFO else parsed_rows(ticker))
     st.cache_data.clear()
 
@@ -57,13 +59,29 @@ def test_company_page_loads_and_shows_every_section():
     assert store.get_company("AAPL"), "the company was saved on first view"
     assert app.header[0].value == "Apple Inc. (AAPL)"
     assert [s.value for s in app.subheader] == [
-        "Line items", "Metrics for FY2026", "Trends", "DuPont breakdown", "Data checks"
+        "Line items", "Metrics for FY2026", "Valuation at today's price", "Trends", "DuPont breakdown", "Data checks"
     ]
-    assert len(app.metric) == 18 + 4  # every grouped metric card plus the four DuPont tiles
+    assert len(app.metric) == 18 + 5 + 4  # every grouped metric card, five valuation cards, four DuPont tiles
+    cards = {m.label: m.value for m in app.metric}
+    assert (cards["Market cap"], cards["P/E"], cards["FCF yield"]) == ("$3,700,000M", "27.99×", "3.7%")
+    assert any("Share price $250.00 from Yahoo Finance" in c.value for c in app.caption)
     assert "Not available: interest_expense not reported for FY2026" in [c.value for c in app.caption]
     assert not app.warning
     assert app.get("download_button"), "Excel export offered"
     assert any("What it means" in m.value for m in app.markdown), "learning text on the cards"
+
+
+def test_company_page_still_works_when_yfinance_fails(monkeypatch):
+    def broken(ticker):
+        raise prices.PriceUnavailable("Yahoo Finance didn't return a price (ConnectionError)")
+
+    monkeypatch.setattr(prices, "fetch_quote", broken)
+    app = company("AAPL")
+    assert not app.exception and not app.error
+    cards = {m.label: m.value for m in app.metric}
+    assert [cards[label] for label in ("Market cap", "P/E", "P/B", "EV / EBIT", "FCF yield")] == ["unavailable"] * 5
+    assert cards["Net margin"] == "27.6%", "everything else still works"
+    assert any("Share price unavailable: Yahoo Finance didn't return a price" in c.value for c in app.caption)
 
 
 def test_company_page_shows_the_data_checks():
@@ -107,7 +125,10 @@ def test_compare_shows_table_and_chart_for_each_company():
     app = compare("aapl, jpm")
     assert not app.exception and not app.error
     assert [s.value for s in app.subheader] == ["Latest fiscal year", "Over time"]
-    assert list(app.dataframe[0].value.columns) == ["Metric", "AAPL FY2026 (Sep 26)", "JPM FY2026 (Sep 26)"]
+    table = app.dataframe[0].value
+    assert list(table.columns) == ["Metric", "AAPL FY2026 (Sep 26)", "JPM FY2026 (Sep 26)"]
+    assert list(table["Metric"])[-5:] == ["Market cap", "P/E", "P/B", "EV / EBIT", "FCF yield"]
+    assert table.iloc[-4, 1] == "27.99×"
     assert len(app.warning) == 1  # JPM's bank banner
     assert not app.info  # same year-ends, so no note
     app = app.selectbox[0].select("free_cash_flow").run()

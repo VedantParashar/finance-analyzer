@@ -28,7 +28,13 @@ LABELS = {
     "eps_growth": "EPS growth",
     "eps_cagr_3y": "EPS CAGR (3y)",
     "dupont": "ROE (DuPont)",
+    "market_cap": "Market cap",
+    "pe": "P/E",
+    "pb": "P/B",
+    "ev_ebit": "EV / EBIT",
+    "fcf_yield": "FCF yield",
 }
+PRICE_METRICS = ["market_cap", "pe", "pb", "ev_ebit", "fcf_yield"]  # need today's share price, see prices.py
 
 # SPEC.md's metric groups; DuPont gets its own section on the page.
 GROUPS = {
@@ -44,8 +50,11 @@ GROUPS = {
 # The learning layer: for each metric, what it means, what's good and common traps.
 LEARNING: dict[str, dict[str, str]] = json.loads(Path(__file__).with_name("learning.json").read_text())
 
-MULTIPLES = {"current_ratio", "quick_ratio", "debt_to_equity", "interest_coverage", "asset_turnover", "equity_multiplier"}
-DOLLARS = {"free_cash_flow"}  # every other metric is a fraction shown as a percentage
+MULTIPLES = {
+    "current_ratio", "quick_ratio", "debt_to_equity", "interest_coverage", "asset_turnover", "equity_multiplier",
+    "pe", "pb", "ev_ebit",
+}
+DOLLARS = {"free_cash_flow", "market_cap"}  # every other metric is a fraction shown as a percentage
 
 
 def fiscal_year(end: date) -> str:
@@ -60,7 +69,7 @@ def money(value: float) -> str:
 
 def format_metric(name: str, value: float | None) -> str:
     if value is None:
-        return "—"
+        return "unavailable" if name in PRICE_METRICS else "—"
     if name in MULTIPLES:
         return f"{value:.2f}×"
     if name in DOLLARS:
@@ -92,7 +101,7 @@ def format_input(key: str, value: float) -> str:
     base = key.removeprefix("average ").split(" (FY")[0]
     if base in ITEMS:
         return format_value(ITEMS[base].unit, value)
-    if "invested capital" in base:
+    if "invested capital" in base or base in {"market cap", "enterprise value"}:
         return money(value)
     if base in {"asset turnover", "equity multiplier"}:
         return f"{value:.2f}×"

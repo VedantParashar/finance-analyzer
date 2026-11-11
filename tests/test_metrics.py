@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 import pytest
 
-from finance_analyzer.metrics import FORMULA_TEXT, FORMULAS, company_metrics
+from finance_analyzer.metrics import FORMULA_TEXT, FORMULAS, PRICE_FORMULAS, company_metrics, price_metrics
 from finance_analyzer.store import StoredLineItem
 
 M = 1_000_000  # fixtures are in $M, stored values are in dollars
@@ -179,4 +179,30 @@ def test_every_year_gets_every_metric():
 
 
 def test_every_formula_has_text():
-    assert FORMULA_TEXT.keys() == FORMULAS.keys()
+    assert FORMULA_TEXT.keys() == FORMULAS.keys() | PRICE_FORMULAS.keys()
+
+
+def test_price_metrics_use_market_cap_and_the_latest_fiscal_year():
+    """Hand-calculated from Apple FY2026 ($M) and a market cap of $3,700,000M."""
+    result = price_metrics(rows_from(AAPL), 3_700_000 * M)
+    assert result["market_cap"].value == 3_700_000 * M
+    assert result["pe"].value == pytest.approx(3_700_000 / 132_175)  # 27.99
+    assert result["pb"].value == pytest.approx(3_700_000 / 112_093)  # 33.01
+    # EV = 3,700,000 + 11,903 + 68,208 − 36,305 − 20,417 = 3,723,389
+    assert result["ev_ebit"].value == pytest.approx(3_723_389 / 158_063)  # 23.56
+    assert result["ev_ebit"].inputs["enterprise value"] == 3_723_389 * M
+    assert result["fcf_yield"].value == pytest.approx((145_097 - 9_041) / 3_700_000)  # 3.68%
+    assert result["pe"].inputs == {"market cap": 3_700_000 * M, "net_income": 132_175 * M}
+
+
+def test_price_metrics_are_all_unavailable_without_a_market_cap():
+    result = price_metrics(rows_from(AAPL), None)
+    assert result.keys() == PRICE_FORMULAS.keys()
+    assert all(m.value is None and m.reason == "share price unavailable" for m in result.values())
+
+
+def test_pe_is_unavailable_for_a_loss_but_fcf_yield_can_be_negative():
+    year = {"net_income": -500, "operating_cash_flow": -100, "capital_expenditure": 50}
+    result = price_metrics(rows_from({date(2026, 12, 31): year}), 10_000 * M)
+    assert result["pe"].value is None and result["pe"].reason == "net income is zero or negative"
+    assert result["fcf_yield"].value == pytest.approx(-0.015)
