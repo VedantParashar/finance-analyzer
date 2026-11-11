@@ -3,6 +3,8 @@
 Run from the project folder: uv run --env-file .env finance-analyzer
 """
 
+from datetime import timedelta
+
 import httpx
 import plotly.graph_objects as go
 import streamlit as st
@@ -14,19 +16,20 @@ YEARS_SHOWN = 5
 QUOTE_MINUTES = 15  # how long a share price is reused before asking Yahoo Finance again
 
 
-# shortcut: cached for the life of the app, so a reload from the command line needs an app restart
-@st.cache_data(show_spinner="Loading from SEC EDGAR…")
+# Kept for a day at most, so a long-running app still notices when the SEC files on disk get too old.
+@st.cache_data(ttl=timedelta(days=1), show_spinner="Loading from SEC EDGAR…")
 def load(ticker: str) -> tuple[list[store.StoredLineItem], dict, dict]:
-    """Rows, metrics by year and company info, downloading the company first if it isn't stored."""
+    """Rows, metrics by year and company info, (re)loading the company if the SEC download is newer."""
     info = edgar.fetch_company_info(ticker)  # also rejects unknown tickers before any parsing
+    downloaded = edgar.facts_downloaded_at(ticker)  # downloads again by itself after 7 days
     rows = store.get_company(ticker)
-    if not rows:
+    if not rows or rows[0].loaded_at < downloaded:
         store.load_company(ticker)
         rows = store.get_company(ticker)
     return rows, company_metrics(rows), info
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(ttl=timedelta(days=1), show_spinner=False)
 def balance_checks(ticker: str) -> list[parse.BalanceCheck]:
     """The balance check for each year, from the SEC download already cached on disk by load()."""
     # Re-reads the facts because the check needs the reported balance sheet total, which isn't a stored item.
@@ -68,6 +71,21 @@ def bank_banner(ticker: str, info: dict) -> None:
             "outside this app's scope: ratios like gross margin, current ratio and ROIC don't apply to them, so many "
             "show as unavailable and the rest need care."
         )
+
+
+def refresh_button(ticker: str, rows: list[store.StoredLineItem]) -> None:
+    if st.button("Refresh data", help="Download this company's filings from the SEC again and reload it."):
+        try:
+            edgar.refresh(ticker)
+        except (httpx.HTTPError, RuntimeError) as error:
+            st.error(f"Couldn't refresh from the SEC ({error}). Still showing the saved data.")
+        else:
+            st.cache_data.clear()  # load() then sees a download newer than the stored rows and reloads them
+            st.rerun()
+    st.caption(
+        f"SEC data loaded {rows[0].loaded_at:%b %-d, %Y at %H:%M} UTC. It refreshes by itself once it's "
+        f"{edgar.MAX_AGE.days} days old."
+    )
 
 
 def metric_card(name: str, metric: Metric, prior: Metric | None) -> None:
@@ -127,6 +145,7 @@ def company_page() -> None:
         file_name=f"{ticker}_financials.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+    refresh_button(ticker, rows)
 
     years = sorted(metrics)[-YEARS_SHOWN:]
     labels = [display.fiscal_year(end) for end in years]

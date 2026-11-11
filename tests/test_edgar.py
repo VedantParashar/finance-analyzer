@@ -1,5 +1,9 @@
 import json
+import os
+import time
+from datetime import UTC, datetime
 
+import httpx
 import pytest
 
 from finance_analyzer import edgar
@@ -52,3 +56,65 @@ def test_fetch_company_info_reads_name_and_industry(fake_cache, tmp_path):
 )
 def test_financial_companies_by_sic(sic, expected):
     assert edgar.is_financial(sic) is expected
+
+
+FACTS = "companyfacts/CIK0000320193.json"
+
+
+def make_old(path, days):
+    then = time.time() - days * 86400
+    os.utime(path, (then, then))
+
+
+@pytest.fixture
+def sec(monkeypatch):
+    """A fake SEC: records each URL asked for and answers with new JSON, or fails if .fail is set."""
+
+    class FakeSEC:
+        calls: list[str] = []
+        fail = False
+
+        def get(self, url, **kwargs):
+            self.calls.append(url)
+            if self.fail:
+                raise httpx.ConnectError("no connection")
+            tickers = '{"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}}'
+            return httpx.Response(200, text=tickers if "tickers" in url else '{"entityName": "new"}', request=httpx.Request("GET", url))
+
+    fake = FakeSEC()
+    fake.calls = []
+    monkeypatch.setenv("SEC_USER_AGENT", "Test test@example.com")
+    monkeypatch.setattr(edgar.httpx, "get", fake.get)
+    return fake
+
+
+def test_cache_younger_than_seven_days_is_used(fake_cache, tmp_path, sec):
+    make_old(tmp_path / FACTS, days=6)
+    assert edgar.fetch_company_facts("AAPL") == {"entityName": "Apple Inc."}
+    assert sec.calls == []
+
+
+def test_cache_older_than_seven_days_is_downloaded_again(fake_cache, tmp_path, sec):
+    make_old(tmp_path / FACTS, days=8)
+    assert edgar.fetch_company_facts("AAPL") == {"entityName": "new"}
+    assert sec.calls == [edgar.FACTS_URL.format(cik="0000320193")]
+    assert (datetime.now(UTC).replace(tzinfo=None) - edgar.facts_downloaded_at("AAPL")).total_seconds() < 60
+
+
+def test_old_cache_is_kept_when_the_automatic_download_fails(fake_cache, tmp_path, sec):
+    make_old(tmp_path / FACTS, days=8)
+    sec.fail = True
+    assert edgar.fetch_company_facts("AAPL") == {"entityName": "Apple Inc."}
+
+
+def test_refresh_downloads_fresh_files_again(fake_cache, sec):
+    edgar.refresh("AAPL")
+    assert len(sec.calls) == 3  # ticker list, company facts, company info
+    assert edgar.fetch_company_facts("AAPL") == {"entityName": "new"}
+
+
+def test_failed_refresh_raises_and_keeps_the_old_files(fake_cache, sec):
+    sec.fail = True
+    with pytest.raises(httpx.ConnectError):
+        edgar.refresh("AAPL")
+    assert edgar.fetch_company_facts("AAPL") == {"entityName": "Apple Inc."}
