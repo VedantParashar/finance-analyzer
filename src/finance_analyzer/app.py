@@ -7,7 +7,7 @@ import httpx
 import plotly.graph_objects as go
 import streamlit as st
 
-from finance_analyzer import display, edgar, store
+from finance_analyzer import display, edgar, export, store
 from finance_analyzer.metrics import FORMULA_TEXT, Metric, company_metrics
 
 YEARS_SHOWN = 5
@@ -96,6 +96,12 @@ def company_page() -> None:
     st.header(f"{info['name']} ({ticker})")
     st.caption(info["industry"])
     bank_banner(ticker, info)
+    st.download_button(
+        "Download Excel with live formulas",
+        export.company_workbook(ticker, rows, metrics),
+        file_name=f"{ticker}_financials.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
     years = sorted(metrics)[-YEARS_SHOWN:]
     labels = [display.fiscal_year(end) for end in years]
