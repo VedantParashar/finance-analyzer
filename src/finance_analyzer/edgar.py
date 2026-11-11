@@ -38,7 +38,7 @@ def _download(url: str, cache_path: Path) -> None:
     if not user_agent:
         raise RuntimeError(
             'Set SEC_USER_AGENT, e.g. "Finance Analyzer you@example.com", in .env '
-            "and run with: uv run --env-file .env ..."
+            "and run with: uv run --env-file .env ... (on Streamlit Community Cloud: in the app's Secrets)"
         )
 
     response = httpx.get(url, headers={"User-Agent": user_agent}, timeout=30)

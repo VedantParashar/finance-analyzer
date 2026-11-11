@@ -69,6 +69,10 @@ docker compose up --build
 Then open http://localhost:8501. The database and downloads are kept in `./data`, shared with the
 non-Docker setup. Stop with Ctrl+C.
 
+### Or hosted, for free
+
+[DEPLOY.md](DEPLOY.md) has the steps for putting the app on Streamlit Community Cloud.
+
 ### Tests
 
 Run the tests (they use fake data, no network needed):

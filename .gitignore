@@ -11,6 +11,7 @@ wheels/
 
 # Secrets (API keys, passwords) - never commit
 .env
+.streamlit/secrets.toml
 
 # Tool caches and test reports
 .pytest_cache/

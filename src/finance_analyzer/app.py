@@ -3,6 +3,7 @@
 Run from the project folder: uv run --env-file .env finance-analyzer
 """
 
+import os
 from datetime import timedelta
 
 import httpx
@@ -13,6 +14,16 @@ from finance_analyzer import display, edgar, export, parse, prices, store
 from finance_analyzer.metrics import FORMULA_TEXT, Metric, company_metrics, price_metrics
 
 YEARS_SHOWN = 5
+
+
+def use_secret_user_agent() -> None:
+    """Prefer SEC_USER_AGENT from Streamlit secrets (how hosted apps get settings) over the environment."""
+    try:
+        user_agent = st.secrets.get("SEC_USER_AGENT")
+    except FileNotFoundError:  # no secrets file at all, the normal case on your own computer
+        return
+    if user_agent:
+        os.environ["SEC_USER_AGENT"] = user_agent  # edgar.py reads it from here and stays free of Streamlit
 QUOTE_MINUTES = 15  # how long a share price is reused before asking Yahoo Finance again
 
 
@@ -320,7 +331,12 @@ def compare_page() -> None:
     st.plotly_chart(figure)
 
 
+def run() -> None:
+    st.set_page_config(page_title="Finance Analyzer", layout="wide")
+    use_secret_user_agent()
+    st.navigation([st.Page(company_page, title="Company"), st.Page(compare_page, title="Compare")]).run()
+
+
 # Streamlit runs this file as __main__; importing it (as the tests do) only defines the pages.
 if __name__ == "__main__":
-    st.set_page_config(page_title="Finance Analyzer", layout="wide")
-    st.navigation([st.Page(company_page, title="Company"), st.Page(compare_page, title="Compare")]).run()
+    run()

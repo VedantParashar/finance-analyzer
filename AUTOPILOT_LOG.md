@@ -278,3 +278,26 @@ closed once the next branch exists.
 - **Suggested for `LEARNING.md`:** *Stale cache* = a saved copy that's too old to trust. *TTL (time to
   live)* = how long a saved copy may be reused before it's fetched again (here 7 days for SEC files,
   15 minutes for prices).
+
+## S2 Task 6 — Streamlit Community Cloud preparation
+
+- **2026-11-11 · decision:** no new dependency file. **Why:** Streamlit's docs (read today) say
+  Community Cloud looks for `uv.lock` first, ahead of `requirements.txt`, and warn against having more
+  than one dependency file. **Rejected:** also committing a `requirements.txt` (it would be ignored,
+  and would be a second list to keep in step). The fallback command is in DEPLOY.md.
+- **2026-11-11 · decision:** new root file `streamlit_app.py` is the cloud's entry point. It adds
+  `src/` to Python's search path and calls `app.run()`. **Why:** the docs don't say whether the cloud
+  installs the project itself or only its dependencies, and this works either way. `app.py`'s page
+  setup moved into a `run()` function so both entry points share it.
+- **2026-11-11 · decision:** `SEC_USER_AGENT` is read from `st.secrets` first and copied into the
+  environment, where `edgar.py` already looks; with no secrets file the environment (`.env`) is used
+  as before. **Why:** keeps `edgar.py` free of Streamlit. `.streamlit/secrets.toml` is git-ignored.
+- **2026-11-11 · decision:** DEPLOY.md lists the exact clicks, the one-line secret, how hosting differs
+  (temporary disk, Yahoo often blocks cloud servers, usage statistics forced on, anyone can use the
+  URL under your SEC identity) and three likely failures with fixes.
+- **2026-11-11 · outcome:** 148 tests pass (the cloud entry point runs; secrets win over the
+  environment). `streamlit run streamlit_app.py` starts locally and answers its health check.
+  **Not checked:** a real deployment (needs the owner's account), so whether `uv.lock` installs cleanly
+  there, and that the disk is wiped on restart (commonly reported, not stated in the docs I read).
+- **Suggested for `LEARNING.md`:** *Secrets* = settings like passwords or your contact email that a
+  hosting service stores for you, outside the code. *Entry point* = the file a tool runs first.
