@@ -1,0 +1,15 @@
+# Runs the test suite on every push and pull request.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      # The tests use fake data only, so no SEC_USER_AGENT or network is needed.
+      - run: uv run --locked pytest
