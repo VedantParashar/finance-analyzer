@@ -1,6 +1,52 @@
 # Autopilot log
 
-## Summary (2026-11-11)
+## Summary of session 2 (2026-11-11)
+
+**Built:** all 7 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
+is merged: merge them top to bottom, or just the last one into `master` once you've read the others.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | #17 | `mit-license` | MIT `LICENSE`, README section |
+| 2 | #18 | `widen-finance-banner` | banner for SIC 6000–6499 (JPM, GS, BRK-B tested) |
+| 3 | #19 | `data-checks-ui` | balance check per year and missing years on the company page (#14) |
+| 4 | #20 | `yfinance-price-metrics` | market cap, P/E, P/B, EV/EBIT, FCF yield (#15) |
+| 5 | #21 | `cache-refresh` | 7-day expiry and a "Refresh data" button (#4) |
+| 6 | #22 | `streamlit-cloud-deploy` | `streamlit_app.py`, secrets, `DEPLOY.md` |
+| 7 | #23 | `readme-screenshots` | real screenshots in `docs/screenshots/` |
+
+148 tests pass locally (118 before). On GitHub, `pytest` and `docker` passed on #17–#21 and `pytest` on
+#22 when this was written; #22's second `docker` run and #23 were still running.
+
+**Issues:** #14, #15 and #4 are done but stay open until their PRs reach `master` (GitHub only closes
+an issue from a PR merged into the default branch; close them by hand if it doesn't). Still open:
+#1, #2, #5, #6.
+
+**SPEC v1:** every item is now built.
+
+**The 5 decisions most worth your review:**
+1. **P/E is market cap ÷ net income, not price ÷ EPS** (task 4). Same ratio, but safe when a stock split
+   happens after the year-end. All valuation metrics set today's price against the *last fiscal year*,
+   so they differ from sites that use the last twelve months. The page says so.
+2. **The learning text for the five valuation metrics was written by Claude** (task 4), like the rest of
+   `learning.json`. Read the "what's good" ranges before students see them.
+3. **A real deployment was not tested** (task 6); it needs your account. No `requirements.txt` was
+   added because Streamlit's docs say `uv.lock` is used first. `DEPLOY.md` has the fallback if the
+   install fails.
+4. **A failed automatic refresh keeps the old data without saying so** (task 5). Only the button
+   reports a failure. The caption under the button shows when the data was loaded.
+5. **Data checks cover every stored year, and found new failures** (task 3): JPM FY2009 and BRK-B
+   FY2014, FY2015, FY2020 and FY2023 don't balance. Both are financial companies (out of scope), so no
+   issue was filed. Say if you want one.
+
+Smaller ones: Visa and S&P Global still get no finance banner (their SIC codes are business services);
+enterprise value leaves out leases, pensions and minority interests; valuation isn't in the Excel
+export; `LEARNING.md` is untouched again, with suggested entries under tasks 4, 5 and 6; the first
+session's summary below is unchanged.
+
+---
+
+## Summary of session 1 (2026-11-11)
 
 **Built:** all 8 queue tasks. Metrics (already on master) · CI (pytest + Docker build/health check on
 every push and PR) · company page · compare page · learning layer · Excel export with live formulas ·
@@ -301,3 +347,18 @@ closed once the next branch exists.
   there, and that the disk is wiped on restart (commonly reported, not stated in the docs I read).
 - **Suggested for `LEARNING.md`:** *Secrets* = settings like passwords or your contact email that a
   hosting service stores for you, outside the code. *Entry point* = the file a tool runs first.
+
+## S2 Task 7 — README screenshots
+
+- **2026-11-11 · decision:** `docs/screenshots/company.png` (AAPL) and `compare.png` (AAPL, KO, NVDA),
+  taken from the real app with real SEC data, 1400px wide at 2× sharpness. Each is cropped to the top
+  of the page (company: down to the profitability cards; compare: table and chart). **Why:** the full
+  company page is about five screens tall and unreadable when shrunk into a README table.
+- **2026-11-11 · decision:** the Playwright browser plugin wanted Google Chrome, which isn't installed.
+  Used Playwright's Python package through `uvx` (run once, not added to the project) with the Chromium
+  already in Playwright's cache on this machine. **Rejected:** installing Chrome; adding Playwright as a
+  project dependency for two images.
+- **2026-11-11 · decision:** the screenshot script isn't committed. **Why:** it's a one-off; retaking
+  them means running the app and saving two browser screenshots.
+- **2026-11-11 · outcome:** both images checked by eye, no errors on either page. README's placeholder
+  note removed; the image links already pointed at these paths. 148 tests pass.
