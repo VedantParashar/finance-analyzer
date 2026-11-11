@@ -9,6 +9,7 @@ import httpx
 CACHE_DIR = Path("data/cache")
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 
 
 def _get_json(url: str, cache_path: Path) -> dict:
@@ -47,3 +48,15 @@ def fetch_company_facts(ticker: str) -> dict:
     """Return the SEC company facts JSON for a ticker."""
     cik = get_cik(ticker)
     return _get_json(FACTS_URL.format(cik=cik), CACHE_DIR / "companyfacts" / f"CIK{cik}.json")
+
+
+def fetch_company_info(ticker: str) -> dict:
+    """The company's name and SIC industry code (a 4-digit number the SEC uses to classify businesses)."""
+    cik = get_cik(ticker)
+    data = _get_json(SUBMISSIONS_URL.format(cik=cik), CACHE_DIR / "submissions" / f"CIK{cik}.json")
+    return {"name": data["name"], "sic": int(data["sic"] or 0), "industry": data["sicDescription"]}
+
+
+def is_bank_or_insurer(sic: int) -> bool:
+    """SIC 6020–6039 are banks and savings institutions, 6311–6411 insurers: out of scope for v1."""
+    return 6020 <= sic <= 6039 or 6311 <= sic <= 6411

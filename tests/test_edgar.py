@@ -28,3 +28,15 @@ def test_get_cik_unknown_ticker_raises(fake_cache):
 
 def test_fetch_company_facts_reads_from_cache(fake_cache):
     assert edgar.fetch_company_facts("AAPL") == {"entityName": "Apple Inc."}
+
+
+def test_fetch_company_info_reads_name_and_industry(fake_cache, tmp_path):
+    (tmp_path / "submissions").mkdir()
+    submissions = {"name": "Apple Inc.", "sic": "3571", "sicDescription": "Electronic Computers"}
+    (tmp_path / "submissions" / "CIK0000320193.json").write_text(json.dumps(submissions))
+    assert edgar.fetch_company_info("AAPL") == {"name": "Apple Inc.", "sic": 3571, "industry": "Electronic Computers"}
+
+
+@pytest.mark.parametrize("sic, expected", [(6021, True), (6035, True), (6331, True), (3571, False), (6199, False)])
+def test_banks_and_insurers_by_sic(sic, expected):
+    assert edgar.is_bank_or_insurer(sic) is expected
