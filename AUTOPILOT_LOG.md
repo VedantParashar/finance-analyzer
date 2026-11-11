@@ -252,3 +252,29 @@ closed once the next branch exists.
   whole company. *yfinance* = a Python package that reads Yahoo Finance's website; free, but unofficial,
   so the app must cope when it fails. *Mock* = a fake stand-in used in tests (here for yfinance) so
   tests never need the internet.
+
+## S2 Task 5 — Cache refresh (#4)
+
+- **2026-11-11 · decision:** a cached SEC file's age is the file's modified time; older than 7 days
+  (`edgar.MAX_AGE`) and it's downloaded again on next use. Applies to all three files (ticker list,
+  company facts, company info). **Rejected:** storing download times in the database (the file system
+  already knows).
+- **2026-11-11 · decision:** if an *automatic* refresh can't reach the SEC, the old copy is used. If the
+  *button's* refresh fails, the page shows the error and keeps the saved data. **Why:** stale data
+  beats no data, but someone who pressed the button should be told it didn't work.
+- **2026-11-11 · decision:** one rule keeps the database in step: the company is parsed and saved again
+  whenever the SEC download is newer than its stored rows. The button only re-downloads and clears
+  Streamlit's caches; the same rule then reloads the company. **Why:** one code path for the button,
+  the 7-day expiry and the first load, and the balance check never reads newer facts than the rows.
+- **2026-11-11 · decision:** Streamlit now keeps a loaded company for one day, not forever, so an app
+  left running still notices 7-day-old files. The button clears every cached company and price, not
+  just this one (one line, and refreshing more is harmless).
+- **2026-11-11 · decision:** a caption under the button says when the data was loaded and that it
+  refreshes after 7 days. The button is on the company page only.
+- **2026-11-11 · outcome:** 146 tests pass (fresh file isn't downloaded; 8-day-old file is; failed
+  automatic download keeps the old copy; forced refresh; failed refresh keeps the files; the button
+  reloads the rows; the button's failure message). Real data, KO: an artificially 8-day-old file was
+  re-downloaded and the rows re-saved on the next view, and the button did both again.
+- **Suggested for `LEARNING.md`:** *Stale cache* = a saved copy that's too old to trust. *TTL (time to
+  live)* = how long a saved copy may be reused before it's fetched again (here 7 days for SEC files,
+  15 minutes for prices).

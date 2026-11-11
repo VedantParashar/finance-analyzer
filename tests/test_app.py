@@ -3,6 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
+import httpx
 import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
@@ -34,6 +35,7 @@ def parsed_rows(ticker):
 def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "DB_PATH", tmp_path / "test.duckdb")
     monkeypatch.setattr(store, "annual_line_items", parsed_rows)
+    monkeypatch.setattr(edgar, "facts_downloaded_at", lambda ticker: datetime(2020, 1, 1))  # older than any load
     # FY2026 balances, FY2025 is off by $65M; the two older years have no balance sheet at all.
     checks = [BalanceCheck("2025-09-27", False, 65 * M, False), BalanceCheck("2026-09-26", True, 0, False)]
     monkeypatch.setattr(edgar, "fetch_company_facts", lambda ticker: {})
@@ -82,6 +84,34 @@ def test_company_page_still_works_when_yfinance_fails(monkeypatch):
     assert [cards[label] for label in ("Market cap", "P/E", "P/B", "EV / EBIT", "FCF yield")] == ["unavailable"] * 5
     assert cards["Net margin"] == "27.6%", "everything else still works"
     assert any("Share price unavailable: Yahoo Finance didn't return a price" in c.value for c in app.caption)
+
+
+def test_refresh_button_downloads_again_and_reloads_the_company(monkeypatch):
+    app = company("AAPL")
+    first_load = store.get_company("AAPL")[0].loaded_at
+    refreshed = []
+
+    def fake_refresh(ticker):
+        refreshed.append(ticker)
+        monkeypatch.setattr(edgar, "facts_downloaded_at", lambda ticker: datetime(2099, 1, 1))  # newer than the rows
+
+    monkeypatch.setattr(edgar, "refresh", fake_refresh)
+    app = app.button[0].click().run()
+    assert not app.exception and not app.error
+    assert refreshed == ["AAPL"]
+    assert store.get_company("AAPL")[0].loaded_at > first_load, "rows were parsed and saved again"
+    assert app.header[0].value == "Apple Inc. (AAPL)"
+
+
+def test_failed_refresh_keeps_showing_the_saved_data(monkeypatch):
+    def offline(ticker):
+        raise httpx.ConnectError("no connection")
+
+    monkeypatch.setattr(edgar, "refresh", offline)
+    app = company("AAPL").button[0].click().run()
+    assert not app.exception
+    assert "Couldn't refresh from the SEC (no connection). Still showing the saved data." in app.error[0].value
+    assert app.header[0].value == "Apple Inc. (AAPL)"
 
 
 def test_company_page_shows_the_data_checks():

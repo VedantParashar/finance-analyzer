@@ -55,7 +55,8 @@ uv run --env-file .env finance-analyzer
 ```
 
 Then open http://localhost:8501. The first view of a company downloads its filings (a few seconds);
-after that it's read from the local database.
+after that it's read from the local database. Downloads refresh by themselves once they're 7 days old,
+and the **Refresh data** button on the company page fetches a new filing straight away.
 
 ### Or with Docker (one command)
 
@@ -130,8 +131,6 @@ Downloads are cached in `data/cache/` and parsed rows stored in `data/finance.du
     when the company never reports them
   - [#2](https://github.com/VedantParashar/finance-analyzer/issues/2) the temporary-equity rule is based on
     Tesla only
-  - [#4](https://github.com/VedantParashar/finance-analyzer/issues/4) the download cache never refreshes,
-    so new filings don't appear until `data/cache/` is cleared
   - [#5](https://github.com/VedantParashar/finance-analyzer/issues/5) `LongTermDebt` means total debt at
     some companies and non-current debt at others
   - [#6](https://github.com/VedantParashar/finance-analyzer/issues/6) NVIDIA's FY2026 short-term
