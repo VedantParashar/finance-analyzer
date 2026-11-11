@@ -172,3 +172,18 @@ Format: date · task · decision · why · alternatives rejected.
 - **2026-11-11 · outcome:** PR #13: `docker` (≈1 min) and `pytest` checks both pass on GitHub.
 - **2026-11-11 · follow-up:** filed #14 (data checks in the UI) and #15 (yfinance price metrics), the
   SPEC v1 items not in this queue.
+
+---
+
+# Session 2 (queue of 7)
+
+Same rules and format. Each branch starts from the previous task's branch, and a branch's log is
+closed once the next branch exists.
+
+## S2 Task 1 — MIT license
+
+- **2026-11-11 · decision:** standard MIT text in `LICENSE`, copyright "2026 Vedant Parashar" (the git
+  author name). README's License section links to it. Also `license = "MIT"` in `pyproject.toml`, so
+  the package metadata agrees with the file. **Rejected:** a license header in every source file (MIT
+  doesn't need it).
+- **2026-11-11 · outcome:** no code change; 118 tests pass, `uv lock --check` still clean.
