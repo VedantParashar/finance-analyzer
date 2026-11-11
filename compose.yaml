@@ -1,0 +1,9 @@
+# One command to run the app: docker compose up --build
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file: .env  # SEC_USER_AGENT; copy .env.example first
+    volumes:
+      - ./data:/app/data  # keeps the database and SEC downloads between runs

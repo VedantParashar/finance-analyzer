@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 import pytest
 
-from finance_analyzer.metrics import company_metrics
+from finance_analyzer.metrics import FORMULA_TEXT, FORMULAS, company_metrics
 from finance_analyzer.store import StoredLineItem
 
 M = 1_000_000  # fixtures are in $M, stored values are in dollars
@@ -176,3 +176,7 @@ def test_unusual_tax_rate_still_calculates_roic_with_a_note(income_tax, expected
 def test_every_year_gets_every_metric():
     metrics = company_metrics(rows_from(KO))
     assert all(len(year) == 19 for year in metrics.values())
+
+
+def test_every_formula_has_text():
+    assert FORMULA_TEXT.keys() == FORMULAS.keys()

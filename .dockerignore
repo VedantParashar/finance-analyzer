@@ -1,0 +1,8 @@
+# Keep secrets, local data and build leftovers out of the image.
+.env
+data/
+.venv/
+.git/
+**/__pycache__/
+.pytest_cache/
+tests/

@@ -166,6 +166,31 @@ FORMULAS: dict[str, Callable[[_Inputs], float]] = {
     "dupont": _dupont,
 }
 
+# The same formulas in words, for showing next to the numbers in Metric.inputs.
+FORMULA_TEXT = {
+    "gross_margin": "(revenue − cost of revenue) ÷ revenue",
+    "operating_margin": "operating income ÷ revenue",
+    "net_margin": "net income ÷ revenue",
+    "roe": "net income ÷ average shareholders' equity",
+    "roa": "net income ÷ average total assets",
+    "roic": "operating income × (1 − tax rate) ÷ average invested capital, where tax rate = income tax ÷ "
+    "pretax income and invested capital = short-term debt + long-term debt + total equity − cash − "
+    "short-term investments",
+    "current_ratio": "current assets ÷ current liabilities",
+    "quick_ratio": "(current assets − inventory) ÷ current liabilities",
+    "debt_to_equity": "(short-term debt + long-term debt) ÷ shareholders' equity",
+    "interest_coverage": "operating income ÷ interest expense",
+    "asset_turnover": "revenue ÷ average total assets",
+    "free_cash_flow": "operating cash flow − capital expenditure",
+    "fcf_margin": "(operating cash flow − capital expenditure) ÷ revenue",
+    "revenue_growth": "revenue ÷ prior-year revenue − 1",
+    "revenue_cagr_3y": "(revenue ÷ revenue 3 years earlier)^(1/3) − 1",
+    "eps_growth": "diluted EPS ÷ prior-year diluted EPS − 1",
+    "eps_cagr_3y": "(diluted EPS ÷ diluted EPS 3 years earlier)^(1/3) − 1",
+    "equity_multiplier": "average total assets ÷ average shareholders' equity",
+    "dupont": "net margin × asset turnover × equity multiplier (= ROE)",
+}
+
 
 def company_metrics(rows: Iterable[StoredLineItem]) -> dict[date, dict[str, Metric]]:
     """Every metric for every fiscal year in one company's rows, oldest year first."""

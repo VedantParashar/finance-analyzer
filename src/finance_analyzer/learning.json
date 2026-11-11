@@ -1,0 +1,97 @@
+{
+  "gross_margin": {
+    "meaning": "The share of each sales dollar left after paying for the goods or services sold. It shows pricing power and how cheaply the company makes what it sells.",
+    "good": "Depends heavily on the industry: software and drug makers often exceed 70%, consumer brands sit around 40–60%, while retailers and car makers are often below 25%. Compare against peers and against the company's own history.",
+    "traps": "Companies draw the line between cost of revenue and operating expenses differently (e.g. shipping or depreciation), so two firms' gross margins may not be like for like. A rising margin from a one-off mix shift isn't the same as lasting pricing power."
+  },
+  "operating_margin": {
+    "meaning": "Profit from the core business, after cost of revenue and operating costs such as R&D, marketing and administration, per dollar of sales. Interest and taxes are not yet deducted.",
+    "good": "Above 15% is generally strong and above 25% exceptional, but low-margin, high-volume businesses (supermarkets, distributors) can be healthy at 3–5%.",
+    "traps": "One-off items like restructuring charges, impairments or asset-sale gains can sit inside operating income and swing the margin for a single year. Check whether a jump repeats the next year."
+  },
+  "net_margin": {
+    "meaning": "The share of each sales dollar that ends up as profit for shareholders, after every cost, interest and tax.",
+    "good": "Around 10% is solid for most industries and 20%+ is unusually high. As with all margins, compare within the industry.",
+    "traps": "Net income includes non-operating items such as investment gains, tax settlements and discontinued operations, so it can move for reasons unrelated to the business. Operating margin is often the cleaner trend."
+  },
+  "roe": {
+    "meaning": "Return on equity: profit earned for each dollar shareholders have invested in (and left in) the company. It answers 'how hard is the owners' money working?'",
+    "good": "15–20% is commonly seen as good. Persistently higher can signal a strong business, or a lot of debt (see the DuPont breakdown).",
+    "traps": "Debt and share buybacks shrink equity and inflate ROE without the business getting better; Apple's ROE above 100% comes mostly from a small equity base. Negative or near-zero equity makes ROE meaningless, so it shows as unavailable."
+  },
+  "roa": {
+    "meaning": "Return on assets: profit earned for each dollar of assets the company controls, however those assets were financed. It shows how productive the asset base is.",
+    "good": "Above 5% is decent for most companies and above 10% is strong. Asset-heavy businesses (utilities, manufacturers) naturally run lower than software firms.",
+    "traps": "Assets are recorded at historical cost, so older companies with depreciated assets can look more efficient than newer ones. Large cash piles count as assets and lower ROA."
+  },
+  "roic": {
+    "meaning": "Return on invested capital: after-tax operating profit per dollar of capital put into the business by both lenders and shareholders, net of spare cash. It's the best single test of whether a company earns more than its capital costs.",
+    "good": "Consistently above roughly 10% (a typical cost of capital) means the company is creating value; above 20% suggests a durable competitive advantage.",
+    "traps": "Definitions vary a lot between sources, so compare ROIC figures only when they are calculated the same way. Subtracting large cash holdings can make invested capital tiny and ROIC huge. An unusual tax rate in one year distorts it, which is why the app flags those years."
+  },
+  "current_ratio": {
+    "meaning": "Current assets divided by current liabilities: whether the company has enough short-term resources (cash, receivables, inventory) to cover bills due within a year.",
+    "good": "Between about 1.0 and 2.0 is typical. Below 1.0 can signal a cash squeeze, though some strong companies run below 1 on purpose.",
+    "traps": "Big, dominant companies (Apple, Coca-Cola) can sit near or below 1.0 safely because cash flows in steadily and suppliers wait to be paid. A very high ratio may mean idle cash or slow-moving inventory, not strength."
+  },
+  "quick_ratio": {
+    "meaning": "Like the current ratio, but leaves out inventory, which may be hard to sell quickly. It asks: could the company pay its short-term bills without selling stock on the shelves?",
+    "good": "Around 1.0 or above is comfortable. Businesses with fast-turning inventory (supermarkets) often run much lower without trouble.",
+    "traps": "Prepaid expenses and other hard-to-convert items still count here, so this is a rough cut of the textbook quick ratio. When a company never reports inventory, the app treats it as zero and notes it."
+  },
+  "debt_to_equity": {
+    "meaning": "Total borrowings (short-term plus long-term debt) for each dollar of shareholders' equity. It shows how much the company relies on lenders rather than owners.",
+    "good": "Below 1.0 is conservative and 1–2 is common for stable businesses. Utilities and other steady-cash-flow companies carry more; young, volatile companies should carry less.",
+    "traps": "Buybacks reduce equity and push the ratio up even when debt doesn't change. Lease liabilities are not included here. Companies tag debt differently in their filings (see the open issue on LongTermDebt), so check the inputs."
+  },
+  "interest_coverage": {
+    "meaning": "How many times operating profit covers the year's interest bill. It measures how easily the company can keep paying its lenders.",
+    "good": "Above 5× is comfortable and above 10× very safe. Below 2× means a bad year could make interest hard to pay.",
+    "traps": "Uses operating income, not cash, so a profitable-on-paper company can still struggle. Some companies stop reporting interest expense as a separate line (Apple since FY2024), which leaves this unavailable rather than wrong. Interest income is not netted off."
+  },
+  "asset_turnover": {
+    "meaning": "Revenue generated for each dollar of assets, averaged over the year. It shows how intensively the company uses what it owns.",
+    "good": "Retailers often exceed 2×, while utilities and telecoms are often below 0.5×. Only compare within an industry.",
+    "traps": "Acquisitions add goodwill to assets and drag turnover down even if operations are unchanged. A big cash balance also lowers it."
+  },
+  "equity_multiplier": {
+    "meaning": "Average total assets per dollar of average shareholders' equity: the leverage part of the DuPont breakdown. A value of 3 means a third of the assets are funded by owners and the rest by liabilities.",
+    "good": "Around 1.5–3 is typical for non-financial companies. Higher means more of the business is funded by debt and other liabilities.",
+    "traps": "It counts all liabilities, including supplier bills and deferred revenue, not only debt, so it isn't the same as debt/equity. Buybacks raise it by shrinking equity."
+  },
+  "free_cash_flow": {
+    "meaning": "Cash from operations minus spending on property and equipment: the cash left over that the company could pay out, save or use to cut debt.",
+    "good": "Positive and growing over time. A mature company should usually turn most of its net income into free cash flow.",
+    "traps": "Capital spending is lumpy, so one year can mislead; look at the 5-year trend. Stock-based pay is added back in operating cash flow, which flatters free cash flow. Acquisitions are not deducted."
+  },
+  "fcf_margin": {
+    "meaning": "Free cash flow as a share of revenue: how much cash each sales dollar produces after investment.",
+    "good": "Above 10% is healthy and above 20% excellent. Compare with net margin: if FCF margin is persistently far below it, profits aren't turning into cash.",
+    "traps": "A temporary cut in investment, or stretching supplier payments, can raise it for a year without the business improving."
+  },
+  "revenue_growth": {
+    "meaning": "How much revenue rose or fell compared with the prior fiscal year.",
+    "good": "Faster than inflation and the overall economy (roughly 5%+ in nominal terms) is healthy for a mature company; young companies are judged on much higher rates.",
+    "traps": "Acquisitions, currency moves and price rises all lift revenue without more customers. A 53-week fiscal year adds an extra week of sales. One strong year is less telling than the 3-year rate."
+  },
+  "revenue_cagr_3y": {
+    "meaning": "Compound annual growth rate of revenue over three years: the steady yearly rate that would take revenue from its level three years ago to today.",
+    "good": "Same benchmarks as yearly growth, but more reliable because it smooths out one unusual year.",
+    "traps": "It only looks at the start and end points, so a big drop and recovery in between is invisible. If the starting year was unusually weak, the rate looks better than the business is."
+  },
+  "eps_growth": {
+    "meaning": "The change in diluted earnings per share from the prior fiscal year: profit growth for each share, after counting shares that options and convertibles could create.",
+    "good": "Steady growth at or above revenue growth suggests margins are holding or improving.",
+    "traps": "Buybacks reduce the share count and lift EPS even when total profit is flat. One-off gains or charges swing it. Growth from a loss isn't meaningful, so it shows as unavailable. Past stock splits are already adjusted for."
+  },
+  "eps_cagr_3y": {
+    "meaning": "Compound annual growth rate of diluted EPS over three years.",
+    "good": "Consistently positive, and close to or above the revenue CAGR.",
+    "traps": "Like any start-to-end rate, it hides what happened in between, and a weak starting year flatters it. It needs positive EPS at both ends."
+  },
+  "dupont": {
+    "meaning": "Splits ROE into three drivers: net margin (profit per sales dollar) × asset turnover (sales per asset dollar) × equity multiplier (assets per equity dollar). It shows whether a high ROE comes from profitability, efficiency or leverage.",
+    "good": "ROE driven by margin and turnover is generally higher quality than ROE driven by a large equity multiplier.",
+    "traps": "Because each factor here uses averaged balances, the product equals ROE exactly. Sources that use year-end balances will give slightly different numbers."
+  }
+}
