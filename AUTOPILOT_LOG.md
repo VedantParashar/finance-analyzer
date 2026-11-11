@@ -1,5 +1,45 @@
 # Autopilot log
 
+## Summary (2026-11-11)
+
+**Built:** all 8 queue tasks. Metrics (already on master) · CI (pytest + Docker build/health check on
+every push and PR) · company page · compare page · learning layer · Excel export with live formulas ·
+README · Dockerfile + `docker compose up --build`. 118 tests pass locally and on GitHub Actions.
+
+**Not merged: you need to merge the stack.** `gh pr merge --squash` was blocked by Claude Code's
+permission classifier, so nothing reached master. Each PR targets the previous one's branch:
+#7 (CI) ← #8 (company page) ← #9 (compare) ← #10 (learning) ← #11 (Excel) ← #12 (README) ← #13 (Docker).
+Merge them in that order. Use merge commits (`gh pr merge N --merge --delete-branch`): GitHub then
+retargets the next PR to master and its diff stays clean. Squash-merging a stacked PR rewrites its
+commits, so every later PR would show them again and likely conflict on this log file. To get one
+squash commit for everything instead, retarget #13 to master, squash it, and close #7–#12.
+
+**Left in SPEC v1:** price metrics from yfinance (#15); showing the data checks (balance check,
+missing years) in the UI (#14).
+
+**Open issues:** #1 absent items vs zero · #2 temporary-equity rule based on Tesla only · #4 cache never
+refreshes · #5 LongTermDebt total vs non-current · #6 NVDA FY2026 short-term investments · #14 data checks
+in UI · #15 yfinance price metrics.
+
+**The 5 decisions most worth your review:**
+1. **Stacked PRs instead of merges** (above). Nothing is on master until you merge.
+2. **Banks and insurers are detected by SEC SIC code** (6020–6039, 6311–6411). A bank holding company
+   filed under another code (e.g. 6199 or 6719) would get no banner.
+3. **Excel metric cells are formulas only where the engine could calculate.** Elsewhere they say "n/a",
+   with the reason as a comment. This keeps Excel from treating blanks as zero; all 1,407 real formulas
+   match the engine. Not opened in real Excel.
+4. **The learning text (`learning.json`) was written by Claude** from general finance knowledge. Read
+   it before showing it to students, especially the "what's good" ranges.
+5. **Compare uses each company's latest fiscal year, with a note when year-ends are more than 31 days
+   apart.** KO (Dec 31) vs NVDA (Jan 25) gets no note, even though the labels read FY2025 vs FY2026.
+   The column headers show the dates.
+
+Smaller ones: `uv run finance-analyzer` now starts the app; Streamlit usage statistics are switched
+off; JSON rather than YAML; no license added (your call; MIT is the usual one); `LEARNING.md` left
+untouched, with suggested entries under task 3.
+
+---
+
 Decisions made without asking during the autopilot session, one entry per decision.
 Format: date · task · decision · why · alternatives rejected.
 
@@ -121,3 +161,18 @@ Format: date · task · decision · why · alternatives rejected.
 - **2026-11-11 · decision:** "License: no license chosen yet". **Why:** choosing one is the owner's call;
   SPEC says open-source, so MIT is the usual pick for a portfolio project. **Rejected:** adding MIT myself.
 - **2026-11-11 · outcome:** docs only; 118 tests still pass.
+
+## Task 8 — Docker
+
+- **2026-11-11 · decision:** `Dockerfile` on `ghcr.io/astral-sh/uv:python3.12-bookworm-slim`
+  (dependencies installed in their own layer, `--locked --no-dev`), plus `compose.yaml` so it's one
+  command: `docker compose up --build`. It reads `.env` and bind-mounts `./data`. **Why:** compose
+  handles the env file, port and volume in one place. **Rejected:** a long `docker run` command;
+  a named volume (wouldn't share the database with the non-Docker setup).
+- **2026-11-11 · decision:** Docker isn't installed on this machine, so the image is verified in a new
+  CI job that builds it, starts it and waits for Streamlit's health check. **Rejected:** installing
+  Docker Desktop (it needs a licence and account, which the rules forbid).
+- **2026-11-11 · decision:** `.dockerignore` keeps `.env`, `data/`, `.git` and tests out of the image.
+- **2026-11-11 · outcome:** PR #13: `docker` (≈1 min) and `pytest` checks both pass on GitHub.
+- **2026-11-11 · follow-up:** filed #14 (data checks in the UI) and #15 (yfinance price metrics), the
+  SPEC v1 items not in this queue.
