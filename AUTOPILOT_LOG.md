@@ -73,3 +73,18 @@ Format: date · task · decision · why · alternatives rejected.
 - **2026-11-11 · outcome:** 114 tests pass (3 new compare smoke tests). Real data: "AAPL, KO, NVDA"
   shows the year-end note and AAPL ROE 142.3% / KO 46.0% (match the hand-calculated tests);
   "TSLA JPM" shows no note and JPM's banner. Headless server starts, health ok.
+
+## Task 5 — Learning layer
+
+- **2026-11-11 · decision:** JSON, not YAML, at `src/finance_analyzer/learning.json`. **Why:** Python
+  reads JSON with no new dependency; living in the package means it ships in the wheel (checked).
+  **Rejected:** YAML (needs PyYAML for nicer multi-line text); a `docs/` folder (not packaged).
+- **2026-11-11 · decision:** text shown inside each card's "Formula and meaning" expander, after the
+  filled-in formula, and in the DuPont section. **Rejected:** always-visible text (19 cards × 3
+  paragraphs buries the numbers).
+- **2026-11-11 · decision:** "what's good" gives industry-dependent ranges and says to compare with
+  peers, and traps mention this app's own limits (Apple's missing interest expense, LongTermDebt issue
+  #5, the never-reported-means-zero rule). **Owner should review:** the text is general finance
+  knowledge written by Claude, not checked against a textbook.
+- **2026-11-11 · outcome:** 115 tests pass (new: every metric has all three non-empty texts; the
+  company page shows them). Real data renders for all five; headless start ok.
