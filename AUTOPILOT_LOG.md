@@ -109,3 +109,15 @@ Format: date · task · decision · why · alternatives rejected.
   it equals the engine's value. Real data: 1,407 formulas across AAPL/KO/TSLA/NVDA/JPM, 0 mismatches.
   **Not checked:** opening in real Excel/LibreOffice (not installed here); the formulas use only `+ - * /
   ^`, parentheses and `'Line items'!C5`-style references, which every spreadsheet app supports.
+
+## Task 7 — README
+
+- **2026-11-11 · decision:** README covers what it is, screenshot placeholders (`docs/screenshots/`),
+  setup, run, tests/CI, a mermaid diagram of the actual modules, data sources and limitations linking
+  issues #1–#6. Added `.env.example` so setup is `cp .env.example .env`. **Rejected:** real screenshots
+  (asked for placeholders).
+- **2026-11-11 · decision:** limitations state that share price (yfinance) isn't built yet. **Why:** it's
+  in SPEC v1 but wasn't in this queue; better said than implied.
+- **2026-11-11 · decision:** "License: no license chosen yet". **Why:** choosing one is the owner's call;
+  SPEC says open-source, so MIT is the usual pick for a portfolio project. **Rejected:** adding MIT myself.
+- **2026-11-11 · outcome:** docs only; 118 tests still pass.
