@@ -57,12 +57,20 @@ def metric_card(name: str, metric: Metric, prior: Metric | None) -> None:
             st.caption(f"Not available: {metric.reason}")
         for note in metric.notes:
             st.caption(f"ⓘ {note}")
-        with st.expander("Formula"):
-            st.markdown(FORMULA_TEXT[name])
+        with st.expander("Formula and meaning"):
+            st.markdown(f"**Formula:** {FORMULA_TEXT[name]}")
             for key, value in metric.inputs.items():
                 st.markdown(f"- {key.replace('_', ' ')} = {display.format_input(key, value)}")
             if metric.value is not None:
                 st.markdown(f"= **{display.format_metric(name, metric.value)}**")
+            learn(name)
+
+
+def learn(name: str) -> None:
+    text = display.LEARNING[name]
+    st.markdown(f"**What it means:** {text['meaning']}")
+    st.markdown(f"**What's good:** {text['good']}")
+    st.markdown(f"**Common traps:** {text['traps']}")
 
 
 def trend_chart(title: str, labels: list[str], series: dict[str, list], kind: str, percent: bool) -> go.Figure:
@@ -140,8 +148,9 @@ def company_page() -> None:
 
 def dupont_section(metrics: dict, years: list, labels: list[str]) -> None:
     st.subheader("DuPont breakdown")
-    st.caption("ROE split into three drivers: how much profit per dollar of sales, how hard the assets work, "
-               "and how much of the assets are funded with debt rather than equity.")
+    with st.expander("Formula and meaning"):
+        st.markdown(f"**Formula:** {FORMULA_TEXT['dupont']}")
+        learn("dupont")
     dupont = metrics[years[-1]]["dupont"]
     if dupont.value is None:
         st.caption(f"Not available for {labels[-1]}: {dupont.reason}")

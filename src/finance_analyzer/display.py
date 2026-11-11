@@ -1,6 +1,8 @@
 """Turns engine results into text for the pages. No Streamlit here, so it's plain to test."""
 
+import json
 from datetime import date
+from pathlib import Path
 
 from finance_analyzer.schema import ITEMS
 from finance_analyzer.store import StoredLineItem
@@ -37,6 +39,9 @@ GROUPS = {
     "Cash flow": ["free_cash_flow", "fcf_margin"],
     "Growth": ["revenue_growth", "revenue_cagr_3y", "eps_growth", "eps_cagr_3y"],
 }
+
+# The learning layer: for each metric, what it means, what's good and common traps.
+LEARNING: dict[str, dict[str, str]] = json.loads(Path(__file__).with_name("learning.json").read_text())
 
 MULTIPLES = {"current_ratio", "quick_ratio", "debt_to_equity", "interest_coverage", "asset_turnover", "equity_multiplier"}
 DOLLARS = {"free_cash_flow"}  # every other metric is a fraction shown as a percentage

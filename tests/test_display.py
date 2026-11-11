@@ -94,3 +94,10 @@ def test_year_end_note_names_each_year_end():
         "Fiscal years end on different dates (AAPL FY2026 ends Sep 26, 2026, KO FY2025 ends Dec 31, 2025), "
         "so the latest years cover different months."
     )
+
+
+def test_every_metric_has_learning_text():
+    assert display.LEARNING.keys() == FORMULAS.keys()
+    for name, text in display.LEARNING.items():
+        assert text.keys() == {"meaning", "good", "traps"}, name
+        assert all(value.strip() for value in text.values()), name

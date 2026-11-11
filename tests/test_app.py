@@ -54,6 +54,7 @@ def test_company_page_loads_and_shows_every_section():
     assert len(app.metric) == 18 + 4  # every grouped metric card plus the four DuPont tiles
     assert "Not available: interest_expense not reported for FY2026" in [c.value for c in app.caption]
     assert not app.warning
+    assert any("What it means" in m.value for m in app.markdown), "learning text on the cards"
 
 
 def test_bank_gets_a_warning():
