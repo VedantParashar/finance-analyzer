@@ -54,3 +54,22 @@ Format: date · task · decision · why · alternatives rejected.
 - **2026-11-11 · outcome:** 108 tests pass, including 4 `AppTest` smoke tests (offline, temp database).
   Rendered against the real database: AAPL, KO, TSLA, NVDA, JPM all load with no exception; JPM shows
   the banner. `uv run finance-analyzer --server.headless true` starts and `/_stcore/health` returns ok.
+
+## Task 4 — Compare page
+
+- **2026-11-11 · decision:** two pages through `st.navigation`; the navigation runs only under
+  `if __name__ == "__main__"` so tests can import a page function and run it with `AppTest.from_function`.
+  **Why:** `AppTest.switch_page` only supports file-based pages. **Rejected:** one file per page plus a
+  shared helper module (three files for what fits in one).
+- **2026-11-11 · decision:** the table compares each company's *latest* fiscal year, with the year and
+  end date in the column header (e.g. `NVDA FY2026 (Jan 25)`); missing values show "—" with the reasons
+  in an expander. **Rejected:** forcing a common calendar year (would hide a company's newest year).
+- **2026-11-11 · decision:** the year-end note appears when the latest year-ends are more than 31 days
+  apart. **Why:** days, not months, so 52/53-week drift (Sep 26 vs Sep 30) doesn't trigger it; KO
+  (Dec 31) vs NVDA (Jan 25) is 25 days and mostly the same period, so no note.
+- **2026-11-11 · decision:** one overlaid chart driven by a metric selector, x-axis = real year-end
+  dates. **Rejected:** a fixed set of overlaid charts (the selector covers all 18).
+- **2026-11-11 · decision:** DuPont left out of the compare table (it equals ROE, already a row).
+- **2026-11-11 · outcome:** 114 tests pass (3 new compare smoke tests). Real data: "AAPL, KO, NVDA"
+  shows the year-end note and AAPL ROE 142.3% / KO 46.0% (match the hand-calculated tests);
+  "TSLA JPM" shows no note and JPM's banner. Headless server starts, health ok.
