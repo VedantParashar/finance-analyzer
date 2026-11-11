@@ -24,6 +24,8 @@ Built for finance and business students doing case studies, stock pitches and th
   fiscal years end on different dates (Apple in September, NVIDIA in January).
 - **Excel export:** a workbook whose metric cells are live formulas over the line-item sheet, so you
   can trace and change every number.
+- **Data checks:** for every stored year, whether assets = liabilities + equity (and by how much it's
+  off if not), plus any gap in the run of fiscal years.
 - **Honest gaps:** when a ratio can't be calculated, the app says why (e.g. *interest_expense not
   reported for FY2026*) instead of showing a wrong number. Banks and insurers get a warning banner.
 

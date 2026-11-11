@@ -4,6 +4,7 @@ import pytest
 
 from finance_analyzer import display
 from finance_analyzer.metrics import FORMULAS
+from finance_analyzer.parse import BalanceCheck
 from finance_analyzer.store import StoredLineItem
 
 
@@ -101,3 +102,37 @@ def test_every_metric_has_learning_text():
     for name, text in display.LEARNING.items():
         assert text.keys() == {"meaning", "good", "traps"}, name
         assert all(value.strip() for value in text.values()), name
+
+
+def balance_rows(*ends, items=("total_assets", "total_liabilities", "total_equity")):
+    return [StoredLineItem("T", item, end, 100e9, "USD", "accn", "", datetime(2026, 11, 10)) for end in ends for item in items]
+
+
+def test_balance_check_table_explains_each_result():
+    y23, y24, y25, y26 = (date(year, 12, 31) for year in (2023, 2024, 2025, 2026))
+    rows = balance_rows(y24, y25, y26) + balance_rows(y23, items=("total_assets",))
+    checks = [
+        BalanceCheck("2024-12-31", False, -150e6, False),
+        BalanceCheck("2025-12-31", True, 400_000, True),
+        BalanceCheck("2026-12-31", True, 0, False),
+    ]
+    table = display.balance_check_table(rows, checks)
+    assert [line["Fiscal year"] for line in table] == ["FY2026", "FY2025", "FY2024", "FY2023"]  # newest first
+    assert [line["Assets = liabilities + equity"] for line in table] == [
+        "✓ Balances", "✓ Balances", "✗ Doesn't balance", "Not checked",
+    ]
+    details = [line["Detail"] for line in table]
+    assert details[0] == "total assets equal liabilities + temporary equity + total equity"
+    assert details[1].startswith("total assets are less than $1M above the reported total of liabilities and equity")
+    assert details[1].endswith("within the 0.1% of total assets allowed for rounding")
+    assert details[2].startswith("total assets are $150M below liabilities") and "more than the 0.1%" in details[2]
+    assert details[3] == "total_liabilities, total_equity not reported for this year"
+
+
+def test_missing_years_reports_gaps_but_not_53_week_years():
+    weekly = [date(2023, 9, 30), date(2024, 9, 28), date(2025, 9, 27)]  # 364-day years
+    assert display.missing_years(weekly) == []
+    assert display.missing_years([date(2020, 12, 31), date(2021, 12, 31), date(2023, 12, 31)]) == [
+        "Nothing between FY2021 (ended Dec 31, 2021) and FY2023 (ended Dec 31, 2023): the SEC data has no "
+        "full-year 10-K figures for the time in between, so growth and averaged ratios for FY2023 can't be calculated."
+    ]

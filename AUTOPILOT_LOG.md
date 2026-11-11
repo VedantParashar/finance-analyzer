@@ -198,3 +198,23 @@ closed once the next branch exists.
   still get no banner. SIC codes describe how the SEC files a company, not what students call "finance".
 - **2026-11-11 · outcome:** 123 tests pass (boundaries 5999/6000/6499/6500; page test for JPM, GS and
   BRK-B). Real data: JPM (6021), GS (6211) and BRK-B (6331) all load with the banner; AAPL has none.
+
+## S2 Task 3 — Data checks on the company page (#14)
+
+- **2026-11-11 · decision:** the page re-reads the SEC download already cached on disk and runs the
+  existing `parse.balance_checks` on it (cached per ticker by Streamlit). **Why:** the check needs the
+  reported "liabilities and equity" total, which isn't a stored line item. **Rejected:** a new DuckDB
+  table for check results (a schema change for something that takes milliseconds to recompute).
+- **2026-11-11 · decision:** a "Data checks" section at the bottom of the company page: one summary
+  line each for the balance check and missing years, and a table of every stored year (newest first)
+  that opens by itself only when a year fails. Each row says what assets were compared with and by how
+  much they differ. Years the check can't run say which of the three items is absent.
+- **2026-11-11 · decision:** all stored years are checked, not just the five shown. **Why:** older
+  years feed the Excel export and 3-year growth rates.
+- **2026-11-11 · decision:** a "missing year" is a gap of more than 375 days between stored fiscal year
+  ends, the same limit the metrics engine uses, and the line says which ratios it breaks.
+  **Not flagged:** a latest year that is simply old (task 5 handles freshness).
+- **2026-11-11 · outcome:** 126 tests pass. Real data: AAPL 19 of 20 years balance (FY2007 has no
+  balance sheet); TSLA FY2014–15 fail by $58M and $47M (known, #3); GS shows one gap, FY2008 (Nov) to
+  FY2009 (Dec), which is its real change of year-end. **New findings, not fixed:** JPM FY2009 and BRK-B
+  FY2014, FY2015, FY2020 and FY2023 don't balance. Both are financial companies, out of v1 scope.

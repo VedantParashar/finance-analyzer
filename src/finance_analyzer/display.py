@@ -4,6 +4,7 @@ import json
 from datetime import date
 from pathlib import Path
 
+from finance_analyzer.parse import BALANCE_TOLERANCE, BalanceCheck
 from finance_analyzer.schema import ITEMS
 from finance_analyzer.store import StoredLineItem
 
@@ -123,6 +124,49 @@ def line_item_table(rows: list[StoredLineItem], years: list[date]) -> tuple[list
                 derivations.append(f"{label(item)}, {fiscal_year(end)}: {row.derivation}")
         table.append(line)
     return table, derivations
+
+
+def balance_check_table(rows: list[StoredLineItem], checks: list[BalanceCheck]) -> list[dict[str, str]]:
+    """One row per stored fiscal year, newest first: did assets = liabilities + equity, and if not, why."""
+    by_end = {date.fromisoformat(check.fiscal_year_end): check for check in checks}
+    have = {(row.item, row.fiscal_year_end) for row in rows}
+    table = []
+    for end in sorted({row.fiscal_year_end for row in rows}, reverse=True):
+        check = by_end.get(end)
+        if check is None:
+            absent = [i for i in ("total_assets", "total_liabilities", "total_equity") if (i, end) not in have]
+            result, detail = "Not checked", f"{', '.join(absent)} not reported for this year"
+        else:
+            other_side = (
+                "the reported total of liabilities and equity (liabilities aren't reported on their own)"
+                if check.liabilities_derived
+                else "liabilities + temporary equity + total equity"
+            )
+            if check.difference == 0:
+                result, detail = "✓ Balances", f"total assets equal {other_side}"
+            else:
+                gap = money(abs(check.difference)) if abs(check.difference) >= 1e6 else "less than $1M"
+                size = f"total assets are {gap} {'above' if check.difference > 0 else 'below'}"
+                limit = f"the {BALANCE_TOLERANCE:.1%} of total assets allowed for rounding"
+                if check.passed:
+                    result, detail = "✓ Balances", f"{size} {other_side}, within {limit}"
+                else:
+                    result, detail = "✗ Doesn't balance", f"{size} {other_side}, more than {limit}"
+        table.append({"Fiscal year": fiscal_year(end), "Assets = liabilities + equity": result, "Detail": detail})
+    return table
+
+
+def missing_years(year_ends: list[date]) -> list[str]:
+    """One line for each gap between stored fiscal years (oldest first), with what it breaks."""
+    lines = []
+    for earlier, later in zip(year_ends, year_ends[1:]):
+        if (later - earlier).days > 375:  # the same limit the metrics engine uses for "consecutive"
+            lines.append(
+                f"Nothing between {fiscal_year(earlier)} (ended {earlier:%b %-d, %Y}) and {fiscal_year(later)} "
+                f"(ended {later:%b %-d, %Y}): the SEC data has no full-year 10-K figures for the time in "
+                f"between, so growth and averaged ratios for {fiscal_year(later)} can't be calculated."
+            )
+    return lines
 
 
 def parse_tickers(text: str) -> list[str]:
