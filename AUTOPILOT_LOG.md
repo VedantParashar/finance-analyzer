@@ -18,3 +18,10 @@ Format: date · task · decision · why · alternatives rejected.
 - **2026-11-11 · decision:** log entries ride on each task's branch and reach master through its PR.
   **Why:** the hard rule bans pushing to master directly. **Rejected:** a separate log-only PR per task
   (doubles the PRs for no gain).
+- **2026-11-11 · outcome:** PR #7 open, `pytest` check passed on GitHub (78 tests, ~12s).
+  **Blocked:** `gh pr merge --squash` was denied by Claude Code's permission classifier ("merge without
+  review"). **Decision:** don't work around it; build every later task on a branch stacked on the
+  previous one, each PR targeting the previous task's branch so its diff shows only that task.
+  **Why:** later tasks need earlier code (the compare page needs app.py). **Rejected:** branching every
+  task from master (would leave tasks 4–6 without the code they build on); stopping the queue.
+  The owner merges the stack in order (see the summary at the top).
