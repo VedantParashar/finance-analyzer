@@ -77,3 +77,20 @@ def test_line_item_table_marks_derived_values_and_gaps():
         {"Line item": "Total liabilities", "FY2024": "—", "FY2025": "$70M *"},
     ]
     assert derivations == ["Total liabilities, FY2025: liabilities = total − equity"]
+
+
+def test_parse_tickers():
+    assert display.parse_tickers(" aapl, KO nvda,,ko ") == ["AAPL", "KO", "NVDA"]
+
+
+def test_year_end_note_ignores_52_53_week_drift():
+    assert display.year_end_note({"AAPL": date(2026, 9, 26), "MSFT": date(2026, 9, 30)}) == ""
+    assert display.year_end_note({"KO": date(2025, 12, 31), "NVDA": date(2026, 1, 25)}) == ""
+
+
+def test_year_end_note_names_each_year_end():
+    note = display.year_end_note({"AAPL": date(2026, 9, 26), "KO": date(2025, 12, 31)})
+    assert note == (
+        "Fiscal years end on different dates (AAPL FY2026 ends Sep 26, 2026, KO FY2025 ends Dec 31, 2025), "
+        "so the latest years cover different months."
+    )

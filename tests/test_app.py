@@ -64,3 +64,35 @@ def test_bank_gets_a_warning():
 def test_unknown_ticker_shows_an_error():
     app = company("NOPE")
     assert not app.exception and "Unknown ticker" in app.error[0].value
+
+
+def compare_script():
+    from finance_analyzer.app import compare_page
+
+    compare_page()
+
+
+def compare(tickers):
+    app = AppTest.from_function(compare_script, default_timeout=30).run()
+    return app.text_input[0].input(tickers).run()
+
+
+def test_compare_needs_two_to_four_tickers():
+    assert "Enter 2 to 4 tickers" in compare("AAPL").info[0].value
+    assert "Enter 2 to 4 tickers" in compare("AAPL KO TSLA NVDA JPM").info[0].value
+
+
+def test_compare_shows_table_and_chart_for_each_company():
+    app = compare("aapl, jpm")
+    assert not app.exception and not app.error
+    assert [s.value for s in app.subheader] == ["Latest fiscal year", "Over time"]
+    assert list(app.dataframe[0].value.columns) == ["Metric", "AAPL FY2026 (Sep 26)", "JPM FY2026 (Sep 26)"]
+    assert len(app.warning) == 1  # JPM's bank banner
+    assert not app.info  # same year-ends, so no note
+    app = app.selectbox[0].select("free_cash_flow").run()
+    assert not app.exception
+
+
+def test_compare_reports_an_unknown_ticker():
+    app = compare("AAPL NOPE")
+    assert not app.exception and "Unknown ticker" in app.error[0].value

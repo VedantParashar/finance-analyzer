@@ -164,5 +164,62 @@ def dupont_section(metrics: dict, years: list, labels: list[str]) -> None:
     st.dataframe(table, hide_index=True)
 
 
-st.set_page_config(page_title="Finance Analyzer", layout="wide")
-company_page()
+def compare_page() -> None:
+    st.title("Compare")
+    tickers = display.parse_tickers(st.text_input("Tickers (2 to 4)", placeholder="e.g. AAPL, KO, NVDA"))
+    if not 2 <= len(tickers) <= 4:
+        st.info("Enter 2 to 4 tickers, separated by commas or spaces.")
+        return
+    companies = {}
+    for ticker in tickers:
+        loaded = load_or_explain(ticker)
+        if loaded is None:
+            return
+        companies[ticker] = loaded
+        bank_banner(ticker, loaded[2])
+
+    latest_ends = {ticker: max(metrics) for ticker, (_, metrics, _) in companies.items()}
+    note = display.year_end_note(latest_ends)
+    if note:
+        st.info(note)
+
+    st.subheader("Latest fiscal year")
+    columns = {ticker: f"{ticker} {display.fiscal_year(end)} ({end:%b %-d})" for ticker, end in latest_ends.items()}
+    names = [name for group in display.GROUPS.values() for name in group]
+    table, missing = [], []
+    for name in names:
+        line = {"Metric": display.LABELS[name]}
+        for ticker, (_, metrics, _) in companies.items():
+            metric = metrics[latest_ends[ticker]][name]
+            line[columns[ticker]] = display.format_metric(name, metric.value)
+            if metric.reason:
+                missing.append(f"{display.LABELS[name]}, {ticker}: {metric.reason}")
+        table.append(line)
+    st.dataframe(table, hide_index=True)
+    if missing:
+        with st.expander("Why some values are missing"):
+            st.markdown("\n".join(f"- {line}" for line in missing))
+
+    st.subheader("Over time")
+    name = st.selectbox("Metric", names, format_func=display.LABELS.get)
+    scale = 1e6 if name in display.DOLLARS else 1  # free cash flow in $M
+    figure = go.Figure()
+    for ticker, (_, metrics, _) in companies.items():
+        years = sorted(metrics)[-YEARS_SHOWN:]
+        values = [metrics[end][name].value for end in years]
+        figure.add_scatter(
+            name=ticker, x=years, y=[None if v is None else v / scale for v in values], mode="lines+markers"
+        )
+    # Real year-end dates on the x-axis, so different fiscal calendars line up honestly.
+    figure.update_layout(height=380, margin={"t": 20}, xaxis_title="Fiscal year end", legend={"orientation": "h"})
+    figure.update_yaxes(
+        tickformat=".2f" if name in display.MULTIPLES else "$,.0f" if name in display.DOLLARS else ".0%",
+        title="$M" if name in display.DOLLARS else None,
+    )
+    st.plotly_chart(figure)
+
+
+# Streamlit runs this file as __main__; importing it (as the tests do) only defines the pages.
+if __name__ == "__main__":
+    st.set_page_config(page_title="Finance Analyzer", layout="wide")
+    st.navigation([st.Page(company_page, title="Company"), st.Page(compare_page, title="Compare")]).run()

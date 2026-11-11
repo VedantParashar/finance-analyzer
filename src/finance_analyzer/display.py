@@ -118,3 +118,17 @@ def line_item_table(rows: list[StoredLineItem], years: list[date]) -> tuple[list
                 derivations.append(f"{label(item)}, {fiscal_year(end)}: {row.derivation}")
         table.append(line)
     return table, derivations
+
+
+def parse_tickers(text: str) -> list[str]:
+    """Tickers from free text like "aapl, KO nvda", uppercased, duplicates dropped, order kept."""
+    return list(dict.fromkeys(text.replace(",", " ").upper().split()))
+
+
+def year_end_note(latest_ends: dict[str, date]) -> str:
+    """A warning when the companies' latest fiscal years end more than a month apart, else ""."""
+    # Days, not months: 52/53-week years drift a few days, which doesn't change the period compared.
+    if (max(latest_ends.values()) - min(latest_ends.values())).days <= 31:
+        return ""
+    ends = ", ".join(f"{ticker} {fiscal_year(end)} ends {end:%b %-d, %Y}" for ticker, end in latest_ends.items())
+    return f"Fiscal years end on different dates ({ends}), so the latest years cover different months."
