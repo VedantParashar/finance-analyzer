@@ -1,0 +1,79 @@
+from datetime import date, datetime
+
+import pytest
+
+from finance_analyzer import display
+from finance_analyzer.metrics import FORMULAS
+from finance_analyzer.store import StoredLineItem
+
+
+def test_every_metric_has_a_label_and_every_grouped_metric_exists():
+    assert display.LABELS.keys() == FORMULAS.keys()
+    grouped = [name for names in display.GROUPS.values() for name in names]
+    assert len(grouped) == len(set(grouped)) and set(grouped) == FORMULAS.keys() - {"dupont"}
+
+
+@pytest.mark.parametrize(
+    "name, value, expected",
+    [
+        ("net_margin", 0.27604, "27.6%"),
+        ("current_ratio", 1.02316, "1.02×"),
+        ("free_cash_flow", 136_056_000_000, "$136,056M"),
+        ("free_cash_flow", -2_500_000, "-$2M"),
+        ("roe", None, "—"),
+    ],
+)
+def test_format_metric(name, value, expected):
+    assert display.format_metric(name, value) == expected
+
+
+@pytest.mark.parametrize(
+    "name, current, prior, expected",
+    [
+        ("net_margin", 0.276, 0.250, "+2.6 pp"),
+        ("current_ratio", 1.0, 1.25, "-0.25×"),
+        ("free_cash_flow", 110, 100, "+10.0%"),
+        ("free_cash_flow", 110, 0, None),
+        ("roe", 0.5, None, None),
+    ],
+)
+def test_yoy_delta(name, current, prior, expected):
+    assert display.yoy_delta(name, current, prior) == expected
+
+
+@pytest.mark.parametrize(
+    "key, value, expected",
+    [
+        ("net_income", 13_107_000_000, "$13,107M"),
+        ("average shareholders_equity", 28_512_500_000, "$28,512M"),
+        ("diluted_eps (FY2023)", 6.13, "$6.13"),
+        ("diluted_shares", 15_408_095_000, "15,408M shares"),
+        ("invested capital (prior year)", 117_693_000_000, "$117,693M"),
+        ("tax rate", 0.17, "17.0%"),
+        ("asset turnover", 1.2538, "1.25×"),
+    ],
+)
+def test_format_input(key, value, expected):
+    assert display.format_input(key, value) == expected
+
+
+def row(item, end, value, unit="USD", derivation=""):
+    return StoredLineItem("TEST", item, end, value, unit, "accn", derivation, datetime(2026, 11, 11))
+
+
+def test_line_item_table_marks_derived_values_and_gaps():
+    y1, y2 = date(2024, 12, 31), date(2025, 12, 31)
+    rows = [
+        row("revenue", y1, 100e6),
+        row("revenue", y2, 120e6),
+        row("diluted_eps", y2, 3.04, "USD/shares"),
+        row("total_liabilities", y2, 70e6, derivation="liabilities = total − equity"),
+        row("cash", date(2020, 12, 31), 5e6),  # outside the years shown
+    ]
+    table, derivations = display.line_item_table(rows, [y1, y2])
+    assert table == [
+        {"Line item": "Revenue", "FY2024": "$100M", "FY2025": "$120M"},
+        {"Line item": "Diluted EPS", "FY2024": "—", "FY2025": "$3.04"},
+        {"Line item": "Total liabilities", "FY2024": "—", "FY2025": "$70M *"},
+    ]
+    assert derivations == ["Total liabilities, FY2025: liabilities = total − equity"]
