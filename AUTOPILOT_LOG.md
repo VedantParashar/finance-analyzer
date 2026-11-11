@@ -88,3 +88,24 @@ Format: date · task · decision · why · alternatives rejected.
   knowledge written by Claude, not checked against a textbook.
 - **2026-11-11 · outcome:** 115 tests pass (new: every metric has all three non-empty texts; the
   company page shows them). Real data renders for all five; headless start ok.
+
+## Task 6 — Excel export with live formulas
+
+- **2026-11-11 · decision:** a metric cell gets a formula only when the engine calculated that year;
+  otherwise it says "n/a" with the engine's reason as a cell comment. **Why:** Excel would otherwise
+  treat blanks as 0 and show wrong numbers or #DIV/0!, and this keeps one source of truth for the
+  rules (consecutive years, negative equity…). **Rejected:** `IF(ISBLANK(…))` guards in every formula
+  (would re-implement the engine's rules in Excel and drift from them).
+- **2026-11-11 · decision:** every stored year is exported, not just the last 5, so averages and
+  3-year CAGRs have their earlier years. Line items in $M (EPS in $, shares in millions); ratios don't
+  change with the scale, free cash flow is labelled "in $M".
+- **2026-11-11 · decision:** every schema item gets a row even when empty, so formulas never point at
+  a missing row; never-reported inventory/debt/short-term investments are filled with 0 plus a comment,
+  matching the engine. Derivations become cell comments. DuPont's cell multiplies the three metric
+  cells above it, so it's live too.
+- **2026-11-11 · decision:** download button on the company page; the file is built on every page run
+  (~17KB, milliseconds). **Rejected:** caching it (not worth the code).
+- **2026-11-11 · outcome:** 118 tests pass; the export test evaluates every formula in Python and checks
+  it equals the engine's value. Real data: 1,407 formulas across AAPL/KO/TSLA/NVDA/JPM, 0 mismatches.
+  **Not checked:** opening in real Excel/LibreOffice (not installed here); the formulas use only `+ - * /
+  ^`, parentheses and `'Line items'!C5`-style references, which every spreadsheet app supports.
