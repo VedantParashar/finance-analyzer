@@ -2,6 +2,7 @@
 
 import json
 import os
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import NamedTuple
@@ -46,7 +47,10 @@ def _download(url: str, cache_path: Path) -> None:
     response.raise_for_status()  # stop on errors so a bad response is never cached
     response.json()  # same for a page that isn't JSON
     cache_path.parent.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(response.text)
+    # Written beside the real file and then swapped in, so a page never reads a half-written download.
+    partial = cache_path.with_name(f"{cache_path.name}.{threading.get_ident()}.part")
+    partial.write_text(response.text)
+    partial.replace(cache_path)
 
 
 def _get_json(url: str, cache_path: Path) -> dict:

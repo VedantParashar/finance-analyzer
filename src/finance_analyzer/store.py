@@ -1,5 +1,6 @@
 """Save standard line items to a local DuckDB file and read them back."""
 
+import threading
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import NamedTuple
@@ -12,6 +13,7 @@ from finance_analyzer.parse import annual_line_items, company_currency
 from finance_analyzer.schema import ITEMS
 
 DB_PATH = Path("data/finance.duckdb")
+_SAVING = threading.Lock()  # one save at a time: a page view and the background pre-load can overlap
 
 CREATE_TABLE = """
     CREATE TABLE IF NOT EXISTS line_items (
@@ -56,7 +58,7 @@ def load_company(ticker: str) -> int:
 
     currency = company_currency(ticker)  # each row's unit records it: "EUR", "EUR/shares"
     loaded_at = datetime.now(UTC).replace(tzinfo=None)  # stored as UTC
-    with _connect() as connection:
+    with _SAVING, _connect() as connection:
         connection.begin()  # leaving this block without commit() undoes everything below
         connection.execute("DELETE FROM line_items WHERE ticker = ?", [ticker])
         connection.executemany(

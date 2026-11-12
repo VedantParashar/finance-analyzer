@@ -4,13 +4,14 @@ Run from the project folder: uv run --env-file .env finance-analyzer
 """
 
 import os
+import threading
 from datetime import timedelta
 
 import httpx
 import plotly.graph_objects as go
 import streamlit as st
 
-from finance_analyzer import display, edgar, export, parse, peers, prices, store
+from finance_analyzer import display, edgar, export, parse, peers, preload, prices, store
 from finance_analyzer.metrics import FORMULA_TEXT, MIN_FOR_MEDIAN, Metric, company_metrics, industry_medians, price_metrics
 
 YEARS_SHOWN = 5
@@ -628,9 +629,19 @@ def compare_page() -> None:
     st.plotly_chart(figure)
 
 
-def run() -> None:
+@st.cache_resource(show_spinner=False)  # once per server process, however many people open the app
+def start_preload() -> threading.Thread:
+    """Start loading the stress-test companies in the background; the page doesn't wait for it."""
+    thread = threading.Thread(target=preload.run, name="preload", daemon=True)
+    thread.start()
+    return thread
+
+
+def run(preload_companies: bool = False) -> None:
     st.set_page_config(page_title="Finance Analyzer", layout="wide")
     use_secret_user_agent()
+    if preload_companies:
+        start_preload()
     PAGES["company"] = st.Page(company_page, title="Company")
     PAGES["compare"] = st.Page(compare_page, title="Compare")
     page = st.navigation(list(PAGES.values()))

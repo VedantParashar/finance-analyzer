@@ -45,6 +45,9 @@ then **Settings → Secrets**.
 
 ## Things that behave differently when hosted
 
+- **30 companies are loaded in the background at startup.** `streamlit_app.py` starts a pre-load of the
+  stress-test companies (see `src/finance_analyzer/preload.py`) the first time anyone opens the app after
+  a restart. Pages don't wait for it; its result is one "Pre-load:" line in the app's log.
 - **Stored data is temporary.** The SEC downloads and the DuckDB file live on the app's own disk, which
   is wiped when the app restarts or goes to sleep. Nothing is lost: a company is simply downloaded again
   the next time someone looks at it (a few seconds).

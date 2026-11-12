@@ -1,6 +1,7 @@
 """Smoke tests: run the real pages against a temporary database, with no network."""
 
 import os
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from streamlit.proto.WidgetStates_pb2 import WidgetState
 from streamlit.testing.v1 import AppTest
 from streamlit.testing.v1.element_tree import Selectbox
 
-from finance_analyzer import edgar, parse, peers, prices, store
+from finance_analyzer import edgar, parse, peers, preload, prices, store
 from finance_analyzer.parse import BalanceCheck, LineItemRow
 from test_metrics import AAPL, M
 
@@ -28,6 +29,9 @@ INFO = {
 COMPANIES = [edgar.Company(ticker, info["name"], f"{number:010}") for number, (ticker, info) in enumerate(INFO.items(), 1)] + [
     edgar.Company("APLE", "Apple Hospitality REIT, Inc.", "0000000099"),  # so "apple" matches two names
 ]
+
+
+PRELOADS = []  # one entry per background pre-load started
 
 
 def typed_or_picked(box):
@@ -79,6 +83,7 @@ def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(prices, "fetch_exchange_rate", lambda currency: prices.Rate(0.9, datetime(2026, 11, 12, 9, 0)))
     monkeypatch.setattr(edgar, "fetch_company_info", lambda ticker: INFO.get(ticker, INFO["AAPL"]))
     monkeypatch.setattr(edgar, "list_companies", lambda: COMPANIES)
+    monkeypatch.setattr(preload, "run", lambda: PRELOADS.append(1))  # the hosted entry point starts it
     monkeypatch.setattr(peers, "COMPANIES", {"AAPL": [3571, 4e11], "SAP": [3571, 3e10], "GS": [3572, 5e10]})
     monkeypatch.setattr(Selectbox, "_widget_state", property(typed_or_picked))
     st.cache_data.clear()
@@ -402,9 +407,22 @@ def test_compare_reports_an_unknown_ticker():
     assert not app.exception and "No company found for “NOPE”" in app.error[0].value
 
 
-def test_cloud_entry_point_runs_the_same_app():
+def test_cloud_entry_point_runs_the_same_app_and_starts_the_pre_load_once():
+    st.cache_resource.clear()
+    PRELOADS.clear()
     app = AppTest.from_file(str(Path(__file__).parents[1] / "streamlit_app.py"), default_timeout=30).run()
     assert not app.exception and "Search for a company" in app.info[0].value
+    app.run()  # a second page view in the same server process
+    for thread in threading.enumerate():
+        if thread.name == "preload":
+            thread.join(5)
+    assert PRELOADS == [1]
+
+
+def test_the_local_entry_point_does_not_pre_load():
+    PRELOADS.clear()
+    AppTest.from_file(APP, default_timeout=30).run()
+    assert PRELOADS == []
 
 
 def test_sec_user_agent_comes_from_secrets_before_the_environment(monkeypatch):

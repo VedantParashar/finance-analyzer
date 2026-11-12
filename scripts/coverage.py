@@ -10,21 +10,9 @@ from pathlib import Path
 
 from finance_analyzer import display, edgar, parse, store
 from finance_analyzer.metrics import FORMULAS, company_metrics
+from finance_analyzer.preload import GROUPS
 from finance_analyzer.schema import ITEMS
 
-# 30 companies chosen to differ: size, industry, accounting rules, currency, age and profitability.
-GROUPS = {
-    "Mega caps": ["MSFT", "GOOGL", "AMZN", "META"],
-    "Small and mid caps": ["PLOW", "CALM", "CROX"],
-    "Retail": ["WMT", "COST", "TGT", "HD"],
-    "Energy": ["XOM", "CVX", "OXY"],
-    "Pharma": ["PFE", "LLY", "MRNA"],
-    "Utilities": ["NEE", "DUK"],
-    "REITs": ["O", "PLD", "AMT"],
-    "Foreign filers": ["NVO", "SHEL", "CNQ", "BABA", "SONY"],
-    "Recent IPOs": ["RDDT", "CRWV"],
-    "Loss-making": ["RIVN"],
-}
 # Written by hand after the 2026-11-12 run; update it when the tables below change.
 FINDINGS = """## What the gaps have in common
 
