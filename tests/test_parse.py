@@ -1,5 +1,7 @@
 import pytest
 
+from finance_analyzer import parse
+
 from finance_analyzer.parse import _annual_values, _line_items, annual_line_items, annual_revenue, balance_checks
 from finance_analyzer.schema import ITEMS
 
@@ -506,3 +508,18 @@ def test_start_dates_one_day_apart_count_as_one_year():
 
 def test_missing_tags_give_empty_list():
     assert annual_revenue({"facts": {"us-gaap": {}}}) == []
+
+
+def test_fund_with_no_statement_data_is_reported_as_such(monkeypatch):
+    monkeypatch.setattr("finance_analyzer.parse.fetch_company_facts", lambda ticker: {"facts": {"dei": {"x": {}}}})
+    with pytest.raises(parse.NoFinancialStatements, match="SPY files with the SEC but reports no financial statements"):
+        annual_line_items("spy")
+
+
+def test_company_with_no_annual_report_is_reported_as_such(monkeypatch):
+    quarterly_only = {"facts": {"us-gaap": {"Revenues": {"units": {"USD": [
+        {"start": "2026-01-01", "end": "2026-03-31", "val": 5, "accn": "a", "form": "10-Q", "filed": "2026-05-01"}
+    ]}}}}}
+    monkeypatch.setattr("finance_analyzer.parse.fetch_company_facts", lambda ticker: quarterly_only)
+    with pytest.raises(parse.NoAnnualReports, match=r"NEWCO has no annual report \(10-K\)"):
+        annual_line_items("newco")

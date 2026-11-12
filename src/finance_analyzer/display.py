@@ -178,11 +178,6 @@ def missing_years(year_ends: list[date]) -> list[str]:
     return lines
 
 
-def parse_tickers(text: str) -> list[str]:
-    """Tickers from free text like "aapl, KO nvda", uppercased, duplicates dropped, order kept."""
-    return list(dict.fromkeys(text.replace(",", " ").upper().split()))
-
-
 def year_end_note(latest_ends: dict[str, date]) -> str:
     """A warning when the companies' latest fiscal years end more than a month apart, else ""."""
     # Days, not months: 52/53-week years drift a few days, which doesn't change the period compared.

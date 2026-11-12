@@ -24,6 +24,8 @@ def use_secret_user_agent() -> None:
         return
     if user_agent:
         os.environ["SEC_USER_AGENT"] = user_agent  # edgar.py reads it from here and stays free of Streamlit
+EXAMPLES = ["AAPL", "MSFT", "NVDA", "KO", "WMT", "TSLA"]
+COMPARE_EXAMPLES = [["AAPL", "MSFT", "NVDA"], ["KO", "PEP"], ["WMT", "COST", "TGT"]]
 QUOTE_MINUTES = 15  # how long a share price is reused before asking Yahoo Finance again
 
 
@@ -64,11 +66,57 @@ def valuation(ticker: str, rows: list[store.StoredLineItem]) -> tuple[dict[str, 
     )
 
 
+def option(company: edgar.Company) -> str:
+    """How a company reads in the search box; the ticker is everything before the dash."""
+    return f"{company.ticker} — {company.name}"
+
+
+@st.cache_data(ttl=timedelta(days=1), show_spinner=False)
+def company_options() -> list[str]:
+    return [option(company) for company in edgar.list_companies()]
+
+
+def options_or_explain() -> list[str] | None:
+    """The search box's suggestions, or None after showing why the SEC's company list couldn't be read."""
+    try:
+        return company_options()
+    except RuntimeError as error:  # no SEC_USER_AGENT
+        st.error(str(error))
+    except httpx.HTTPError as error:
+        st.error(f"Couldn't reach the SEC ({error}). Check your connection and try again.")
+    return None
+
+
+def ticker_or_explain(choice: str, options: list[str]) -> str | None:
+    """The SEC's ticker for a picked suggestion or for typed text, or None after showing what to try."""
+    if choice in options:
+        return choice.split(" — ")[0]
+    company = edgar.find_ticker(choice)  # typed text: BRK.B, brk b and BRK-B all find BRK-B
+    if company:
+        return company.ticker
+    matches = edgar.search_companies(choice)
+    if len(matches) == 1:
+        return matches[0].ticker
+    if matches:
+        names = ", ".join(f"**{match.ticker}** ({match.name})" for match in matches)
+        st.warning(f"No ticker is exactly “{choice}”. Did you mean: {names}? Pick one from the list.")
+    else:
+        st.error(
+            f"No company found for “{choice}”. Check the spelling, or try the company's name. Only companies "
+            "that file with the US SEC are covered."
+        )
+    return None
+
+
+def choose(key: str, value) -> None:
+    st.session_state[key] = value
+
+
 def load_or_explain(ticker: str):
     """load(), or None after showing the user why it failed."""
     try:
         return load(ticker)
-    except (ValueError, RuntimeError) as error:  # unknown ticker, nothing parseable, or no SEC_USER_AGENT
+    except (ValueError, RuntimeError) as error:  # fund, no annual reports, or no SEC_USER_AGENT
         st.error(str(error))
     except httpx.HTTPError as error:
         st.error(f"Couldn't reach the SEC ({error}). Check your connection and try again.")
@@ -138,9 +186,27 @@ def trend_chart(title: str, labels: list[str], series: dict[str, list], kind: st
 
 def company_page() -> None:
     st.title("Company")
-    ticker = st.text_input("Ticker", placeholder="e.g. AAPL").strip().upper()
-    if not ticker:
-        st.info("Enter a US stock ticker to see five years of statements and ratios from SEC filings.")
+    options = options_or_explain()
+    if options is None:
+        return
+    choice = st.selectbox(
+        "Company",
+        options,
+        index=None,
+        placeholder="Type a ticker or a company name, e.g. AAPL or Apple",
+        accept_new_options=True,
+        key="company",
+    )
+    if not choice:
+        st.info("Search for a company to see five years of statements and ratios from its SEC filings.")
+        st.markdown("**Popular examples**")
+        for column, example in zip(st.columns(len(EXAMPLES)), EXAMPLES):
+            company = edgar.find_ticker(example)
+            if company:
+                column.button(example, help=company.name, on_click=choose, args=("company", option(company)))
+        return
+    ticker = ticker_or_explain(choice, options)
+    if ticker is None:
         return
     loaded = load_or_explain(ticker)
     if loaded is None:
@@ -273,9 +339,28 @@ def dupont_section(metrics: dict, years: list, labels: list[str]) -> None:
 
 def compare_page() -> None:
     st.title("Compare")
-    tickers = display.parse_tickers(st.text_input("Tickers (2 to 4)", placeholder="e.g. AAPL, KO, NVDA"))
+    options = options_or_explain()
+    if options is None:
+        return
+    choices = st.multiselect(
+        "Companies (2 to 4)",
+        options,
+        max_selections=4,
+        placeholder="Type tickers or company names, e.g. AAPL, Coca-Cola",
+        accept_new_options=True,
+        key="compare",
+    )
+    if not choices:
+        st.markdown("**Popular comparisons**")
+        for column, example in zip(st.columns(len(COMPARE_EXAMPLES)), COMPARE_EXAMPLES):
+            found = [company for company in map(edgar.find_ticker, example) if company]
+            column.button(" vs ".join(example), on_click=choose, args=("compare", [option(c) for c in found]))
+    resolved = [ticker_or_explain(choice, options) for choice in choices]
+    if None in resolved:
+        return
+    tickers = list(dict.fromkeys(resolved))  # the same company picked twice counts once
     if not 2 <= len(tickers) <= 4:
-        st.info("Enter 2 to 4 tickers, separated by commas or spaces.")
+        st.info("Pick 2 to 4 companies.")
         return
     companies = {}
     for ticker in tickers:

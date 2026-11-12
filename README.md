@@ -20,9 +20,10 @@ Built for finance and business students doing case studies, stock pitches and th
 ## Use it online
 
 1. Open **https://datadough.streamlit.app**.
-2. On the **Company** page, type a ticker such as `AAPL` and press Enter. You get five years of line
-   items, the ratios with their formulas, valuation at today's price, trend charts and data checks.
-3. On the **Compare** page, type 2 to 4 tickers, e.g. `AAPL, KO, NVDA`.
+2. On the **Company** page, type a ticker or a company name (`AAPL` or `Apple`) and pick it from the
+   suggestions, or click one of the popular examples. You get five years of line items, the ratios with
+   their formulas, valuation at today's price, trend charts and data checks.
+3. On the **Compare** page, pick 2 to 4 companies the same way.
 4. **Download Excel with live formulas** gives you a workbook you can change and trace.
 
 Good to know: the first view of a company takes a few seconds while its filings download. The hosted
@@ -74,7 +75,7 @@ away. To host your own copy for free, see [DEPLOY.md](DEPLOY.md).
 | ✅ **Works** | US companies that file annual reports (10-K) with the SEC, from about 2009 on. Checked in detail on Apple, Coca-Cola, Tesla and NVIDIA. |
 | ⚠️ **Works with a warning** | Banks, brokers and insurers (e.g. JPM, GS, BRK-B). They load, but ratios like gross margin and current ratio don't apply to them, so many show as unavailable. |
 | ⚠️ **May have gaps** | Any company that reports an item under a tag the app doesn't read yet. The value shows as "—" with the reason; the **Data checks** section shows whether the balance sheet adds up. |
-| ❌ **Doesn't work yet** | Foreign companies that file a 20-F or 40-F (e.g. TSM, ASML, SAP, Toyota). ETFs and funds (e.g. SPY), which have no financial statements. Companies not listed in the US. Quarterly figures. |
+| ❌ **Doesn't work yet** | Foreign companies that file a 20-F or 40-F (e.g. TSM, ASML, SAP, Toyota). ETFs and funds (e.g. SPY), which have no financial statements. Companies that have listed recently and not yet filed an annual report. Companies not listed in the US. In each case the app says which it is. Quarterly figures. |
 
 ## Report a problem
 

@@ -398,3 +398,40 @@ Same rules and format as session 2.
   and installs from `requirements.txt`; this project needs Python 3.12 and has no `requirements.txt`,
   so a Codespace would fail to start the app. Left untouched.
 - **2026-11-11 · outcome:** docs only; 148 tests pass, `uv lock --check` clean.
+
+## S3 Task 2 — Ticker search and normalization
+
+- **2026-11-11 · decision:** the ticker text boxes became Streamlit search boxes (`st.selectbox` on the
+  company page, `st.multiselect` capped at 4 on compare) filled with every company in the SEC's list
+  as "AAPL — Apple Inc.", largest first (the SEC's own order). They filter as you type and also accept
+  text that isn't in the list. **Why:** it's Streamlit's built-in autocomplete, so no extra package.
+  **Rejected:** a text box plus a "did you mean" list after pressing Enter (no suggestions while typing);
+  a third-party search-box component. **Checked:** 10,405 options load in under a second and suggest
+  within a second in a real browser.
+- **2026-11-11 · decision:** typed text is matched to the SEC's form by comparing letters and digits
+  only, so BRK.B, BRK-B, brk b, BRK/B and brkb all find BRK-B. An exact match wins first. **Why:** the
+  SEC's list isn't consistent itself (`BRK-B` but `SHO.PRI`), so swapping one separator for another
+  would break some tickers.
+- **2026-11-11 · decision:** text that isn't a ticker is searched in company names: every typed word
+  must start a word of the name ("apple" finds Apple, not Pineapple). One match loads it; several show
+  "Did you mean …" with up to 8 names; none shows "No company found". A ticker match always beats a
+  name match, so typing "ford" opens FORD (Forward Industries), not Ford Motor (F); both appear in the
+  suggestions while typing.
+- **2026-11-11 · decision:** three separate error messages, each its own exception type: unknown ticker;
+  no financial statements (the SEC answers 404 for SPY, or the data has no `us-gaap`/`ifrs-full`
+  section) — "probably an ETF or a fund"; and no annual report (data exists but no 10-K rows) —
+  "listed recently, or a foreign company that files a 20-F". The last one gets reworded in task 3.
+- **2026-11-11 · decision:** popular examples appear when the box is empty: six buttons on the company
+  page (AAPL, MSFT, NVDA, KO, WMT, TSLA) and three on compare (AAPL vs MSFT vs NVDA, KO vs PEP,
+  WMT vs COST vs TGT). `display.parse_tickers` was deleted (nothing uses it now).
+- **2026-11-11 · decision (tests):** Streamlit's test harness refuses a selectbox value that isn't a
+  listed option, so the page tests replace the one method that builds the message sent to the app.
+  **Why:** otherwise typed tickers and names couldn't be tested through the page at all. It depends on
+  a private Streamlit attribute (`Selectbox._widget_state`), so a Streamlit upgrade could break these
+  tests (not the app).
+- **2026-11-11 · outcome:** 174 tests pass. Real browser: "coca" suggests KO first; brk.b and "brk b"
+  open Berkshire; SPY gives the fund message; TSM gives the no-annual-report message; "zzzzqq" gives
+  not found; "apple" asks AAPL or APLE; the KO example button opens Coca-Cola.
+- **Suggested for `LEARNING.md`:** *Normalization* = turning different spellings of the same thing
+  (BRK.B, brk b) into one standard form before looking it up. *Autocomplete* = suggestions that narrow
+  as you type.
