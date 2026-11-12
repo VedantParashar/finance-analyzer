@@ -557,6 +557,7 @@ def test_ifrs_annual_reports_are_read_in_the_reporting_currency(form):
         "revenue": 400, "net_income": 50, "diluted_eps": 2.5, "diluted_shares": 20,
         "total_assets": 1000,  # the euro figure, not the 1,100 dollar translation
         "total_liabilities": 600, "total_equity": 400,
+        "shareholders_equity": 400,  # no parent-only figure and no minority interest, so it's total equity
     }
     assert balance_checks(ifrs_company(form))[-1] == ("2025-12-31", True, 0, False)
 
@@ -598,3 +599,40 @@ def test_a_year_reported_under_both_taxonomies_uses_only_the_latest_one():
     items = {row.item for row in _line_items(facts) if row.fiscal_year_end == "2025-12-31"}
     assert "temporary_equity" not in items and "inventory" not in items
     assert balance_checks(facts)[-1] == ("2025-12-31", True, 0, False)
+
+
+def test_shareholders_equity_falls_back_to_total_equity_less_minority_interest():
+    """Rivian from FY2024: total equity and minority interest are tagged, the parent's share isn't."""
+    facts = company(
+        Assets=[instant(YEAR_END, 500, FILED, "A")],
+        StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest=[instant(YEAR_END, 100, FILED, "A")],
+        MinorityInterest=[instant(YEAR_END, 8, FILED, "A")],
+    )
+    row = next(row for row in _line_items(facts) if row.item == "shareholders_equity")
+    assert (row.value, row.derivation) == (92, "shareholders' equity = total equity − minority interest")
+    del facts["facts"]["us-gaap"]["Assets"]  # a year with no balance sheet gets no derived figure
+    assert not [row for row in _line_items(facts) if row.item == "shareholders_equity"]
+
+
+def test_reported_shareholders_equity_is_never_replaced():
+    facts = company(
+        StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest=[instant(YEAR_END, 100, FILED, "A")],
+        StockholdersEquity=[instant(YEAR_END, 90, FILED, "A")],
+        MinorityInterest=[instant(YEAR_END, 8, FILED, "A")],
+    )
+    row = next(row for row in _line_items(facts) if row.item == "shareholders_equity")
+    assert (row.value, row.derivation) == (90, "")
+
+
+def test_cash_uses_the_restricted_cash_total_only_for_years_without_plain_cash():
+    """Later filings repeat old year-ends under the restricted-cash tag; they must not replace plain cash."""
+    earlier = "2017-09-30"
+    facts = company(
+        CashAndCashEquivalentsAtCarryingValue=[instant(earlier, 50, "2017-11-03", "OLD")],
+        CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents=[
+            instant(earlier, 55, FILED, "NEW"), instant(YEAR_END, 70, FILED, "NEW"),
+        ],
+    )
+    facts["facts"]["us-gaap"]["Revenues"]["units"]["USD"].append(fact("2016-10-01", earlier, 1, "10-K", "2017-11-03", "R0"))
+    cash = [(row.fiscal_year_end, row.value, row.derivation) for row in _line_items(facts) if row.item == "cash"]
+    assert cash == [(earlier, 50, ""), (YEAR_END, 70, "includes restricted cash")]

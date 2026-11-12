@@ -24,6 +24,8 @@ ITEMS = {
                 "Revenues",
                 "SalesRevenueNet",
                 "SalesRevenueGoodsNet",  # last resort: goods only for companies that also sell services
+                "RegulatedAndUnregulatedOperatingRevenue",  # utilities (NextEra, Duke)
+                "RevenueFromContractWithCustomerIncludingAssessedTax",
             ),
             "USD",
             "flow",
@@ -38,7 +40,7 @@ ITEMS = {
         LineItem(
             "interest_expense",
             # Many companies moved to the "Nonoperating" tag in 2022-23.
-            ("InterestExpense", "InterestExpenseNonoperating", "InterestExpenseDebt"),
+            ("InterestExpense", "InterestExpenseNonoperating", "InterestExpenseDebt", "InterestAndDebtExpense"),
             "USD",
             "flow",
         ),
@@ -128,7 +130,11 @@ ITEMS = {
         ),
         LineItem(
             "capital_expenditure",
-            ("PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"),
+            (
+                "PaymentsToAcquirePropertyPlantAndEquipment",
+                "PaymentsToAcquireProductiveAssets",
+                "PaymentsToAcquireOtherPropertyPlantAndEquipment",  # Eli Lilly
+            ),
             "USD",
             "flow",
         ),
@@ -182,6 +188,16 @@ OTHER_SHORT_TERM_INVESTMENTS = LineItem(
     "short-term investments", ("ShortTermInvestments", "OtherShortTermInvestments"), "USD", "instant"
 )
 
+# Cash including restricted cash, the total the cash flow statement ends on. Used only for years with no
+# plain cash figure (Target, Chevron from FY2024), and labelled as such.
+CASH_LAST_RESORT = LineItem(
+    "cash", ("CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",), "USD", "instant"
+)
+
+# Minority owners' share of equity: taken off total equity when a company doesn't report the parent's
+# share on its own (Rivian from FY2024).
+MINORITY_INTEREST = LineItem("minority_interest", ("MinorityInterest",), "USD", "instant")
+
 # Usually means total debt including the current part (Apple, KO, NVDA), but Tesla uses it for
 # the non-current part only. Used only when no non-current tag is reported, and labelled as such.
 LONG_TERM_DEBT_LAST_RESORT = LineItem("long_term_debt", ("LongTermDebt",), "USD", "instant")
@@ -226,6 +242,7 @@ IFRS_TAGS: dict[str, tuple[str, ...]] = {
     ),
     # The helper items above that have an IFRS equivalent
     "liabilities_and_equity": ("EquityAndLiabilities",),
+    "minority_interest": ("NoncontrollingInterests",),
     "short-term borrowings": ("ShorttermBorrowings",),
     "current maturities of long-term debt": ("CurrentPortionOfLongtermBorrowings",),
 }

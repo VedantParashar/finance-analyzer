@@ -79,6 +79,9 @@ away. To host your own copy for free, see [DEPLOY.md](DEPLOY.md).
 | ⚠️ **May have gaps** | Any company that reports an item under a tag the app doesn't read yet. The value shows as "—" with the reason; the **Data checks** section shows whether the balance sheet adds up. |
 | ❌ **Doesn't work yet** | ETFs and funds (e.g. SPY), which have no financial statements. Companies that have listed recently and not yet filed an annual report. Companies not listed in the US. In each case the app says which it is. Quarterly figures. |
 
+[docs/COVERAGE.md](docs/COVERAGE.md) lists what is and isn't found for 30 very different companies
+(mega caps, small caps, retail, energy, pharma, utilities, REITs, foreign filers, recent IPOs).
+
 ## Report a problem
 
 Wrong number, missing value or an error? Please
@@ -167,6 +170,12 @@ Downloads are cached in `data/cache/` and parsed rows stored in `data/finance.du
     investments use a company-specific tag, so its ROIC that year is unavailable
   - [#3](https://github.com/VedantParashar/finance-analyzer/issues/3) (closed) Tesla FY2014–15 don't
     balance; documented and accepted
+- **Some industries fit badly:** REITs, utilities and oil companies lay out their statements differently,
+  so several ratios are unavailable for them
+  ([#29](https://github.com/VedantParashar/finance-analyzer/issues/29),
+  [#31](https://github.com/VedantParashar/finance-analyzer/issues/31),
+  [#33](https://github.com/VedantParashar/finance-analyzer/issues/33)). ExxonMobil can't be loaded at all
+  ([#32](https://github.com/VedantParashar/finance-analyzer/issues/32)).
 - Ratio definitions follow one common convention (e.g. averaged balances for ROE). Other sources may
   differ slightly.
 

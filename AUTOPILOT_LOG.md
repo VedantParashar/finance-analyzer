@@ -1,5 +1,52 @@
 # Autopilot log
 
+## Summary of session 3 (2026-11-12)
+
+**Built:** all 4 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
+is merged.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | #24 | `docs-and-access` | live link and "Try it" button, README sections, CONTRIBUTING, CHANGELOG, issue templates |
+| 2 | #25 | `ticker-search` | search by ticker or name with suggestions, BRK.B-style normalization, clearer errors, examples |
+| 3 | #28 | `foreign-filers` | 20-F/40-F, IFRS tags for all 23 items, reporting currency, SPEC scope |
+| 4 | #34 | `stress-test-coverage` | 30-company stress test, `docs/COVERAGE.md`, five data fixes |
+
+190 tests pass locally (148 before). `pytest` and `docker` passed on GitHub for #24 and #25 when this
+was written; #28 and #34 were still running.
+
+**Not done:** committing your `LEARNING.md`. The copy on disk is identical to the one committed on
+Nov 6, so there was nothing to commit. If you saved a new one somewhere else, tell me where.
+
+**Already live (not waiting for a merge):** the repo's description, homepage and topics, and seven new
+issues (#26, #27, #29–#33).
+
+**Stress test in one line:** 29 of 30 companies load; 8 have every metric; ExxonMobil can't be loaded
+because the SEC's data feed only has its quarterly reports (#32).
+
+**The 5 decisions most worth your review:**
+1. **Foreign filers get no valuation ratios** (task 3). Their statements are in TWD, EUR or JPY and
+   Yahoo's market cap is in dollars; you asked for no conversion yet, so P/E, P/B, EV/EBIT and FCF
+   yield read "unavailable" for them rather than showing a wrong number.
+2. **TSMC's debt is wrong on screen** (task 3, #26): debt/equity shows 0.02× where about 0.25× is
+   right, because its bonds are tagged apart from its borrowings and adding them could double-count at
+   other companies. Toyota has no gross margin or free cash flow (#27).
+3. **Two calculated fallbacks were added in the stress test** (task 4), beyond "a missing tag": cash
+   including restricted cash where plain cash isn't tagged, and shareholders' equity as total equity
+   less minority interest. Both are labelled on screen as calculated.
+4. **Typing on the compare page can still pick the wrong company for one- and two-letter tickers**
+   (tasks 2 and 3): "F" or "MA" plus Enter chooses a larger company containing those letters. Picking
+   from the list always works; the company page isn't affected.
+5. **The page tests patch a private part of Streamlit's test harness** (task 2) so that typed tickers
+   and names can be tested. A Streamlit upgrade could break those tests, not the app.
+
+Smaller ones: version bumped to 1.0.0 to match the changelog, no git tag or release made; 40-F/A is not
+an accepted form (not requested); your `.devcontainer` uses Python 3.11 and `requirements.txt`, which
+this project doesn't have, so a Codespace won't start the app; I couldn't confirm from here that
+https://datadough.streamlit.app is set to public; `LEARNING.md` suggestions are under S3 tasks 2 and 3.
+
+---
+
 ## Summary of session 2 (2026-11-11)
 
 **Built:** all 7 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
@@ -489,3 +536,41 @@ Same rules and format as session 2.
   (the US uses *US GAAP*). *20-F* = the annual report a foreign company files with the SEC, like a
   10-K. *Reporting currency* = the currency a company's statements are written in. *ADR* = a US-listed
   share that stands for shares of a foreign company.
+
+## S3 Task 4 — Stress test on 30 companies
+
+- **2026-11-12 · decision:** the 30 tickers, by group: mega caps MSFT, GOOGL, AMZN, META; small and mid
+  caps PLOW, CALM, CROX; retail WMT, COST, TGT, HD; energy XOM, CVX, OXY; pharma PFE, LLY, MRNA;
+  utilities NEE, DUK; REITs O, PLD, AMT; foreign filers NVO (IFRS, DKK), SHEL (IFRS, USD), CNQ (40-F,
+  CAD), BABA (US GAAP, CNY), SONY (JPY); recent IPOs RDDT (2024), CRWV (2025); loss-making RIVN (MRNA
+  and CRWV also lose money).
+- **2026-11-12 · decision:** the test is a committed script, `scripts/coverage.py`, that writes
+  `docs/COVERAGE.md`. **Why:** it can be rerun after any tag change to see whether another company got
+  worse. It needs the network, so it isn't part of `pytest`. The "what the gaps have in common" section
+  is hand-written text kept in the script.
+- **2026-11-12 · fixed directly (5):**
+  1. Revenue for utilities: `RegulatedAndUnregulatedOperatingRevenue`, then
+     `RevenueFromContractWithCustomerIncludingAssessedTax`, added after the existing tags.
+  2. Interest expense: `InterestAndDebtExpense` (OXY).
+  3. Capital expenditure: `PaymentsToAcquireOtherPropertyPlantAndEquipment` (LLY).
+  4. Cash: `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`, but only for years with no
+     plain cash figure, labelled "includes restricted cash" (TGT, CVX, PLOW). **Why not a plain fallback
+     tag:** later filings repeat old year-ends under this tag, and "latest filing wins" would have
+     replaced Apple's plain cash with the larger total.
+  5. Shareholders' equity: where the parent's share isn't tagged, total equity less minority interest,
+     labelled as calculated, only for years that have a balance sheet (NVO, CNQ, RIVN). This is a
+     small rule, not a tag; it's here because 3 of 30 companies had no ROE without it.
+- **2026-11-12 · effect of the fixes:** NEE 9 → 15 metrics, DUK 9 → 16, CNQ 9 → 13, NVO 15 → 19,
+  RIVN 12 → 15, LLY 14 → 16, TGT 18 → 19, PLOW 17 → 18. On the seven reference companies (AAPL, KO,
+  TSLA, NVDA, JPM, GS, BRK-B) the only change is new cash rows for JPM and BRK-B, labelled as including
+  restricted cash.
+- **2026-11-12 · filed, not fixed:** #29 no operating income subtotal (7 companies); #30 restated older
+  years fail the balance check (9 companies, MSFT FY2016 by $11bn); #31 REITs; #32 ExxonMobil has only
+  quarterly data in the SEC feed, so it can't be loaded (the error message now says so); #33 cost of
+  revenue and capex at energy companies and utilities. Evidence added to #1 (items absent after being
+  reported). **Why not fixed:** each needs a new rule or a per-industry tag list, not a fallback tag.
+- **2026-11-12 · outcome:** 190 tests pass. 29 of 30 load; 8 have all 19 metrics for the latest year;
+  20 of 29 balance in every stored year (all failures are in older years, except CRWV FY2024).
+  **Not checked:** the values themselves for these 30, beyond spot checks of the fixed items (DUK
+  revenue $32,237M and NEE $27,412M match the tagged totals). The table records what is missing, not
+  whether what's present is right.
