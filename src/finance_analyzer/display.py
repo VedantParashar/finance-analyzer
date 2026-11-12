@@ -114,8 +114,12 @@ def format_input(key: str, value: float, currency: str = "USD") -> str:
     base = key.removeprefix("average ").split(" (FY")[0]
     if base in ITEMS:
         return format_value(ITEMS[base].unit.replace("USD", currency), value)
-    if base == "market cap":
+    if base == "market cap in US dollars":
         return money(value)
+    if base == "market cap":
+        return money(value, currency)  # converted into the statements' currency for foreign filers
+    if base.endswith("per US dollar"):
+        return f"{value:,.4f}"
     if "invested capital" in base or base == "enterprise value":
         return money(value, currency)
     if base in {"asset turnover", "equity multiplier"}:

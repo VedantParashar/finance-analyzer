@@ -239,8 +239,14 @@ def _run(calculate: Callable[[], float], inputs: _Inputs) -> Metric:
     return Metric(value, inputs.used, reason, tuple(inputs.notes))
 
 
-def price_metrics(rows: Iterable[StoredLineItem], market_cap: float | None) -> dict[str, Metric]:
-    """The valuation metrics for the latest fiscal year in the rows; all unavailable without a market cap."""
+def price_metrics(
+    rows: Iterable[StoredLineItem], market_cap: float | None, per_dollar: float | None = None
+) -> dict[str, Metric]:
+    """The valuation metrics for the latest fiscal year in the rows; all unavailable without a market cap.
+
+    market_cap is in US dollars. When the statements aren't, it's converted into their currency at
+    per_dollar (how much of that currency one dollar buys) before any ratio is taken.
+    """
     if market_cap is None:
         return {name: Metric(None, {}, "share price unavailable") for name in PRICE_FORMULAS}
     rows = list(rows)
@@ -250,11 +256,18 @@ def price_metrics(rows: Iterable[StoredLineItem], market_cap: float | None) -> d
     results = {}
     for name, formula in PRICE_FORMULAS.items():
         inputs = _Inputs(by_key, {row.item for row in rows}, years, years[-1])
-        inputs.used["market cap"] = market_cap
-        if currency != "USD" and name != "market_cap":
+        if currency == "USD":
+            inputs.used["market cap"] = cap = market_cap
+        elif name == "market_cap":  # stays in dollars, as Yahoo reports it
+            inputs.used["market cap in US dollars"] = cap = market_cap
+        elif per_dollar is None:
             # Dividing dollars by euros or yen would give a meaningless number.
-            reason = f"market cap is in US dollars and the statements in {currency}; currencies aren't converted yet"
-            results[name] = Metric(None, inputs.used, reason)
+            reason = f"no exchange rate from US dollars to {currency}, the currency of the statements"
+            results[name] = Metric(None, {"market cap in US dollars": market_cap}, reason)
             continue
-        results[name] = _run(lambda: formula(inputs, market_cap), inputs)
+        else:
+            cap = market_cap * per_dollar
+            inputs.used.update({"market cap in US dollars": market_cap, f"{currency} per US dollar": per_dollar})
+            inputs.used["market cap"] = cap
+        results[name] = _run(lambda: formula(inputs, cap), inputs)
     return results

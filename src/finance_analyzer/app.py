@@ -55,14 +55,28 @@ def quote(ticker: str) -> prices.Quote:
     return prices.fetch_quote(ticker)
 
 
+@st.cache_data(ttl=QUOTE_MINUTES * 60, show_spinner=False)
+def exchange_rate(currency: str) -> prices.Rate:
+    return prices.fetch_exchange_rate(currency)
+
+
 def valuation(ticker: str, rows: list[store.StoredLineItem]) -> tuple[dict[str, Metric], str]:
-    """The price-based metrics, and a sentence saying where the price came from or why there isn't one."""
+    """The price-based metrics, and a sentence saying where the price (and exchange rate) came from."""
     try:
         latest = quote(ticker)
     except prices.PriceUnavailable as error:
         return price_metrics(rows, None), f"Share price unavailable: {error}. The rest of the page doesn't need it."
-    return price_metrics(rows, latest.market_cap), (
-        f"Share price ${latest.price:,.2f} from Yahoo Finance, fetched {latest.fetched_at:%b %-d, %Y at %H:%M} UTC."
+    note = f"Share price ${latest.price:,.2f} from Yahoo Finance, fetched {latest.fetched_at:%b %-d, %Y at %H:%M} UTC."
+    currency = display.currency(rows)
+    if currency == "USD":
+        return price_metrics(rows, latest.market_cap), note
+    try:
+        rate = exchange_rate(currency)
+    except prices.PriceUnavailable as error:
+        return price_metrics(rows, latest.market_cap), f"{note} Exchange rate unavailable: {error}."
+    return price_metrics(rows, latest.market_cap, rate.per_dollar), (
+        f"{note} Market cap is converted into {currency} at 1 USD = {rate.per_dollar:,.4f} {currency} "
+        f"(Yahoo Finance, {rate.fetched_at:%b %-d, %Y})."
     )
 
 
@@ -232,7 +246,8 @@ def company_page() -> None:
     if currency != "USD":
         st.info(
             f"{ticker} reports in {currency}. Amounts are shown as reported and aren't converted to US dollars. "
-            "Ratios (margins, returns, growth) are unaffected; the valuation ratios need a conversion and are unavailable."
+            "For the valuation ratios, the market cap (in dollars) is converted into "
+            f"{currency} at today's exchange rate."
         )
     bank_banner(ticker, info)
     st.download_button(
@@ -398,8 +413,9 @@ def compare_page() -> None:
     if mixed:
         each = ", ".join(f"{ticker} in {currency}" for ticker, currency in currencies.items())
         st.info(
-            f"These companies report in different currencies ({each}) and nothing is converted. Ratios compare "
-            "fairly; amounts such as free cash flow don't."
+            f"These companies report in different currencies ({each}) and their amounts aren't converted. Ratios "
+            "compare fairly, including the valuation ratios (market cap is converted at today's exchange rate); "
+            "amounts such as free cash flow don't."
         )
     note = display.year_end_note(latest_ends)
     if note:

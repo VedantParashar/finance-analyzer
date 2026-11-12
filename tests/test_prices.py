@@ -40,3 +40,23 @@ def test_fetch_quote_turns_every_failure_into_price_unavailable(monkeypatch, fas
     fake_yfinance(monkeypatch, fast_info)
     with pytest.raises(prices.PriceUnavailable, match=message.replace("(", r"\(").replace(")", r"\)")):
         prices.fetch_quote("AAPL")
+
+
+def test_fetch_exchange_rate_asks_for_the_dollar_pair(monkeypatch):
+    asked = []
+    fake_yfinance(monkeypatch, {"lastPrice": 32.94})
+    original = prices.yf.Ticker
+    monkeypatch.setattr(prices.yf, "Ticker", lambda symbol: asked.append(symbol) or original(symbol))
+    rate = prices.fetch_exchange_rate("TWD")
+    assert asked == ["TWD=X"] and rate.per_dollar == 32.94 and rate.fetched_at.tzinfo is not None
+
+
+@pytest.mark.parametrize(
+    "fast_info, message",
+    [(KeyError("currentTradingPeriod"), "KeyError"), (ConnectionError("offline"), "ConnectionError"),
+     ({"lastPrice": None}, "returned no US dollar to TWD rate"), ({"lastPrice": 0}, "returned no US dollar to TWD rate")],
+)
+def test_fetch_exchange_rate_turns_every_failure_into_price_unavailable(monkeypatch, fast_info, message):
+    fake_yfinance(monkeypatch, fast_info)
+    with pytest.raises(prices.PriceUnavailable, match=message):
+        prices.fetch_exchange_rate("TWD")

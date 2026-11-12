@@ -208,9 +208,30 @@ def test_pe_is_unavailable_for_a_loss_but_fcf_yield_can_be_negative():
     assert result["fcf_yield"].value == pytest.approx(-0.015)
 
 
-def test_valuation_ratios_are_unavailable_when_the_statements_are_not_in_dollars():
+def test_valuation_ratios_convert_market_cap_into_the_currency_of_the_statements():
+    """Apple's FY2026 figures read as TWD, a $100,000M market cap and 32 TWD to the dollar: TWD 3,200,000M."""
+    rows = [row._replace(unit="TWD") for row in rows_from(AAPL)]
+    result = price_metrics(rows, 100_000 * M, 32.0)
+    assert result["market_cap"].value == 100_000 * M  # still in dollars
+    assert result["market_cap"].inputs == {"market cap in US dollars": 100_000 * M}
+    assert result["pe"].value == pytest.approx(3_200_000 / 132_175)
+    assert result["pb"].value == pytest.approx(3_200_000 / 112_093)
+    # EV = 3,200,000 + 11,903 + 68,208 − 36,305 − 20,417 = 3,223,389
+    assert result["ev_ebit"].value == pytest.approx(3_223_389 / 158_063)
+    assert result["fcf_yield"].value == pytest.approx((145_097 - 9_041) / 3_200_000)
+    assert result["pe"].inputs == {
+        "market cap in US dollars": 100_000 * M, "TWD per US dollar": 32.0,
+        "market cap": 3_200_000 * M, "net_income": 132_175 * M,
+    }
+
+
+def test_valuation_ratios_are_unavailable_without_an_exchange_rate():
     rows = [row._replace(unit="EUR") for row in rows_from(AAPL)]
     result = price_metrics(rows, 3_700_000 * M)
     assert result["market_cap"].value == 3_700_000 * M
     for name in ("pe", "pb", "ev_ebit", "fcf_yield"):
-        assert result[name].value is None and "statements in EUR" in result[name].reason
+        assert result[name].value is None and "no exchange rate from US dollars to EUR" in result[name].reason
+
+
+def test_a_rate_is_ignored_when_the_statements_are_in_dollars():
+    assert price_metrics(rows_from(AAPL), 3_700_000 * M, 32.0) == price_metrics(rows_from(AAPL), 3_700_000 * M)

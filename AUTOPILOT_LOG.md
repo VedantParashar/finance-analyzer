@@ -623,3 +623,43 @@ Same rules and format as session 2.
   reads IFRS tags only. 211 tests pass, including both shapes (TSMC's and Novo's).
   **Not checked:** TSMC's figure against its printed annual report; 958.4bn is the sum of its two tagged
   lines.
+
+## S4 Task 3 — Valuation ratios for foreign filers (market cap converted)
+
+- **2026-11-12 · scope:** `SPEC.md` listed currency conversion as out of scope for v1. You asked for it,
+  so I built it and changed the spec in the same PR: market cap is converted for the valuation ratios;
+  the financial statements still aren't converted (that stays out of scope).
+- **2026-11-12 · decision:** the rate comes from Yahoo's `TWD=X`-style symbol for every currency
+  (`EUR=X`, `JPY=X`, `DKK=X`…), which is "how much of the currency one US dollar buys". **Why not
+  `EURUSD=X` for euros:** that one is quoted the other way round (dollars per euro), so using it would
+  need a table of which currencies are inverted. `EUR=X` gives the same rate with one rule for all.
+  Checked live: TWD 32.94, EUR 0.9015, JPY 159.70, DKK 6.74, CAD 1.43, CNY 6.67.
+- **2026-11-12 · decision:** market cap in dollars × the rate = market cap in the statements' currency,
+  and the four ratios use that. The Market cap card itself stays in dollars, as Yahoo reports it. Each
+  ratio's "Formula and meaning" lists the dollar market cap, the rate and the converted market cap.
+  The line under "Valuation at today's price" shows the rate and its date, e.g. "Market cap is converted
+  into TWD at 1 USD = 32.9450 TWD (Yahoo Finance, Nov 12, 2026)". The date is the day the rate was
+  fetched; like the share price it is reused for 15 minutes.
+- **2026-11-12 · failure:** if the rate lookup fails, the four ratios read "unavailable" with the reason,
+  the note says "Exchange rate unavailable: …", and market cap still shows. Tested.
+- **2026-11-12 · result (live, 2026-11-12):**
+
+  | | P/E | P/B | EV/EBIT | FCF yield |
+  |---|---|---|---|---|
+  | TSM (FY2024) | 60.97× | 16.64× | 52.54× | 1.2% |
+  | ASML (FY2025) | 55.48× | 27.18× | 46.38× | 2.1% |
+  | SAP (FY2025) | 34.02× | 5.46× | 24.95× | 3.5% |
+  | TM (FY2025) | 8.41× | 1.12× | 13.12× | unavailable |
+
+  Toyota's FCF yield is unavailable because its capital expenditure isn't found (#27), not because of
+  the conversion.
+- **2026-11-12 · found, filed as 37:** TSMC's ratios are against FY2024, because the SEC's data
+  feed has none of the statements from its FY2025 report (filed 2026-04-16; only 2 facts arrived). So
+  its P/E of 61× is higher than finance sites show. Same family as ExxonMobil (#32). Not fixed.
+- **2026-11-12 · also in this PR:** the README limitation "TSMC's debt leaves out its bonds" is removed;
+  it belonged to task 2 and I noticed it after this branch had started.
+- **2026-11-12 · checked:** company page for TSM and TM and the compare page (AAPL, SAP, TSM) in a real
+  browser, no errors. 219 tests pass; yfinance is mocked in all of them. **Not checked:** the ratios
+  against another source; Yahoo's market cap for the US-listed shares (ADRs) is taken as given.
+- **LEARNING.md suggestion:** "Exchange rate pair": `TWD=X` means "Taiwan dollars per one US dollar".
+  To compare a dollar market cap with profits in Taiwan dollars, both must be in the same currency first.
