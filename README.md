@@ -74,7 +74,7 @@ away. To host your own copy for free, see [DEPLOY.md](DEPLOY.md).
 | | |
 |---|---|
 | ✅ **Works** | US companies that file annual reports (10-K) with the SEC, from about 2009 on. Checked in detail on Apple, Coca-Cola, Tesla and NVIDIA. |
-| ✅ **Works, in the company's own currency** | Foreign companies listed in the US that file a 20-F or 40-F, under US GAAP or IFRS (e.g. TSMC, ASML, SAP, Toyota). Amounts are shown in the reporting currency (TWD, EUR, JPY) and not converted, so the five valuation ratios are unavailable for them. Some items have gaps: see [Limitations](#limitations). |
+| ✅ **Works, in the company's own currency** | Foreign companies listed in the US that file a 20-F or 40-F, under US GAAP or IFRS (e.g. TSMC, ASML, SAP, Toyota). Amounts are shown in the reporting currency (TWD, EUR, JPY) and not converted. For the valuation ratios, market cap is converted into that currency at today's exchange rate. Some items have gaps: see [Limitations](#limitations). |
 | ⚠️ **Works with a warning** | Banks, brokers and insurers (e.g. JPM, GS, BRK-B). They load, but ratios like gross margin and current ratio don't apply to them, so many show as unavailable. |
 | ⚠️ **May have gaps** | Any company that reports an item under a tag the app doesn't read yet. The value shows as "—" with the reason; the **Data checks** section shows whether the balance sheet adds up. |
 | ❌ **Doesn't work yet** | ETFs and funds (e.g. SPY), which have no financial statements. Companies that have listed recently and not yet filed an annual report. Companies not listed in the US. In each case the app says which it is. Quarterly figures. |
@@ -151,10 +151,12 @@ Downloads are cached in `data/cache/` and parsed rows stored in `data/finance.du
 - **Only companies that file with the US SEC.** Banks and insurers are out of scope: they get a warning
   and many ratios show as unavailable.
 - **Annual data only** (10-K, 20-F, 40-F and amendments), no quarters.
-- **No currency conversion.** Foreign filers are shown in their own currency. Comparing ratios across
-  currencies is fine; comparing amounts isn't, and P/E, P/B, EV/EBIT and FCF yield are unavailable for them.
+- **Statements aren't converted.** Foreign filers are shown in their own currency. Comparing ratios across
+  currencies is fine; comparing amounts isn't. Only market cap is converted, at today's exchange rate from
+  Yahoo Finance, so that P/E, P/B, EV/EBIT and FCF yield work; if the rate can't be fetched they read
+  "unavailable".
 - **IFRS companies have more gaps** than US ones, because IFRS lets companies name their own lines:
-  Toyota has no cost of revenue or capital expenditure, and TSMC's debt leaves out its bonds.
+  Toyota has no cost of revenue or capital expenditure, so no gross margin, free cash flow or FCF yield.
 - **Valuation mixes dates:** today's share price against the last full fiscal year (not the last twelve
   months), so P/E here differs from finance websites. If Yahoo Finance doesn't answer, the five valuation
   metrics show "unavailable" and everything else still works.

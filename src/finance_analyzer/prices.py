@@ -16,6 +16,11 @@ class Quote(NamedTuple):
     fetched_at: datetime  # UTC
 
 
+class Rate(NamedTuple):
+    per_dollar: float  # how much of the currency one US dollar buys, e.g. about 32 for TWD
+    fetched_at: datetime  # UTC
+
+
 class PriceUnavailable(Exception):
     """Yahoo Finance gave no usable price; the message says why."""
 
@@ -31,3 +36,14 @@ def fetch_quote(ticker: str) -> Quote:
     if currency != "USD":  # the statements are in dollars, so a ratio against another currency would be wrong
         raise PriceUnavailable(f"Yahoo Finance quotes this share in {currency}, not USD")
     return Quote(float(price), float(market_cap), datetime.now(UTC))
+
+
+def fetch_exchange_rate(currency: str) -> Rate:
+    """Today's rate from US dollars into a currency, from Yahoo's "TWD=X"-style symbols."""
+    try:
+        rate = yf.Ticker(f"{currency}=X").fast_info["lastPrice"]
+    except Exception as error:  # an unknown currency raises KeyError; the rest as in fetch_quote
+        raise PriceUnavailable(f"Yahoo Finance didn't return a US dollar to {currency} rate ({type(error).__name__})") from error
+    if not rate or rate <= 0:
+        raise PriceUnavailable(f"Yahoo Finance returned no US dollar to {currency} rate")
+    return Rate(float(rate), datetime.now(UTC))

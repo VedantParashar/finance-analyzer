@@ -61,6 +61,7 @@ def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(edgar, "fetch_company_facts", lambda ticker: {})
     monkeypatch.setattr(parse, "balance_checks", lambda facts: checks)
     monkeypatch.setattr(prices, "fetch_quote", lambda ticker: prices.Quote(250.0, 3.7e12, datetime(2026, 11, 11, 15, 30)))
+    monkeypatch.setattr(prices, "fetch_exchange_rate", lambda currency: prices.Rate(0.9, datetime(2026, 11, 12, 9, 0)))
     monkeypatch.setattr(edgar, "fetch_company_info", lambda ticker: INFO.get(ticker, INFO["AAPL"]))
     monkeypatch.setattr(edgar, "list_companies", lambda: COMPANIES)
     monkeypatch.setattr(Selectbox, "_widget_state", property(typed_or_picked))
@@ -294,15 +295,32 @@ def test_sec_user_agent_comes_from_secrets_before_the_environment(monkeypatch):
     assert not app.exception and os.environ["SEC_USER_AGENT"] == "From secrets secrets@example.com"
 
 
-def test_foreign_filer_shows_its_currency_and_no_valuation_ratios():
+def test_foreign_filer_shows_its_currency_and_converts_market_cap_for_valuation():
     app = company("SAP")
     assert not app.exception and not app.error
     assert "SAP reports in EUR. Amounts are shown as reported" in app.info[0].value
     cards = {m.label: m.value for m in app.metric}
     assert cards["Free cash flow"] == "EUR 136,056M" and cards["Net margin"] == "27.6%"
-    assert cards["Market cap"] == "$3,700,000M" and cards["P/E"] == "unavailable"
+    # $3,700,000M × 0.9 = EUR 3,330,000M; ÷ net income of 132,175M = 25.19
+    assert cards["Market cap"] == "$3,700,000M" and cards["P/E"] == "25.19×"
     assert app.dataframe[0].value.iloc[0, -1] == "EUR 478,834M"  # revenue in the line-item table
-    assert any("market cap is in US dollars and the statements in EUR" in c.value for c in app.caption)
+    assert any("converted into EUR at 1 USD = 0.9000 EUR (Yahoo Finance, Nov 12, 2026)" in c.value for c in app.caption)
+    assert any("market cap = EUR 3,330,000M" in m.value for m in app.markdown)
+    assert any("EUR per US dollar = 0.9000" in m.value for m in app.markdown)
+
+
+def test_foreign_valuation_is_unavailable_when_the_exchange_rate_lookup_fails(monkeypatch):
+    def no_rate(currency):
+        raise prices.PriceUnavailable("Yahoo Finance returned no US dollar to EUR rate")
+
+    monkeypatch.setattr(prices, "fetch_exchange_rate", no_rate)
+    app = company("SAP")
+    assert not app.exception and not app.error
+    cards = {m.label: m.value for m in app.metric}
+    assert cards["Market cap"] == "$3,700,000M" and cards["Net margin"] == "27.6%"
+    assert [cards[name] for name in ("P/E", "P/B", "EV / EBIT", "FCF yield")] == ["unavailable"] * 4
+    assert any("Exchange rate unavailable: Yahoo Finance returned no US dollar to EUR rate" in c.value for c in app.caption)
+    assert any("no exchange rate from US dollars to EUR" in c.value for c in app.caption)
 
 
 def test_compare_notes_different_currencies():
@@ -312,3 +330,5 @@ def test_compare_notes_different_currencies():
     table = app.dataframe[0].value
     row = table[table["Metric"] == "Free cash flow"].iloc[0]
     assert (row.iloc[1], row.iloc[2]) == ("$136,056M", "EUR 136,056M")
+    pe = table[table["Metric"] == "P/E"].iloc[0]
+    assert (pe.iloc[1], pe.iloc[2]) == ("27.99×", "25.19×")  # SAP's market cap converted at 0.9
