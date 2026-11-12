@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest something the app should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or question, e.g. a case study or a comparison the app can't answer today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: Describe the feature. A sketch or an example from another tool is welcome.
+    validations:
+      required: true
+  - type: input
+    id: tickers
+    attributes:
+      label: Example companies
+      description: Tickers where this would be useful, if any.
+      placeholder: e.g. TSM, ASML

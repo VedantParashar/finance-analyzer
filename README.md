@@ -1,5 +1,9 @@
 # Finance Analyzer
 
+[![Try it](https://img.shields.io/badge/Try%20it-datadough.streamlit.app-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://datadough.streamlit.app)
+
+**Live app: https://datadough.streamlit.app** (free, nothing to install)
+
 A free, open-source app that helps students analyse and compare US public companies, and teaches what
 each number means. Type a ticker and it pulls the company's annual reports from SEC EDGAR, maps them onto
 one standard set of line items, and shows 15 ratios plus the DuPont breakdown, each with its formula
@@ -12,6 +16,72 @@ Built for finance and business students doing case studies, stock pitches and th
 | Company page | Compare page |
 |---|---|
 | ![Company page](docs/screenshots/company.png) | ![Compare page](docs/screenshots/compare.png) |
+
+## Use it online
+
+1. Open **https://datadough.streamlit.app**.
+2. On the **Company** page, type a ticker such as `AAPL` and press Enter. You get five years of line
+   items, the ratios with their formulas, valuation at today's price, trend charts and data checks.
+3. On the **Compare** page, type 2 to 4 tickers, e.g. `AAPL, KO, NVDA`.
+4. **Download Excel with live formulas** gives you a workbook you can change and trace.
+
+Good to know: the first view of a company takes a few seconds while its filings download. The hosted
+app sleeps when nobody has used it for a while; if you see a "wake up" screen, click the button and
+wait a minute. Share prices come from Yahoo Finance, which sometimes blocks hosted apps; the five
+valuation metrics then read "unavailable" and everything else still works.
+
+## Run it on your computer
+
+Both ways need one setting: the SEC asks every client to say who it is. Copy `.env.example` to `.env`
+and put your own name and email in `SEC_USER_AGENT` (e.g. `Finance Analyzer you@example.com`).
+`.env` is git-ignored.
+
+### With uv
+
+[uv](https://docs.astral.sh/uv/) installs Python 3.12 and the packages for you.
+
+```bash
+git clone https://github.com/VedantParashar/finance-analyzer.git
+cd finance-analyzer
+uv sync
+cp .env.example .env   # then edit it
+uv run --env-file .env finance-analyzer
+```
+
+Then open http://localhost:8501.
+
+### With Docker
+
+With [Docker](https://docs.docker.com/get-docker/) installed and `.env` filled in:
+
+```bash
+git clone https://github.com/VedantParashar/finance-analyzer.git
+cd finance-analyzer
+cp .env.example .env   # then edit it
+docker compose up --build
+```
+
+Then open http://localhost:8501. Stop with Ctrl+C.
+
+Either way, downloads and the database are kept in `./data`. Downloads refresh by themselves once
+they're 7 days old, and the **Refresh data** button on the company page fetches a new filing straight
+away. To host your own copy for free, see [DEPLOY.md](DEPLOY.md).
+
+## Supported companies
+
+| | |
+|---|---|
+| ✅ **Works** | US companies that file annual reports (10-K) with the SEC, from about 2009 on. Checked in detail on Apple, Coca-Cola, Tesla and NVIDIA. |
+| ⚠️ **Works with a warning** | Banks, brokers and insurers (e.g. JPM, GS, BRK-B). They load, but ratios like gross margin and current ratio don't apply to them, so many show as unavailable. |
+| ⚠️ **May have gaps** | Any company that reports an item under a tag the app doesn't read yet. The value shows as "—" with the reason; the **Data checks** section shows whether the balance sheet adds up. |
+| ❌ **Doesn't work yet** | Foreign companies that file a 20-F or 40-F (e.g. TSM, ASML, SAP, Toyota). ETFs and funds (e.g. SPY), which have no financial statements. Companies not listed in the US. Quarterly figures. |
+
+## Report a problem
+
+Wrong number, missing value or an error? Please
+[open an issue](https://github.com/VedantParashar/finance-analyzer/issues/new/choose) and include the
+ticker and a screenshot. Known problems are listed under [Limitations](#limitations) and in the
+[issue list](https://github.com/VedantParashar/finance-analyzer/issues).
 
 ## Features
 
@@ -31,55 +101,6 @@ Metrics: gross, operating and net margin · ROE, ROA, ROIC · current and quick 
 interest coverage, equity multiplier · asset turnover · free cash flow and FCF margin · revenue and EPS
 growth (1-year and 3-year CAGR) · DuPont · and, at today's share price, market cap, P/E, P/B, EV/EBIT and
 FCF yield.
-
-## Setup
-
-You need [uv](https://docs.astral.sh/uv/) (it installs Python 3.12 and the packages for you).
-
-```bash
-git clone https://github.com/VedantParashar/finance-analyzer.git
-cd finance-analyzer
-uv sync
-cp .env.example .env   # then edit it: the SEC asks every client to say who it is
-```
-
-`.env` holds one setting, `SEC_USER_AGENT`, a name and contact email such as
-`Finance Analyzer you@example.com`. The SEC refuses requests without it. `.env` is git-ignored.
-
-## Run
-
-```bash
-uv run --env-file .env finance-analyzer
-```
-
-Then open http://localhost:8501. The first view of a company downloads its filings (a few seconds);
-after that it's read from the local database. Downloads refresh by themselves once they're 7 days old,
-and the **Refresh data** button on the company page fetches a new filing straight away.
-
-### Or with Docker (one command)
-
-With [Docker](https://docs.docker.com/get-docker/) installed and `.env` filled in:
-
-```bash
-docker compose up --build
-```
-
-Then open http://localhost:8501. The database and downloads are kept in `./data`, shared with the
-non-Docker setup. Stop with Ctrl+C.
-
-### Or hosted, for free
-
-[DEPLOY.md](DEPLOY.md) has the steps for putting the app on Streamlit Community Cloud.
-
-### Tests
-
-Run the tests (they use fake data, no network needed):
-
-```bash
-uv run pytest
-```
-
-They also run on GitHub Actions for every push and pull request.
 
 ## How it works
 
@@ -141,6 +162,11 @@ Downloads are cached in `data/cache/` and parsed rows stored in `data/finance.du
     balance; documented and accepted
 - Ratio definitions follow one common convention (e.g. averaged balances for ROE). Other sources may
   differ slightly.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests and the pull request workflow, and
+[CHANGELOG.md](CHANGELOG.md) for what each version added.
 
 ## License
 
