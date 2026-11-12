@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 
 from finance_analyzer import display, edgar, parse, store
-from finance_analyzer.metrics import company_metrics
+from finance_analyzer.metrics import FORMULAS, company_metrics
 from finance_analyzer.schema import ITEMS
 
 # 30 companies chosen to differ: size, industry, accounting rules, currency, age and profitability.
@@ -63,7 +63,7 @@ def check(ticker: str) -> dict:
     recent = years[-RECENT_YEARS:]
     have = {(row.item, row.fiscal_year_end) for row in rows}
     checks = parse.balance_checks(edgar.fetch_company_facts(ticker))
-    latest = metrics[years[-1]]
+    latest = {name: metric for name, metric in metrics[years[-1]].items() if name in FORMULAS}  # not the red-flag scores
     return {
         "currency": display.currency(rows),
         "years": f"{display.fiscal_year(years[0])}–{display.fiscal_year(years[-1])}",

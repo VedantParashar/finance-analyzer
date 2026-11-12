@@ -753,3 +753,56 @@ Same rules and format as session 2.
   **To release:** merge the six PRs, put the date in the heading, set `version = "1.1.0"` in
   `pyproject.toml`, run `uv lock`, then tag. No tag exists for 1.0.0 either.
 - **2026-11-12 · checked:** every claim in the 1.1.0 notes against the S4 task entries above.
+
+## S5 Task 1 — Red-flag scores
+
+- **2026-11-12 · scope:** `SPEC.md` listed red-flag scores as out of scope for v1. You asked for them, so
+  I built them and moved the line into the spec's metrics list in the same PR.
+- **2026-11-12 · decision (the one to review): Altman Z is the Z″ version, not the classic 1968 Z.**
+  The classic score needs the market value of equity, and the app only knows today's share price, so it
+  couldn't be calculated "per year" as you asked. Z″ (Altman's 1995 version) swaps market value for the
+  equity on the balance sheet and drops the sales term, so every year works and no price is needed.
+  Its cut-offs are 2.6 and 1.1, not 2.99 and 1.81, and its numbers won't match finance sites that show
+  the classic score. The card is labelled "Altman Z″" and the learning text says so.
+  **Rejected:** the classic Z for the latest year only (one number, no history, and unavailable whenever
+  Yahoo is); fetching a share price for every past year-end (a new data source and many more requests).
+- **2026-11-12 · decision:** five line items were added to the schema because the scores need them:
+  SG&A, receivables, property/plant/equipment, retained earnings, and depreciation & amortization, each
+  with US GAAP and IFRS tags. SG&A is the reported total, or selling/marketing + general/administrative
+  where a company reports those separately (Microsoft, Alphabet, TSMC), labelled as calculated. The
+  company page's line-item table shows them too. Checked on 40 companies: every existing row is
+  unchanged; only the new rows were added.
+- **2026-11-12 · the four formulas:**
+  - **Altman Z″** = 6.56 × working capital/assets + 3.26 × retained earnings/assets + 6.72 × operating
+    income/assets + 1.05 × total equity/total liabilities.
+  - **Piotroski F**: his nine tests, with return on assets, cash flow and turnover measured against
+    opening assets as in the paper, so it needs two prior years. Two small departures, both in the
+    learning text: an unchanged debt ratio passes (otherwise a company with no debt would lose a point),
+    and the diluted average share count stands in for shares outstanding, which the schema doesn't hold.
+  - **Beneish M**: the eight-variable model. Net income is used for "income from continuing operations",
+    and depreciation includes amortization where the company reports them together.
+  - **Accruals ratio** = (net income − operating cash flow) ÷ average total assets. **Rejected:** Sloan's
+    fuller version, which also subtracts investing cash flow: that needs another line item.
+- **2026-11-12 · decision:** a score with any input missing is "unavailable" with the reason; it is never
+  calculated from a partial set (a Piotroski score out of 7 would read like a bad score out of 9).
+- **2026-11-12 · where they show:** a "Red flags" section on the company page: four cards for the latest
+  year with the value, what it says ("Safe zone", "⚠ Flag: above −1.78"…), the formula with every input,
+  and learning text; then a table for the last five years. Banks, brokers and insurers get a line saying
+  the scores don't apply. **Not added:** to the compare page or the Excel export (not asked).
+- **2026-11-12 · result on 40 real companies (latest year):** Altman Z″ available for 28, Piotroski F
+  for 24, Beneish M for 24, accruals ratio for all 40. The gaps follow the known data issues: no
+  operating income subtotal (#29: CVX, PFE, LLY…), no cost of revenue (#27, #33: Toyota, utilities,
+  energy), REITs and banks (no current assets). Flags raised: NVIDIA (Beneish −1.15 and accruals 10.9%,
+  typical of very fast growth), CoreWeave (Beneish 0.10, Z″ −1.30), Rivian (Z″ −4.90), utilities and
+  American Tower in the distress zone, which is the known weakness of Z-scores for regulated,
+  debt-funded businesses.
+- **2026-11-12 · tests:** `tests/test_red_flags.py`, with Apple FY2026 and Coca-Cola FY2025 worked by
+  hand in the comments: Z″ 3.2024 and 4.5036; F 9 and 7 (Coca-Cola fails tests 4 and 9); M −2.5158 and
+  −2.3499 with all eight indexes; accruals −3.38% and 5.55%. I did the arithmetic in a separate script
+  that doesn't import the app. 241 tests pass (220 before).
+  **Not checked:** the scores against another source (and Z″ wouldn't match one anyway).
+- **2026-11-12 · small changes alongside:** `scripts/coverage.py` still counts the 19 ratios, so
+  `docs/COVERAGE.md` stays comparable; it wasn't rerun, and when it is, the five new line items will
+  appear in its "missing items" columns.
+- **LEARNING.md suggestion:** "Accrual": profit counts a sale when it's made, cash flow when the money
+  arrives. The gap between the two is accruals; a big gap means profit is ahead of cash.

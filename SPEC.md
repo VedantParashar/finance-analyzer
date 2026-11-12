@@ -28,6 +28,7 @@ Finance and business students doing case studies, stock pitches and theses.
 - Cash flow: free cash flow, FCF margin
 - Growth: revenue growth, EPS growth
 - DuPont breakdown of ROE
+- Red-flag scores, per year: Altman Z″, Piotroski F, Beneish M, accruals ratio
 
 **Learning layer** (for every metric)
 - The formula, filled in with the company's real numbers
@@ -58,7 +59,6 @@ data adapters → standard schema → metrics engine → Streamlit UI
 - Converting financial statements into another currency
 - PDF upload
 - LLM summaries
-- Red-flag scores
 - Banks and insurers
 ## “Open questions — decided”
 EPS: add EarningsPerShareDiluted and the share count to the schema

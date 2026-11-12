@@ -105,7 +105,7 @@ ticker and a screenshot. Known problems are listed under [Limitations](#limitati
 
 Metrics: gross, operating and net margin · ROE, ROA, ROIC · current and quick ratio · debt/equity,
 interest coverage, equity multiplier · asset turnover · free cash flow and FCF margin · revenue and EPS
-growth (1-year and 3-year CAGR) · DuPont · and, at today's share price, market cap, P/E, P/B, EV/EBIT and
+growth (1-year and 3-year CAGR) · DuPont · four red-flag scores (Altman Z″, Piotroski F, Beneish M, accruals ratio) · and, at today's share price, market cap, P/E, P/B, EV/EBIT and
 FCF yield.
 
 ## How it works

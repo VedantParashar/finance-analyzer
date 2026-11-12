@@ -182,6 +182,8 @@ def metric_card(name: str, metric: Metric, prior: Metric | None, currency: str) 
             delta=display.yoy_delta(name, metric.value, prior.value if prior else None),
             delta_color="inverse" if name == "debt_to_equity" else "normal",
         )
+        if name in display.RED_FLAGS and metric.value is not None:
+            st.caption(display.verdict(name, metric.value))
         if metric.reason:
             st.caption(f"Not available: {metric.reason}")
         for note in metric.notes:
@@ -315,6 +317,7 @@ def company_page() -> None:
     )
 
     dupont_section(metrics, years, labels)
+    red_flags_section(metrics, years, labels, currency, info)
     data_checks_section(ticker, rows)
 
 
@@ -342,6 +345,28 @@ def data_checks_section(ticker: str, rows: list[store.StoredLineItem]) -> None:
     else:
         first, last = table[-1]["Fiscal year"], table[0]["Fiscal year"]
         st.markdown(f"✓ **Missing years:** none, every year from {first} to {last} is stored.")
+
+
+def red_flags_section(metrics: dict, years: list, labels: list[str], currency: str, info: dict) -> None:
+    st.subheader("Red flags")
+    st.caption(
+        "Four well-known screens for financial trouble or low-quality earnings. They are prompts to read the "
+        "annual report more closely, not verdicts: each one misfires on some kinds of company (see "
+        "“Common traps” in each card)."
+    )
+    if edgar.is_financial(info["sic"]):
+        st.caption("These scores were built for industrial and commercial companies and don't apply to banks, brokers or insurers.")
+    for column, name in zip(st.columns(4), display.RED_FLAGS):
+        with column:
+            metric_card(name, metrics[years[-1]][name], None, currency)
+    table = []
+    for name in display.RED_FLAGS:
+        line = {"Score": display.LABELS[name]}
+        for label, end in zip(labels, years):
+            value = metrics[end][name].value
+            line[label] = "—" if value is None else f"{display.format_metric(name, value)} · {display.verdict(name, value).split(' (')[0].split(':')[0]}"
+        table.append(line)
+    st.dataframe(table, hide_index=True)
 
 
 def dupont_section(metrics: dict, years: list, labels: list[str]) -> None:

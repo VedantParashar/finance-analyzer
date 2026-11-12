@@ -4,7 +4,7 @@ from io import BytesIO
 import pytest
 from openpyxl import load_workbook
 
-from finance_analyzer.display import LABELS
+from finance_analyzer.display import LABELS, RED_FLAGS
 from finance_analyzer.export import company_workbook
 from finance_analyzer.metrics import company_metrics
 from test_metrics import AAPL, KO, rows_from
@@ -35,6 +35,8 @@ def test_every_formula_gives_the_engines_value(data):
     for column, end in enumerate(sorted(metrics), 3):
         assert years[column - 3] == f"FY{end.year}"
         for name, metric in metrics[end].items():
+            if name in RED_FLAGS:  # shown on the page only, not in the workbook
+                continue
             cell = sheet.cell(row_of[LABELS[name]], column)
             if metric.value is None:
                 assert cell.value == "n/a" and cell.comment.text == metric.reason, name

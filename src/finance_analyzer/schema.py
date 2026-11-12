@@ -36,6 +36,9 @@ ITEMS = {
             "USD",
             "flow",
         ),
+        # Used by the Beneish M-score. Companies that report selling and administrative costs on separate
+        # lines (Microsoft, Alphabet) get the sum of SGA_PARTS instead.
+        LineItem("selling_general_admin", ("SellingGeneralAndAdministrativeExpense",), "USD", "flow"),
         LineItem("operating_income", ("OperatingIncomeLoss",), "USD", "flow"),
         LineItem(
             "interest_expense",
@@ -77,8 +80,28 @@ ITEMS = {
             "USD",
             "instant",
         ),
+        LineItem(
+            "receivables",
+            (
+                "AccountsReceivableNetCurrent",
+                "ReceivablesNetCurrent",  # Walmart, Costco
+                "AccountsAndOtherReceivablesNetCurrent",  # Target
+                "AccountsNotesAndLoansReceivableNetCurrent",
+            ),
+            "USD",
+            "instant",
+        ),
         LineItem("inventory", ("InventoryNet",), "USD", "instant"),
         LineItem("current_assets", ("AssetsCurrent",), "USD", "instant"),
+        LineItem(
+            "property_plant_equipment",  # net of depreciation
+            (
+                "PropertyPlantAndEquipmentNet",
+                "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
+            ),
+            "USD",
+            "instant",
+        ),
         LineItem("total_assets", ("Assets",), "USD", "instant"),
         LineItem(
             # The reported total; when it's missing we add up SHORT_TERM_BORROWINGS (or its parts)
@@ -106,6 +129,8 @@ ITEMS = {
             "USD",
             "instant",
         ),
+        # Profits kept in the business since it began; negative = accumulated losses (or heavy buybacks).
+        LineItem("retained_earnings", ("RetainedEarningsAccumulatedDeficit",), "USD", "instant"),
         LineItem(
             # Includes minority owners, so that assets = liabilities + equity holds.
             "total_equity",
@@ -124,6 +149,19 @@ ITEMS = {
             (
                 "NetCashProvidedByUsedInOperatingActivities",
                 "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+            ),
+            "USD",
+            "flow",
+        ),
+        LineItem(
+            # From the cash flow statement. Most companies give depreciation and amortization together;
+            # plain Depreciation is the last resort (Tesla, Microsoft).
+            "depreciation_amortization",
+            (
+                "DepreciationDepletionAndAmortization",
+                "DepreciationAndAmortization",
+                "DepreciationAmortizationAndAccretionNet",
+                "Depreciation",
             ),
             "USD",
             "flow",
@@ -161,6 +199,12 @@ TEMPORARY_EQUITY_PARTS = (
         "USD",
         "instant",
     ),
+)
+
+# Selling/marketing and administrative costs, added up when no SG&A total is reported.
+SGA_PARTS = (
+    LineItem("selling and marketing", ("SellingAndMarketingExpense", "MarketingExpense", "SellingExpense"), "USD", "flow"),
+    LineItem("general and administrative", ("GeneralAndAdministrativeExpense",), "USD", "flow"),
 )
 
 # Short-term debt parts, used when DebtCurrent isn't reported.
@@ -213,6 +257,7 @@ IFRS_TAGS: dict[str, tuple[str, ...]] = {
     # Income statement
     "revenue": ("Revenue", "RevenueFromContractsWithCustomers"),
     "cost_of_revenue": ("CostOfSales",),
+    "selling_general_admin": ("SellingGeneralAndAdministrativeExpense", "DistributionAndAdministrativeExpense"),
     "operating_income": ("ProfitLossFromOperatingActivities",),
     # FinanceCosts is the income statement line: usually interest, but it can include other financing losses.
     # InterestExpenseOnBorrowings isn't used: at TSMC it leaves out the interest on bonds.
@@ -227,18 +272,27 @@ IFRS_TAGS: dict[str, tuple[str, ...]] = {
     "cash": ("CashAndCashEquivalents",),
     # IFRS has no "marketable securities" line; the second tag can also hold loans and derivatives.
     "short_term_investments": ("CurrentInvestments", "OtherCurrentFinancialAssets"),
+    "receivables": ("CurrentTradeReceivables", "TradeAndOtherCurrentReceivables"),
     "inventory": ("Inventories",),
     "current_assets": ("CurrentAssets",),
+    "property_plant_equipment": ("PropertyPlantAndEquipment",),
     "total_assets": ("Assets",),
     "short_term_debt": ("CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",),
     "current_liabilities": ("CurrentLiabilities",),
     "long_term_debt": ("LongtermBorrowings", "NoncurrentPortionOfNoncurrentBorrowings"),
     "total_liabilities": ("Liabilities",),
     "temporary_equity": (),  # a US GAAP idea; IFRS puts these amounts in liabilities
+    "retained_earnings": ("RetainedEarnings",),
     "total_equity": ("Equity",),
     "shareholders_equity": ("EquityAttributableToOwnersOfParent",),
     # Cash flow statement
     "operating_cash_flow": ("CashFlowsFromUsedInOperatingActivities",),
+    "depreciation_amortization": (
+        "DepreciationAndAmortisationExpense",
+        "AdjustmentsForDepreciationAndAmortisationExpense",
+        "DepreciationAmortisationAndImpairmentLossReversalOfImpairmentLossRecognisedInProfitOrLoss",
+        "DepreciationExpense",
+    ),
     "capital_expenditure": (
         "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",
         # Last resort (SAP): also includes purchases of intangible assets.
@@ -249,6 +303,8 @@ IFRS_TAGS: dict[str, tuple[str, ...]] = {
     "minority_interest": ("NoncontrollingInterests",),
     "short-term borrowings": ("ShorttermBorrowings",),
     "current maturities of long-term debt": ("CurrentPortionOfLongtermBorrowings",),
+    "selling and marketing": ("SalesAndMarketingExpense", "DistributionCosts", "SellingExpense"),
+    "general and administrative": ("GeneralAndAdministrativeExpense", "AdministrativeExpense"),
     "non-current bonds issued": ("NoncurrentPortionOfNoncurrentBondsIssued",),
     "current bonds issued": ("CurrentBondsIssuedAndCurrentPortionOfNoncurrentBondsIssued",),
 }

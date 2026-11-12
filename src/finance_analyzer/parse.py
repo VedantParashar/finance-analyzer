@@ -20,6 +20,7 @@ from finance_analyzer.schema import (
     MINORITY_INTEREST,
     NONCURRENT_BONDS,
     OTHER_SHORT_TERM_INVESTMENTS,
+    SGA_PARTS,
     SHORT_TERM_BORROWING_PARTS,
     SHORT_TERM_BORROWINGS,
     TEMPORARY_EQUITY_PARTS,
@@ -324,6 +325,19 @@ def _shareholders_equity_rows(facts: dict) -> list[LineItemRow]:
     return rows
 
 
+def _sga_rows(facts: dict) -> list[LineItemRow]:
+    """The SG&A total where reported, otherwise selling/marketing plus administrative costs."""
+    rows = _item_rows(facts, ITEMS["selling_general_admin"])
+    covered = {row.fiscal_year_end for row in rows}
+    parts = [(part.name, _by_end(facts, part)) for part in SGA_PARTS]
+    for end in {end for _, by_end in parts for end in by_end} - covered:
+        found = [(name, by_end[end]) for name, by_end in parts if end in by_end]
+        value = sum(value for _, (value, _) in found)
+        derivation = " + ".join(name for name, _ in found) + (" only" if len(found) == 1 else "")
+        rows.append(LineItemRow("selling_general_admin", end, value, found[0][1][1], derivation))
+    return rows
+
+
 def _scale_text(multiplier: float) -> str:
     return f"split-adjusted ×{multiplier:g}" if multiplier > 1 else f"split-adjusted ÷{1 / multiplier:g}"
 
@@ -353,6 +367,7 @@ def _line_items(facts: dict) -> list[LineItemRow]:
         "long_term_debt": _long_term_debt_rows,
         "cash": _cash_rows,
         "shareholders_equity": _shareholders_equity_rows,
+        "selling_general_admin": _sga_rows,
     }
     rows = [
         row

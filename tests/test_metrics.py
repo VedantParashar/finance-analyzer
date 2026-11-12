@@ -2,7 +2,9 @@ from datetime import date, datetime
 
 import pytest
 
-from finance_analyzer.metrics import FORMULA_TEXT, FORMULAS, PRICE_FORMULAS, company_metrics, price_metrics
+from finance_analyzer.metrics import (
+    FORMULA_TEXT, FORMULAS, PRICE_FORMULAS, RED_FLAG_FORMULAS, company_metrics, price_metrics,
+)
 from finance_analyzer.store import StoredLineItem
 
 M = 1_000_000  # fixtures are in $M, stored values are in dollars
@@ -175,11 +177,11 @@ def test_unusual_tax_rate_still_calculates_roic_with_a_note(income_tax, expected
 
 def test_every_year_gets_every_metric():
     metrics = company_metrics(rows_from(KO))
-    assert all(len(year) == 19 for year in metrics.values())
+    assert all(len(year) == 19 + 4 for year in metrics.values())  # the ratios, then the red-flag scores
 
 
 def test_every_formula_has_text():
-    assert FORMULA_TEXT.keys() == FORMULAS.keys() | PRICE_FORMULAS.keys()
+    assert FORMULA_TEXT.keys() == FORMULAS.keys() | RED_FLAG_FORMULAS.keys() | PRICE_FORMULAS.keys()
 
 
 def test_price_metrics_use_market_cap_and_the_latest_fiscal_year():
