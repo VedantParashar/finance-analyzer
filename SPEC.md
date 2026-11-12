@@ -37,7 +37,7 @@ Finance and business students doing case studies, stock pitches and theses.
 - Common traps
 
 **Screens**
-- Single-company dashboard with 5-year trends
+- Single-company dashboard with 5-year trends, by fiscal year or trailing twelve months (from 10-Q reports; Q4 = full year − nine months)
 - Compare 2–4 companies
 - Peer suggestions on the company page: 5 companies with the same SEC industry (SIC) code, closest in revenue
 - Excel export with live formulas

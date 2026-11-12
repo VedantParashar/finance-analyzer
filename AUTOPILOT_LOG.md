@@ -850,3 +850,54 @@ Same rules and format as session 2.
 - **`SPEC.md`:** peer suggestions added under Screens.
 - **LEARNING.md suggestion:** "SIC code": a 4-digit industry number the SEC gives every filer. The first
   3 digits are a wider group, the first 2 wider still (20 = food, 2080 = beverages).
+
+## S5 Task 3 — Quarterly figures and the trailing twelve months (TTM)
+
+- **2026-11-12 · scope:** the app was annual-only (README: "no quarters"). You asked for this, so it's
+  built and `SPEC.md`/README are updated in the same PR.
+- **2026-11-12 · how quarters are built:** from 10-Q facts. Q1 is as reported. Q2 and Q3 are as reported
+  where the company gives the quarter on its own, otherwise the year-so-far figure minus the quarters
+  before (cash flow statements only ever give the year so far). **Q4 = full year − first nine months**,
+  always, as you specified. TTM = the last four quarters; if any of the four is missing there is no TTM
+  figure for that item, never a three-quarter total.
+- **2026-11-12 · decision (the design): TTM figures are fed back through the existing annual rules.**
+  The SEC facts are rewritten as if a fiscal year ended at the latest quarter end (flows become TTM
+  sums, balance sheet items are those reported on that date), then go through the same code as annual
+  data. **Why:** every tag priority and calculated item (short-term debt from parts, SG&A, cash,
+  bonds…) and every metric, including the red-flag scores, works on TTM with no second copy of the
+  rules. The same is done for the same quarter end in each earlier year, so averages, growth rates and
+  the five-year trends compare like with like (twelve months to Sep 2026 against twelve months to
+  Sep 2025).
+- **2026-11-12 · decision:** TTM rows are built on demand from the SEC download and are **not saved in
+  the database**, which still holds fiscal years only. **Why:** no change to the table, and nothing to
+  keep in sync. Cost: about 0.1 s per company, cached for a day.
+- **2026-11-12 · what the toggle does:** "Period: Fiscal years / Trailing 12 months" on the company
+  page. TTM swaps the line items, metric cards, valuation (P/E on TTM profit, which is what finance
+  sites show), trends, DuPont and red flags; columns read "12m to Sep 2026". An expander lists the last
+  eight single quarters for seven main items, with calculated values starred. **Stay annual:** the Excel
+  export, data checks, peers and the compare page.
+- **2026-11-12 · foreign filers:** 20-F and 40-F companies file no quarterly data with the SEC (TSM,
+  ASML, SAP, TM, NVO, SHEL, CNQ, BABA, SONY), so the toggle shows a message and stays on fiscal years.
+- **2026-11-12 · three real-data problems found and fixed while checking 40 companies:**
+  1. Amazon's 10-Qs also report rolling twelve-month figures; they were mistaken for fiscal years.
+     Only annual reports mark a fiscal year end now.
+  2. Costco's quarters are 12 weeks (then 16), outside my first day ranges; widened.
+  3. Stock splits: the annual code dates a split to the first *annual* report after it, but 10-Qs in
+     between are already on the new basis, so NVIDIA's share count came out 10× too big for one year.
+     Splits are now dated from quarterly reports for TTM, and a split seen in several later reports is
+     counted once. After the fix, TTM EPS equals TTM profit ÷ shares to within a few cents for NVDA,
+     AAPL, TSLA, GOOGL, AMZN and WMT in every year.
+- **2026-11-12 · known limits:**
+  - TTM EPS is the sum of four quarterly EPS figures, so it can differ from the annual EPS by a cent or
+    two (Apple: 8.97 against 8.98 for the same twelve months). The share count is the latest quarter's.
+  - Reasons from the engine still say "FY2026" in TTM view; a line on the page explains how to read it.
+  - Banks lose more in TTM: JPMorgan tags annual revenue differently from quarterly revenue, so its TTM
+    revenue is missing (6 metrics against 11 annual). Of the 31 companies with quarterly data, 20 have
+    the same number of metrics in both views; 4 have one or two more in TTM, 7 have fewer (JPM, PLOW,
+    CVX: long-term debt tagged differently in 10-Qs; META, TGT, COST, MRNA, DUK, CRWV by one or two).
+  - Two splits within 400 days of each other would be read as one.
+- **2026-11-12 · checked:** KO and TSM in a real browser; KO's TTM revenue $51,054M against FY2025
+  $47,941M, P/E 28.7×. 260 tests pass (248 before), including hand-made filings for each quarter shape.
+  **Not checked:** TTM figures against another source.
+- **LEARNING.md suggestion:** "TTM (trailing twelve months)": the last four quarters added together, so
+  the figure is always a full year but as fresh as the latest quarterly report.

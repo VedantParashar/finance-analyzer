@@ -3,7 +3,7 @@
 import math
 from collections import defaultdict
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, timedelta
 from typing import NamedTuple
 
 from finance_analyzer.edgar import NoFinancialStatements, fetch_company_facts
@@ -29,6 +29,7 @@ from finance_analyzer.schema import (
 
 # Annual reports: 10-K for US companies, 20-F for most foreign ones, 40-F for Canadian ones; /A = amended.
 ANNUAL_FORMS = {"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"}
+QUARTERLY_FORMS = ANNUAL_FORMS | {"10-Q", "10-Q/A"}
 BALANCE_TOLERANCE = 0.001  # 0.1% of total assets, so small rounding differences still pass
 SPLIT_NET_INCOME_TOLERANCE = 0.01  # 1%: real splits can arrive alongside small restatements
 
@@ -146,15 +147,21 @@ def _split_factor(old: float, new: float) -> float | None:
     return None
 
 
-def _splits(facts: dict, item: LineItem) -> dict[str, float]:
-    """Stock splits seen in a per-share item, as {first filing on the new basis: factor}."""
-    net_income: dict[tuple[str, str], int] = {}
-    for fact in _candidates(facts, ITEMS["net_income"]):
-        net_income.setdefault((fact["end"], fact["accn"]), fact["val"])
+def _splits(facts: dict, item: LineItem, quarterly: bool = False) -> dict[str, float]:
+    """Stock splits seen in a per-share item, as {first filing on the new basis: factor}.
 
-    by_period: dict[str, dict[str, dict]] = defaultdict(dict)  # end -> filed -> fact
-    for fact in _candidates(facts, item):
-        by_period[fact["end"]][fact["filed"]] = fact
+    With quarterly=True the quarterly reports are read too, which dates a split to the first 10-Q after it
+    rather than the first annual report.
+    """
+    candidates = _period_candidates if quarterly else _candidates
+    period = (lambda fact: (fact["end"], _period(fact))) if quarterly else (lambda fact: fact["end"])
+    net_income: dict[tuple, int] = {}
+    for fact in candidates(facts, ITEMS["net_income"]):
+        net_income.setdefault((period(fact), fact["accn"]), fact["val"])
+
+    by_period: dict = defaultdict(dict)  # period -> filed -> fact
+    for fact in candidates(facts, item):
+        by_period[period(fact)][fact["filed"]] = fact
 
     changes = []
     for filings in by_period.values():
@@ -165,14 +172,25 @@ def _splits(facts: dict, item: LineItem) -> dict[str, float]:
     # Largest values last: rounding distorts them least, so they decide the ratio.
     for older, newer in sorted(changes, key=lambda pair: abs(pair[0]["val"])):
         factor = _split_factor(older["val"], newer["val"])
-        income_before = net_income.get((older["end"], older["accn"]))
-        income_after = net_income.get((newer["end"], newer["accn"]))
+        income_before = net_income.get((period(older), older["accn"]))
+        income_after = net_income.get((period(newer), newer["accn"]))
         if factor is None or income_before is None or income_after is None:
             continue
         # A split changes per-share figures but not the company's profit.
         if abs(income_after - income_before) <= SPLIT_NET_INCOME_TOLERANCE * abs(income_before):
             splits[newer["filed"]] = factor
-    return splits
+    if not quarterly:
+        return splits
+    # Each later report restates one more old period, so one split is sighted in several filings. Sightings
+    # within about a year are the same split: dated by the first, sized by the largest figure (the last added).
+    sightings: list[list[str]] = []
+    for filed in sorted(splits):
+        if sightings and (date.fromisoformat(filed) - date.fromisoformat(sightings[-1][0])).days <= 400:
+            sightings[-1].append(filed)
+        else:
+            sightings.append([filed])
+    by_size = list(splits)  # in the order added: smallest figure first
+    return {group[0]: splits[max(group, key=by_size.index)] for group in sightings}
 
 
 def annual_revenue(facts: dict) -> list[tuple[str, int, str]]:
@@ -427,3 +445,179 @@ def balance_checks(facts: dict) -> list[BalanceCheck]:
         passed = abs(difference) <= BALANCE_TOLERANCE * abs(assets[end].value)
         checks.append(BalanceCheck(end, passed, difference, derived))
     return checks
+
+
+# ---- Quarters and the trailing twelve months (TTM) ----
+#
+# A 10-Q gives each flow item for the quarter and/or for the year so far (6 or 9 months); the fourth
+# quarter is never reported on its own. So: Q4 = full year − first nine months, and TTM = the last four
+# quarters. To reuse every rule above, the TTM figures are then written back as if they were annual
+# facts for a "year" ending at the latest quarter, and run through _line_items unchanged.
+
+# Days in a quarter, 6 months, 9 months and a year. The low ends allow for 12-week quarters (Costco).
+_PERIODS = {"Q": (80, 100), "H": (160, 190), "N": (245, 285), "Y": (350, 380)}
+
+
+class NoQuarterlyReports(ValueError):
+    """The company's SEC data has no quarterly reports, so there is nothing more recent than its annual figures."""
+
+
+def _period(fact: dict) -> str | None:
+    days = (date.fromisoformat(fact["end"]) - date.fromisoformat(fact["start"])).days
+    return next((name for name, (low, high) in _PERIODS.items() if low <= days <= high), None)
+
+
+def _period_candidates(facts: dict, item: LineItem) -> Iterator[dict]:
+    """Every quarterly- or annual-report fact for a flow item that covers a quarter, 6 or 9 months, or a year."""
+    unit = item.unit.replace("USD", reporting_currency(facts))
+    for taxonomy, tags in (("us-gaap", item.tags), ("ifrs-full", IFRS_TAGS.get(item.name, ()))):
+        for tag in tags:
+            for fact in facts.get("facts", {}).get(taxonomy, {}).get(tag, {}).get("units", {}).get(unit, []):
+                if "start" in fact and fact["form"] in QUARTERLY_FORMS and _period(fact):
+                    yield fact
+
+
+def _quarters(tag_facts: list[dict]) -> dict[str, tuple[float, bool, dict]]:
+    """One tag's value for each single quarter, by quarter end: (value, derived?, the fact it came from).
+
+    Q1 is as reported; Q2 and Q3 are as reported, or the year-to-date figure minus the quarters before;
+    Q4 is always the full year minus the first nine months.
+    """
+    latest: dict[tuple[str, str], dict] = {}  # (period end, period length) -> the most recently filed fact
+    for fact in tag_facts:
+        if "start" not in fact or fact["form"] not in QUARTERLY_FORMS or _period(fact) is None:
+            continue
+        if _period(fact) == "Y" and fact["form"] not in ANNUAL_FORMS:
+            continue  # a rolling twelve months in a 10-Q (Amazon), not a fiscal year
+        key = (fact["end"], _period(fact))
+        if key not in latest or fact["filed"] > latest[key]["filed"]:
+            latest[key] = fact
+
+    year_ends = sorted(end for end, length in latest if length == "Y")
+    quarters: dict[str, tuple[float, bool, dict]] = {}
+    for index, year_end in enumerate([*year_ends, None]):  # None = the year still in progress
+        if index == 0 and year_end is None:
+            break  # no full year at all
+        opened = date.fromisoformat(year_ends[index - 1]) if index else date.fromisoformat(year_end) - timedelta(371)
+        closes = date.fromisoformat(year_end) if year_end else date.max
+        so_far: dict[int, float] = {}  # quarter number -> total for the year up to that quarter
+        for end in sorted({end for end, length in latest if length != "Y" and opened < date.fromisoformat(end) < closes}):
+            number = round((date.fromisoformat(end) - opened).days / 91.31)
+            alone, to_date = latest.get((end, "Q")), latest.get((end, {2: "H", 3: "N"}.get(number, "")))
+            before = so_far.get(number - 1, 0 if number == 1 else None)
+            if number not in (1, 2, 3) or (alone is None and (to_date is None or before is None)):
+                continue
+            if alone is not None:
+                quarters[end] = (alone["val"], False, alone)
+            else:
+                quarters[end] = (to_date["val"] - before, True, to_date)
+            if to_date is not None:
+                so_far[number] = to_date["val"]
+            elif before is not None:
+                so_far[number] = before + alone["val"]
+        if year_end and 3 in so_far:
+            full_year = latest[(year_end, "Y")]
+            quarters[year_end] = (full_year["val"] - so_far[3], True, full_year)
+    return quarters
+
+
+def _same_quarter_ends(facts: dict, currency: str) -> list[str]:
+    """The latest balance sheet date, then the same quarter end in each earlier year; newest first."""
+    ends = sorted({
+        fact["end"]
+        for taxonomy in ("us-gaap", "ifrs-full")
+        for fact in facts.get("facts", {}).get(taxonomy, {}).get("Assets", {}).get("units", {}).get(currency, [])
+        if fact["form"] in QUARTERLY_FORMS
+    })
+    chosen = ends[-1:]
+    while chosen:
+        target = date.fromisoformat(chosen[-1]) - timedelta(365)
+        # 52/53-week calendars move the quarter end by a few days from year to year.
+        near = [end for end in ends if abs((date.fromisoformat(end) - target).days) <= 10]
+        if not near:
+            break
+        chosen.append(min(near, key=lambda end: abs((date.fromisoformat(end) - target).days)))
+    return chosen
+
+
+def _as_years_ending(facts: dict, ends: list[str]) -> dict:
+    """The same facts restated as if each date in `ends` closed a fiscal year: flows become TTM figures."""
+    splits = _splits(facts, ITEMS["diluted_eps"], quarterly=True)
+    restated: dict = {"facts": {}}
+    for taxonomy in ("us-gaap", "ifrs-full"):
+        for tag, body in facts.get("facts", {}).get(taxonomy, {}).items():
+            for unit, tag_facts in body.get("units", {}).items():
+                per_share, count = unit.endswith("/shares"), unit == "shares"
+                if per_share or count:  # put every figure on today's share basis before adding quarters up
+                    tag_facts = [
+                        {**fact, "val": fact["val"] * factor if count else fact["val"] / factor}
+                        for fact in tag_facts
+                        for factor in [math.prod(ratio for filed, ratio in splits.items() if filed > fact["filed"])]
+                    ]
+                new = [
+                    {**fact, "form": "10-K"}
+                    for fact in tag_facts
+                    if "start" not in fact and fact["end"] in ends and fact["form"] in QUARTERLY_FORMS
+                ]
+                quarters = _quarters(tag_facts)
+                quarter_ends = sorted(quarters)
+                for end in ends:
+                    if end not in quarters:
+                        continue
+                    last_four = quarter_ends[: quarter_ends.index(end) + 1][-4:]
+                    span = (date.fromisoformat(end) - date.fromisoformat(last_four[0])).days
+                    if len(last_four) < 4 or not 260 <= span <= 290:
+                        continue  # a quarter is missing, so there's no honest twelve-month total
+                    sources = [quarters[quarter][2] for quarter in last_four]
+                    # A weighted-average share count can't be added up: use the one for the latest period reported.
+                    value = sources[-1]["val"] if count else sum(quarters[quarter][0] for quarter in last_four)
+                    new.append({
+                        "start": (date.fromisoformat(end) - timedelta(364)).isoformat(), "end": end, "val": value,
+                        "form": "10-K", "filed": max(source["filed"] for source in sources), "accn": sources[-1]["accn"],
+                    })
+                if new:
+                    restated["facts"].setdefault(taxonomy, {}).setdefault(tag, {"units": {}})["units"][unit] = new
+    return restated
+
+
+def trailing_twelve_months(facts: dict) -> list[LineItemRow]:
+    """Every line item for the twelve months to the latest quarter end, and to the same quarter in earlier years.
+
+    Flow items are the sum of four quarters; balance sheet items are as reported on that date. Each row's
+    fiscal_year_end is the quarter end, so the metrics engine treats the series like fiscal years.
+    """
+    currency = reporting_currency(facts)
+    quarterly = any(
+        fact["form"] not in ANNUAL_FORMS and fact["form"] in QUARTERLY_FORMS
+        for taxonomy in ("us-gaap", "ifrs-full")
+        for fact in facts.get("facts", {}).get(taxonomy, {}).get("Assets", {}).get("units", {}).get(currency, [])
+    )
+    ends = _same_quarter_ends(facts, currency)
+    rows = _line_items(_as_years_ending(facts, ends)) if quarterly else []
+    if not any(row.fiscal_year_end == ends[0] for row in rows):
+        raise NoQuarterlyReports(
+            "No usable quarterly figures in the SEC's data for this company. Companies that file a 20-F or "
+            "40-F (most foreign ones) report to the SEC once a year, so only the annual view is available for them."
+        )
+    return rows
+
+
+QUARTERLY_ITEMS = ("revenue", "cost_of_revenue", "operating_income", "net_income", "diluted_eps",
+                   "operating_cash_flow", "capital_expenditure")
+
+
+def quarterly_values(facts: dict, count: int = 8) -> dict[str, dict[str, tuple[float, bool]]]:
+    """The main flow items for the last `count` single quarters: item -> quarter end -> (value, derived?)."""
+    currency = reporting_currency(facts)
+    result: dict[str, dict[str, tuple[float, bool]]] = {}
+    for name in QUARTERLY_ITEMS:
+        item, merged = ITEMS[name], {}
+        for taxonomy, tags in (("us-gaap", item.tags), ("ifrs-full", IFRS_TAGS.get(name, ()))):
+            for tag in tags:
+                unit = item.unit.replace("USD", currency)
+                tag_facts = facts.get("facts", {}).get(taxonomy, {}).get(tag, {}).get("units", {}).get(unit, [])
+                for end, (value, derived, _) in _quarters(tag_facts).items():
+                    merged.setdefault(end, (value, derived))  # the first tag in priority order wins
+        result[name] = merged
+    recent = sorted({end for values in result.values() for end in values})[-count:]
+    return {name: {end: values[end] for end in recent if end in values} for name, values in result.items()}

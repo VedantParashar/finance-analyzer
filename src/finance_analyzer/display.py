@@ -68,6 +68,11 @@ def fiscal_year(end: date) -> str:
     return f"FY{end.year}"
 
 
+def twelve_months(end: date) -> str:
+    """Column label in the trailing-twelve-months view: the month the twelve months end in."""
+    return f"12m to {end:%b %Y}"
+
+
 def currency(rows: list[StoredLineItem]) -> str:
     """The currency the company reports in, read from the stored units ("EUR", "EUR/shares")."""
     return next((row.unit.split("/")[0] for row in rows if row.unit != "shares"), "USD")
@@ -156,7 +161,28 @@ def label(item: str) -> str:
     return item.replace("_", " ").capitalize().replace("eps", "EPS")
 
 
-def line_item_table(rows: list[StoredLineItem], years: list[date]) -> tuple[list[dict[str, str]], list[str]]:
+def quarterly_table(values: dict[str, dict[str, tuple[float, bool]]], currency: str) -> list[dict[str, str]]:
+    """One row per flow item, one column per single quarter (by its end date); calculated values end in " *"."""
+    ends = sorted({end for by_end in values.values() for end in by_end})
+    table = []
+    for item, by_end in values.items():
+        if not by_end:
+            continue
+        line = {"Line item": label(item)}
+        for end in ends:
+            column = f"{date.fromisoformat(end):%b %-d, %Y}"
+            if end in by_end:
+                value, derived = by_end[end]
+                line[column] = format_value(ITEMS[item].unit.replace("USD", currency), value) + (" *" if derived else "")
+            else:
+                line[column] = "—"
+        table.append(line)
+    return table
+
+
+def line_item_table(
+    rows: list[StoredLineItem], years: list[date], period=fiscal_year
+) -> tuple[list[dict[str, str]], list[str]]:
     """One row per line item, one column per year; derived values end in " *".
 
     Also returns the derivations, one line each, for the footnote.
@@ -170,11 +196,11 @@ def line_item_table(rows: list[StoredLineItem], years: list[date]) -> tuple[list
         for end in years:
             row = by_key.get((item, end))
             if row is None:
-                line[fiscal_year(end)] = "—"
+                line[period(end)] = "—"
                 continue
-            line[fiscal_year(end)] = format_value(row.unit, row.value) + (" *" if row.derivation else "")
+            line[period(end)] = format_value(row.unit, row.value) + (" *" if row.derivation else "")
             if row.derivation:
-                derivations.append(f"{label(item)}, {fiscal_year(end)}: {row.derivation}")
+                derivations.append(f"{label(item)}, {period(end)}: {row.derivation}")
         table.append(line)
     return table, derivations
 

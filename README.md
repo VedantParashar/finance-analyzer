@@ -150,7 +150,9 @@ Downloads are cached in `data/cache/` and parsed rows stored in `data/finance.du
 
 - **Only companies that file with the US SEC.** Banks and insurers are out of scope: they get a warning
   and many ratios show as unavailable.
-- **Annual data only** (10-K, 20-F, 40-F and amendments), no quarters.
+- **Fiscal years by default** (10-K, 20-F, 40-F and amendments). The company page can switch to the
+  trailing twelve months, built from quarterly reports (10-Q); foreign filers have none, so they stay annual.
+  The compare page, Excel export and data checks always use fiscal years.
 - **Statements aren't converted.** Foreign filers are shown in their own currency. Comparing ratios across
   currencies is fine; comparing amounts isn't. Only market cap is converted, at today's exchange rate from
   Yahoo Finance, so that P/E, P/B, EV/EBIT and FCF yield work; if the rate can't be fetched they read
