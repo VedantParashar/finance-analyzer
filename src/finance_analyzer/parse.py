@@ -8,6 +8,7 @@ from typing import NamedTuple
 
 from finance_analyzer.edgar import NoFinancialStatements, fetch_company_facts
 from finance_analyzer.schema import (
+    CASH_LAST_RESORT,
     CURRENT_MATURITIES_OF_LONG_TERM_DEBT,
     IFRS_TAGS,
     ITEMS,
@@ -15,6 +16,7 @@ from finance_analyzer.schema import (
     LONG_TERM_DEBT_LAST_RESORT,
     MARKETABLE_SECURITIES_ANY_TERM,
     MARKETABLE_SECURITIES_NONCURRENT,
+    MINORITY_INTEREST,
     OTHER_SHORT_TERM_INVESTMENTS,
     SHORT_TERM_BORROWING_PARTS,
     SHORT_TERM_BORROWINGS,
@@ -272,6 +274,36 @@ def _long_term_debt_rows(facts: dict) -> list[LineItemRow]:
     return rows
 
 
+def _cash_rows(facts: dict) -> list[LineItemRow]:
+    """Cash and equivalents, falling back to the total that includes restricted cash where that's all there is."""
+    rows = _item_rows(facts, ITEMS["cash"])
+    covered = {row.fiscal_year_end for row in rows}
+    rows += [
+        LineItemRow("cash", end, value, accn, "includes restricted cash")
+        for end, value, accn in _annual_values(facts, CASH_LAST_RESORT)
+        if end not in covered
+    ]
+    return rows
+
+
+def _shareholders_equity_rows(facts: dict) -> list[LineItemRow]:
+    """The parent's owners' equity; where it isn't reported, total equity less any minority interest."""
+    rows = _item_rows(facts, ITEMS["shareholders_equity"])
+    covered = {row.fiscal_year_end for row in rows}
+    minority = _by_end(facts, MINORITY_INTEREST)
+    balance_sheet_years = _by_end(facts, ITEMS["total_assets"])
+    for end, total, accn in _annual_values(facts, ITEMS["total_equity"]):
+        # Only for years with a balance sheet: stray equity figures exist for older years (KO FY2007 shows 0).
+        if end in covered or end not in balance_sheet_years:
+            continue
+        if end in minority:
+            value, derivation = total - minority[end][0], "shareholders' equity = total equity − minority interest"
+        else:
+            value, derivation = total, "total equity (no minority interest reported)"
+        rows.append(LineItemRow("shareholders_equity", end, value, accn, derivation))
+    return rows
+
+
 def _scale_text(multiplier: float) -> str:
     return f"split-adjusted ×{multiplier:g}" if multiplier > 1 else f"split-adjusted ÷{1 / multiplier:g}"
 
@@ -299,6 +331,8 @@ def _line_items(facts: dict) -> list[LineItemRow]:
         "short_term_debt": _short_term_debt_rows,
         "short_term_investments": _short_term_investments_rows,
         "long_term_debt": _long_term_debt_rows,
+        "cash": _cash_rows,
+        "shareholders_equity": _shareholders_equity_rows,
     }
     rows = [
         row
@@ -327,7 +361,8 @@ def annual_line_items(ticker: str) -> list[LineItemRow]:
     if not rows:
         raise NoAnnualReports(
             f"{name} has no annual report (10-K, 20-F or 40-F) in the SEC's data. That usually means a company "
-            "that listed recently and hasn't filed its first one yet."
+            "that listed recently and hasn't filed its first one yet. For a few established companies "
+            "(ExxonMobil is one) the SEC's data feed itself only carries quarterly figures."
         )
     return rows
 

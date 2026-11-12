@@ -10,6 +10,9 @@ What each version added, newest first. Dates are year-month-day.
 - **Foreign filers:** companies that file a 20-F or 40-F, under US GAAP or IFRS (e.g. TSMC, ASML, SAP,
   Toyota), shown in their reporting currency. No currency conversion yet, so valuation ratios are
   unavailable for them, and the compare page notes when currencies differ.
+- **Coverage:** a stress test on 30 companies (`docs/COVERAGE.md`, `scripts/coverage.py`). Fixes from it:
+  revenue for utilities, cash where only the restricted-cash total is tagged, shareholders' equity where
+  only total equity is tagged, and extra fallback tags for interest expense and capital expenditure.
 - Docs: live link, CONTRIBUTING.md, this changelog and issue templates.
 
 ## 1.0.0 — 2026-11-11

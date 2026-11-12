@@ -66,3 +66,8 @@ Most data problems are a missing tag. To investigate one:
 3. Add it to that item's tag list in `schema.py`, after the existing tags, and add a test in
    `tests/test_parse.py`.
 4. Check the company's **Data checks** section still balances.
+5. Rerun the stress test and check no other company got worse (needs the network):
+   ```bash
+   uv run --env-file .env python scripts/coverage.py
+   git diff docs/COVERAGE.md
+   ```
