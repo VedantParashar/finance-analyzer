@@ -3,8 +3,7 @@
 ## Summary of session 5 (2026-11-12)
 
 **Built:** all 6 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
-is merged. The session hit the usage limit during task 6's write-up, so that task's GitHub checks were
-not watched to the end.
+is merged. `pytest` and `docker` pass on GitHub for all six.
 
 | # | PR | Branch | What |
 |---|---|---|---|
@@ -13,7 +12,7 @@ not watched to the end.
 | 3 | #45 | `quarterly-ttm` | quarters (Q4 = FY − 9M), TTM, Period toggle on the company page |
 | 4 | #46 | `industry-benchmarks` | median per metric across stored companies in the same 2-digit SIC group |
 | 5 | #47 | `shareable-links` | `?ticker=AAPL`, `?compare=AAPL,KO` |
-| 6 | (last) | `preload-stress-companies` | background pre-load of the 30 stress-test companies on the hosted app; timings |
+| 6 | #48 | `preload-stress-companies` | background pre-load of the 30 stress-test companies on the hosted app; timings |
 
 271 tests pass locally (220 before).
 
@@ -27,6 +26,9 @@ not watched to the end.
    Costco, split dating).
 4. **Industry medians need 3 stored companies** (task 4) and the sample is whatever is in the database.
 5. **Pre-load saves about a second, not more** (task 6), measured on my machine only. See S5 task 6.
+
+**Not done (not in the queue):** `CHANGELOG.md` has no entries for this session, and
+`docs/COVERAGE.md` wasn't rerun, so it doesn't list the five line items added in task 1.
 
 `SPEC.md` changed in tasks 1–5: red-flag scores, quarterly data, peers, benchmarks and links were all
 outside the written v1 scope.
