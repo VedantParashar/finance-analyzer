@@ -67,19 +67,32 @@ def valuation(ticker: str, rows: list[store.StoredLineItem]) -> tuple[dict[str, 
 
 
 def option(company: edgar.Company) -> str:
-    """How a company reads in the search box; the ticker is everything before the dash."""
+    """How a company reads in the search box."""
     return f"{company.ticker} — {company.name}"
 
 
+def exact_ticker_first(companies: list[edgar.Company]) -> dict[str, str]:
+    """Compare-box text → ticker, ordered so that typing a ticker and pressing Enter picks that ticker.
+
+    The box picks the first entry that starts with the typed text. With the shortest tickers first, the
+    first entry starting with "F" is "F — Ford": no shorter ticker exists and "FAST — …" comes later.
+    Every company is listed a second time name first, so typing "Coca" still suggests Coca-Cola.
+    """
+    by_ticker = {option(c): c.ticker for c in sorted(companies, key=lambda c: len(c.ticker))}  # stable: largest first
+    return by_ticker | {f"{c.name} — {c.ticker}": c.ticker for c in companies}
+
+
 @st.cache_data(ttl=timedelta(days=1), show_spinner=False)
-def company_options() -> list[str]:
-    return [option(company) for company in edgar.list_companies()]
+def company_options(exact_first: bool = False) -> dict[str, str]:
+    """Search-box text → ticker for every company the SEC lists, largest first unless exact_first."""
+    companies = edgar.list_companies()
+    return exact_ticker_first(companies) if exact_first else {option(c): c.ticker for c in companies}
 
 
-def options_or_explain() -> list[str] | None:
+def options_or_explain(exact_first: bool = False) -> dict[str, str] | None:
     """The search box's suggestions, or None after showing why the SEC's company list couldn't be read."""
     try:
-        return company_options()
+        return company_options(exact_first)
     except RuntimeError as error:  # no SEC_USER_AGENT
         st.error(str(error))
     except httpx.HTTPError as error:
@@ -87,10 +100,10 @@ def options_or_explain() -> list[str] | None:
     return None
 
 
-def ticker_or_explain(choice: str, options: list[str]) -> str | None:
+def ticker_or_explain(choice: str, options: dict[str, str]) -> str | None:
     """The SEC's ticker for a picked suggestion or for typed text, or None after showing what to try."""
     if choice in options:
-        return choice.split(" — ")[0]
+        return options[choice]
     company = edgar.find_ticker(choice)  # typed text: BRK.B, brk b and BRK-B all find BRK-B
     if company:
         return company.ticker
@@ -345,7 +358,7 @@ def dupont_section(metrics: dict, years: list, labels: list[str]) -> None:
 
 def compare_page() -> None:
     st.title("Compare")
-    options = options_or_explain()
+    options = options_or_explain(exact_first=True)
     if options is None:
         return
     choices = st.multiselect(
@@ -355,8 +368,8 @@ def compare_page() -> None:
         placeholder="Type tickers or company names, e.g. AAPL, Coca-Cola",
         accept_new_options=True,
         select_all=False,  # otherwise Enter on "AAPL" picks "Select 632 matches": four look-alike companies
-        # Plain substring matching keeps the SEC's largest-first order, so "ko" offers Coca-Cola before Koss.
-        filter_mode="contains",
+        # Matching from the start of each entry is what lets an exact ticker win: see exact_ticker_first().
+        filter_mode="prefix",
         key="compare",
     )
     if not choices:
