@@ -8,7 +8,7 @@ from typing import Literal
 class LineItem:
     name: str
     tags: tuple[str, ...]  # priority order: decides ties between tags filed on the same day
-    unit: str  # the key under a tag's "units" in the SEC data
+    unit: str  # the key under a tag's "units" in the SEC data; "USD" stands for the company's own currency
     period_type: Literal["flow", "instant"]  # flow = over a year, instant = on one date
 
 
@@ -70,7 +70,8 @@ ITEMS = {
             # Marketable securities; built together with OTHER_SHORT_TERM_INVESTMENTS, which some
             # companies (KO) show as a separate balance sheet line.
             "short_term_investments",
-            ("MarketableSecuritiesCurrent",),
+            # The second tag is what ASML uses for its short-term deposits and securities.
+            ("MarketableSecuritiesCurrent", "AvailableForSaleSecuritiesDebtSecuritiesCurrent"),
             "USD",
             "instant",
         ),
@@ -184,3 +185,47 @@ OTHER_SHORT_TERM_INVESTMENTS = LineItem(
 # Usually means total debt including the current part (Apple, KO, NVDA), but Tesla uses it for
 # the non-current part only. Used only when no non-current tag is reported, and labelled as such.
 LONG_TERM_DEBT_LAST_RESORT = LineItem("long_term_debt", ("LongTermDebt",), "USD", "instant")
+
+
+# The same line items for companies that report under IFRS (most foreign filers), from the `ifrs-full`
+# taxonomy. Keyed by line item name; same rules as `tags`: priority order, first wins on a tie.
+IFRS_TAGS: dict[str, tuple[str, ...]] = {
+    # Income statement
+    "revenue": ("Revenue", "RevenueFromContractsWithCustomers"),
+    "cost_of_revenue": ("CostOfSales",),
+    "operating_income": ("ProfitLossFromOperatingActivities",),
+    # FinanceCosts is the income statement line: usually interest, but it can include other financing losses.
+    # InterestExpenseOnBorrowings isn't used: at TSMC it leaves out the interest on bonds.
+    "interest_expense": ("InterestExpense", "FinanceCosts"),
+    "pretax_income": ("ProfitLossBeforeTax",),
+    "income_tax": ("IncomeTaxExpenseContinuingOperations",),
+    "net_income": ("ProfitLossAttributableToOwnersOfParent", "ProfitLoss"),
+    "diluted_eps": ("DilutedEarningsLossPerShare", "DilutedEarningsLossPerShareFromContinuingOperations"),
+    # The diluted count only: WeightedAverageShares is the basic count, so it isn't used.
+    "diluted_shares": ("AdjustedWeightedAverageShares",),
+    # Balance sheet
+    "cash": ("CashAndCashEquivalents",),
+    # IFRS has no "marketable securities" line; the second tag can also hold loans and derivatives.
+    "short_term_investments": ("CurrentInvestments", "OtherCurrentFinancialAssets"),
+    "inventory": ("Inventories",),
+    "current_assets": ("CurrentAssets",),
+    "total_assets": ("Assets",),
+    "short_term_debt": ("CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",),
+    "current_liabilities": ("CurrentLiabilities",),
+    "long_term_debt": ("LongtermBorrowings", "NoncurrentPortionOfNoncurrentBorrowings"),
+    "total_liabilities": ("Liabilities",),
+    "temporary_equity": (),  # a US GAAP idea; IFRS puts these amounts in liabilities
+    "total_equity": ("Equity",),
+    "shareholders_equity": ("EquityAttributableToOwnersOfParent",),
+    # Cash flow statement
+    "operating_cash_flow": ("CashFlowsFromUsedInOperatingActivities",),
+    "capital_expenditure": (
+        "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",
+        # Last resort (SAP): also includes purchases of intangible assets.
+        "PurchaseOfPropertyPlantAndEquipmentIntangibleAssetsOtherThanGoodwillInvestmentPropertyAndOtherNoncurrentAssets",
+    ),
+    # The helper items above that have an IFRS equivalent
+    "liabilities_and_equity": ("EquityAndLiabilities",),
+    "short-term borrowings": ("ShorttermBorrowings",),
+    "current maturities of long-term debt": ("CurrentPortionOfLongtermBorrowings",),
+}

@@ -21,6 +21,7 @@ INFO = {
     "JPM": {"name": "JPMorgan Chase & Co.", "sic": 6021, "industry": "National Commercial Banks"},
     "GS": {"name": "Goldman Sachs Group Inc", "sic": 6211, "industry": "Security Brokers, Dealers & Flotation Companies"},
     "BRK-B": {"name": "Berkshire Hathaway Inc", "sic": 6331, "industry": "Fire, Marine & Casualty Insurance"},
+    "SAP": {"name": "SAP SE", "sic": 7372, "industry": "Services-Prepackaged Software"},
 }
 
 
@@ -53,6 +54,7 @@ def parsed_rows(ticker):
 def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "DB_PATH", tmp_path / "test.duckdb")
     monkeypatch.setattr(store, "annual_line_items", parsed_rows)
+    monkeypatch.setattr(store, "company_currency", lambda ticker: "EUR" if ticker == "SAP" else "USD")
     monkeypatch.setattr(edgar, "facts_downloaded_at", lambda ticker: datetime(2020, 1, 1))  # older than any load
     # FY2026 balances, FY2025 is off by $65M; the two older years have no balance sheet at all.
     checks = [BalanceCheck("2025-09-27", False, 65 * M, False), BalanceCheck("2026-09-26", True, 0, False)]
@@ -250,3 +252,23 @@ def test_sec_user_agent_comes_from_secrets_before_the_environment(monkeypatch):
     app.secrets["SEC_USER_AGENT"] = "From secrets secrets@example.com"
     app.run()
     assert not app.exception and os.environ["SEC_USER_AGENT"] == "From secrets secrets@example.com"
+
+
+def test_foreign_filer_shows_its_currency_and_no_valuation_ratios():
+    app = company("SAP")
+    assert not app.exception and not app.error
+    assert "SAP reports in EUR. Amounts are shown as reported" in app.info[0].value
+    cards = {m.label: m.value for m in app.metric}
+    assert cards["Free cash flow"] == "EUR 136,056M" and cards["Net margin"] == "27.6%"
+    assert cards["Market cap"] == "$3,700,000M" and cards["P/E"] == "unavailable"
+    assert app.dataframe[0].value.iloc[0, -1] == "EUR 478,834M"  # revenue in the line-item table
+    assert any("market cap is in US dollars and the statements in EUR" in c.value for c in app.caption)
+
+
+def test_compare_notes_different_currencies():
+    app = compare(["AAPL", "SAP"])
+    assert not app.exception and not app.error
+    assert any("report in different currencies (AAPL in USD, SAP in EUR)" in i.value for i in app.info)
+    table = app.dataframe[0].value
+    row = table[table["Metric"] == "Free cash flow"].iloc[0]
+    assert (row.iloc[1], row.iloc[2]) == ("$136,056M", "EUR 136,056M")

@@ -246,9 +246,15 @@ def price_metrics(rows: Iterable[StoredLineItem], market_cap: float | None) -> d
     rows = list(rows)
     by_key = {(row.item, row.fiscal_year_end): row for row in rows}
     years = sorted({row.fiscal_year_end for row in rows})
+    currency = next((row.unit.split("/")[0] for row in rows if row.unit != "shares"), "USD")
     results = {}
     for name, formula in PRICE_FORMULAS.items():
         inputs = _Inputs(by_key, {row.item for row in rows}, years, years[-1])
         inputs.used["market cap"] = market_cap
+        if currency != "USD" and name != "market_cap":
+            # Dividing dollars by euros or yen would give a meaningless number.
+            reason = f"market cap is in US dollars and the statements in {currency}; currencies aren't converted yet"
+            results[name] = Metric(None, inputs.used, reason)
+            continue
         results[name] = _run(lambda: formula(inputs, market_cap), inputs)
     return results

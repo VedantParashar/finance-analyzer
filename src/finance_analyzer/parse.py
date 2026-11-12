@@ -9,6 +9,7 @@ from typing import NamedTuple
 from finance_analyzer.edgar import NoFinancialStatements, fetch_company_facts
 from finance_analyzer.schema import (
     CURRENT_MATURITIES_OF_LONG_TERM_DEBT,
+    IFRS_TAGS,
     ITEMS,
     LIABILITIES_AND_EQUITY,
     LONG_TERM_DEBT_LAST_RESORT,
@@ -21,6 +22,8 @@ from finance_analyzer.schema import (
     LineItem,
 )
 
+# Annual reports: 10-K for US companies, 20-F for most foreign ones, 40-F for Canadian ones.
+ANNUAL_FORMS = {"10-K", "10-K/A", "20-F", "20-F/A", "40-F"}
 BALANCE_TOLERANCE = 0.001  # 0.1% of total assets, so small rounding differences still pass
 SPLIT_NET_INCOME_TOLERANCE = 0.01  # 1%: real splits can arrive alongside small restatements
 
@@ -57,19 +60,55 @@ def _fiscal_year_ends(facts: dict) -> set[str]:
     }
 
 
+def reporting_currency(facts: dict) -> str:
+    """The currency of the statements, e.g. "USD" or "EUR": the one most annual total-assets facts are in.
+
+    Foreign filers often add a US dollar translation of the latest year only, so "most" picks their own currency.
+    """
+    counts: dict[str, int] = defaultdict(int)
+    for taxonomy in ("us-gaap", "ifrs-full"):
+        for unit, values in facts.get("facts", {}).get(taxonomy, {}).get("Assets", {}).get("units", {}).items():
+            counts[unit] += sum(fact["form"] in ANNUAL_FORMS for fact in values)
+    return max(counts, key=counts.get) if any(counts.values()) else "USD"
+
+
+def _taxonomy_by_year(facts: dict, currency: str) -> dict[str, str]:
+    """Which taxonomy each year end's figures come from: that of the latest filing reporting its total assets.
+
+    A company that changed from US GAAP to IFRS (Toyota, 2021) has some years under both. Mixing them within
+    a year would, for example, add US GAAP temporary equity to an IFRS balance sheet that already counts it.
+    """
+    latest: dict[str, tuple[str, str]] = {}  # year end -> (filed, taxonomy)
+    for taxonomy in ("us-gaap", "ifrs-full"):
+        for fact in facts.get("facts", {}).get(taxonomy, {}).get("Assets", {}).get("units", {}).get(currency, []):
+            if fact["form"] in ANNUAL_FORMS and (fact["end"] not in latest or fact["filed"] > latest[fact["end"]][0]):
+                latest[fact["end"]] = (fact["filed"], taxonomy)
+    return {end: taxonomy for end, (_, taxonomy) in latest.items()}
+
+
+def company_currency(ticker: str) -> str:
+    return reporting_currency(fetch_company_facts(ticker))
+
+
 def _candidates(facts: dict, item: LineItem) -> Iterator[dict]:
-    """Every annual 10-K or 10-K/A fact for a line item, in tag priority order."""
+    """Every annual-report fact for a line item in the reporting currency, in tag priority order."""
     if item.period_type == "flow":
         is_annual = _is_full_year
     else:
         year_ends = _fiscal_year_ends(facts)
         is_annual = lambda fact: "start" not in fact and fact["end"] in year_ends
 
-    us_gaap = facts.get("facts", {}).get("us-gaap", {})
-    for tag in item.tags:
-        for fact in us_gaap.get(tag, {}).get("units", {}).get(item.unit, []):
-            if fact["form"] in ("10-K", "10-K/A") and is_annual(fact):
-                yield fact
+    currency = reporting_currency(facts)
+    unit = item.unit.replace("USD", currency)
+    year_taxonomy = _taxonomy_by_year(facts, currency)
+    for taxonomy, tags in (("us-gaap", item.tags), ("ifrs-full", IFRS_TAGS.get(item.name, ()))):
+        for tag in tags:
+            for fact in facts.get("facts", {}).get(taxonomy, {}).get(tag, {}).get("units", {}).get(unit, []):
+                # Years with no balance sheet (the oldest income statements) take either taxonomy.
+                if year_taxonomy.get(fact["end"], taxonomy) != taxonomy:
+                    continue
+                if fact["form"] in ANNUAL_FORMS and is_annual(fact):
+                    yield fact
 
 
 def _annual_facts(facts: dict, item: LineItem) -> list[dict]:
@@ -287,9 +326,8 @@ def annual_line_items(ticker: str) -> list[LineItemRow]:
     rows = _line_items(facts)
     if not rows:
         raise NoAnnualReports(
-            f"{name} has no annual report (10-K) in the SEC's data. That usually means a company that listed "
-            "recently and hasn't filed its first one yet, or a foreign company that files a 20-F or 40-F, "
-            "which this app doesn't read yet."
+            f"{name} has no annual report (10-K, 20-F or 40-F) in the SEC's data. That usually means a company "
+            "that listed recently and hasn't filed its first one yet."
         )
     return rows
 

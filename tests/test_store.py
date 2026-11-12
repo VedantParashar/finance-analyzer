@@ -16,6 +16,7 @@ ROWS = [
 @pytest.fixture(autouse=True)
 def temporary_database(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "DB_PATH", tmp_path / "new_folder" / "test.duckdb")
+    monkeypatch.setattr(store, "company_currency", lambda ticker: "USD")
 
 
 def parser_returns(monkeypatch, rows):
@@ -32,6 +33,13 @@ def test_round_trip_keeps_every_field_in_schema_order(monkeypatch):
     assert saved[1].value == 2.98 and saved[1].unit == "USD/shares"
     assert saved[2].derivation == "liabilities = total − equity"
     assert saved[0].loaded_at == saved[2].loaded_at
+
+
+def test_units_record_the_reporting_currency(monkeypatch):
+    parser_returns(monkeypatch, ROWS + [LineItemRow("diluted_shares", YEAR_END, 5, "A", "")])
+    monkeypatch.setattr(store, "company_currency", lambda ticker: "EUR")
+    store.load_company("SAP")
+    assert [row.unit for row in store.get_company("SAP")] == ["EUR", "EUR/shares", "shares", "EUR"]
 
 
 def test_reload_replaces_old_rows_without_duplicates(monkeypatch):

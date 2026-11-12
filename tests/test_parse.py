@@ -521,5 +521,80 @@ def test_company_with_no_annual_report_is_reported_as_such(monkeypatch):
         {"start": "2026-01-01", "end": "2026-03-31", "val": 5, "accn": "a", "form": "10-Q", "filed": "2026-05-01"}
     ]}}}}}
     monkeypatch.setattr("finance_analyzer.parse.fetch_company_facts", lambda ticker: quarterly_only)
-    with pytest.raises(parse.NoAnnualReports, match=r"NEWCO has no annual report \(10-K\)"):
+    with pytest.raises(parse.NoAnnualReports, match=r"NEWCO has no annual report \(10-K, 20-F or 40-F\)"):
         annual_line_items("newco")
+
+
+def ifrs_company(form="20-F", **extra):
+    """A foreign filer reporting under IFRS in euros, with a US dollar translation of total assets."""
+    eur = lambda tag_facts: {"units": {"EUR": tag_facts}}
+    year = lambda val, accn: {**fact("2025-01-01", "2025-12-31", val, form, "2026-03-01", accn)}
+    point = lambda val, accn: {"end": "2025-12-31", "val": val, "form": form, "filed": "2026-03-01", "accn": accn}
+    prior = {"end": "2024-12-31", "val": 900, "form": form, "filed": "2026-03-01", "accn": "A"}
+    return {"facts": {"ifrs-full": {
+        "Revenue": eur([year(400, "A")]),
+        "ProfitLossAttributableToOwnersOfParent": eur([year(50, "A")]),
+        "DilutedEarningsLossPerShare": {"units": {"EUR/shares": [year(2.5, "A")]}},
+        "AdjustedWeightedAverageShares": {"units": {"shares": [year(20, "A")]}},
+        "Assets": {"units": {"EUR": [point(1000, "A"), prior], "USD": [point(1100, "A")]}},
+        "Liabilities": eur([point(600, "A")]),
+        "Equity": eur([point(400, "A")]),
+        "EquityAndLiabilities": eur([point(1000, "A")]),
+        **extra,
+    }}}
+
+
+def test_reporting_currency_is_the_one_most_total_assets_are_in():
+    assert parse.reporting_currency(ifrs_company()) == "EUR"
+    assert parse.reporting_currency(company(Assets=[instant(YEAR_END, 500, FILED, "A")])) == "USD"
+    assert parse.reporting_currency({"facts": {}}) == "USD"
+
+
+@pytest.mark.parametrize("form", ["20-F", "20-F/A", "40-F"])
+def test_ifrs_annual_reports_are_read_in_the_reporting_currency(form):
+    rows = {row.item: row.value for row in _line_items(ifrs_company(form))}
+    assert rows == {
+        "revenue": 400, "net_income": 50, "diluted_eps": 2.5, "diluted_shares": 20,
+        "total_assets": 1000,  # the euro figure, not the 1,100 dollar translation
+        "total_liabilities": 600, "total_equity": 400,
+    }
+    assert balance_checks(ifrs_company(form))[-1] == ("2025-12-31", True, 0, False)
+
+
+def test_interim_foreign_reports_are_ignored():
+    assert _line_items(ifrs_company("6-K")) == []
+
+
+def test_ifrs_short_term_debt_is_built_from_its_parts():
+    point = lambda val: {"end": "2025-12-31", "val": val, "form": "20-F", "filed": "2026-03-01", "accn": "A"}
+    facts = ifrs_company(
+        ShorttermBorrowings={"units": {"EUR": [point(30)]}},
+        CurrentPortionOfLongtermBorrowings={"units": {"EUR": [point(12)]}},
+    )
+    row = next(row for row in _line_items(facts) if row.item == "short_term_debt")
+    assert (row.value, row.derivation) == (
+        42, "short-term debt = short-term borrowings + current maturities of long-term debt"
+    )
+
+
+def test_every_schema_item_has_an_ifrs_tag_list():
+    from finance_analyzer.schema import IFRS_TAGS
+
+    assert ITEMS.keys() <= IFRS_TAGS.keys()
+    assert [item for item in ITEMS if not IFRS_TAGS[item]] == ["temporary_equity"]  # no IFRS equivalent
+
+
+def test_a_year_reported_under_both_taxonomies_uses_only_the_latest_one():
+    """Toyota's FY2020: first filed under US GAAP, then restated under IFRS in the next report."""
+    def old(val):
+        return {"end": "2025-12-31", "val": val, "form": "20-F", "filed": "2026-02-01", "accn": "GAAP"}
+
+    facts = ifrs_company()
+    facts["facts"]["us-gaap"] = {
+        "Assets": {"units": {"EUR": [old(990)]}},
+        "TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests": {"units": {"EUR": [old(40)]}},
+        "InventoryNet": {"units": {"EUR": [old(7)]}},
+    }
+    items = {row.item for row in _line_items(facts) if row.fiscal_year_end == "2025-12-31"}
+    assert "temporary_equity" not in items and "inventory" not in items
+    assert balance_checks(facts)[-1] == ("2025-12-31", True, 0, False)

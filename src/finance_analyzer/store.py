@@ -6,7 +6,7 @@ from typing import NamedTuple
 
 import duckdb
 
-from finance_analyzer.parse import annual_line_items
+from finance_analyzer.parse import annual_line_items, company_currency
 from finance_analyzer.schema import ITEMS
 
 DB_PATH = Path("data/finance.duckdb")
@@ -52,6 +52,7 @@ def load_company(ticker: str) -> int:
     if not rows:
         raise ValueError(f"No line items found for {ticker}, keeping any saved data")
 
+    currency = company_currency(ticker)  # each row's unit records it: "EUR", "EUR/shares"
     loaded_at = datetime.now(UTC).replace(tzinfo=None)  # stored as UTC
     with _connect() as connection:
         connection.begin()  # leaving this block without commit() undoes everything below
@@ -59,7 +60,8 @@ def load_company(ticker: str) -> int:
         connection.executemany(
             "INSERT INTO line_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                (ticker, r.item, r.fiscal_year_end, r.value, ITEMS[r.item].unit, r.accn, r.derivation, loaded_at)
+                (ticker, r.item, r.fiscal_year_end, r.value, ITEMS[r.item].unit.replace("USD", currency), r.accn,
+                 r.derivation, loaded_at)
                 for r in rows
             ],
         )
