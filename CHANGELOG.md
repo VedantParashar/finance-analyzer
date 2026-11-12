@@ -2,7 +2,7 @@
 
 What each version added, newest first. Dates are year-month-day.
 
-## 1.1.0 — not released yet (notes prepared 2026-11-12)
+## 1.1.0 — 2026-11-12
 
 Search that picks the right company, valuation ratios for foreign companies, and TSMC's debt fixed.
 
