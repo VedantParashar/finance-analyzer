@@ -81,6 +81,12 @@ def get_company(ticker: str) -> list[StoredLineItem]:
     return [StoredLineItem(*row) for row in rows]
 
 
+def stored_tickers() -> list[str]:
+    """Every company saved so far, in alphabetical order."""
+    with _connect() as connection:
+        return [row[0] for row in connection.execute("SELECT DISTINCT ticker FROM line_items ORDER BY ticker").fetchall()]
+
+
 def trailing_twelve_months(ticker: str) -> list[StoredLineItem]:
     """Rows for the twelve months to the latest quarter end (and the same quarter in earlier years).
 

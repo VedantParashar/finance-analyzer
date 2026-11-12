@@ -6,6 +6,7 @@ Ratios are fractions (0.276 = 27.6%), interest coverage is a multiple, free cash
 
 from collections.abc import Callable, Iterable
 from datetime import date
+from statistics import median
 from typing import NamedTuple
 
 from finance_analyzer.store import StoredLineItem
@@ -383,3 +384,21 @@ def price_metrics(
             inputs.used["market cap"] = cap
         results[name] = _run(lambda: formula(inputs, cap), inputs)
     return results
+
+
+NOT_BENCHMARKED = {"free_cash_flow", "dupont"}  # an amount depends on size and currency; DuPont repeats ROE
+MIN_FOR_MEDIAN = 3  # with fewer companies a "median" is just one company's number
+
+
+def industry_medians(companies: Iterable[dict[str, Metric]]) -> dict[str, tuple[float, int]]:
+    """For each metric, the middle value across companies and how many had one: {name: (median, count)}.
+
+    Each item of `companies` is one company's metrics for one year (its latest). A metric is left out
+    when fewer than MIN_FOR_MEDIAN companies have a value for it.
+    """
+    values: dict[str, list[float]] = {}
+    for metrics in companies:
+        for name, metric in metrics.items():
+            if metric.value is not None and name not in NOT_BENCHMARKED:
+                values.setdefault(name, []).append(metric.value)
+    return {name: (median(found), len(found)) for name, found in values.items() if len(found) >= MIN_FOR_MEDIAN}

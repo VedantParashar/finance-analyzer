@@ -237,3 +237,16 @@ def test_valuation_ratios_are_unavailable_without_an_exchange_rate():
 
 def test_a_rate_is_ignored_when_the_statements_are_in_dollars():
     assert price_metrics(rows_from(AAPL), 3_700_000 * M, 32.0) == price_metrics(rows_from(AAPL), 3_700_000 * M)
+
+
+def test_industry_medians_need_three_companies_and_skip_amounts():
+    from finance_analyzer.metrics import Metric, industry_medians
+
+    def company(roe, margin=None, cash=5.0):
+        return {"roe": Metric(roe, {}), "net_margin": Metric(margin, {}, "" if margin else "not reported"),
+                "free_cash_flow": Metric(cash, {}), "dupont": Metric(roe, {})}
+
+    medians = industry_medians([company(0.10, 0.2), company(0.30), company(0.20, 0.4), company(0.50)])
+    # ROE: middle of 0.10, 0.20, 0.30, 0.50 = 0.25, from 4 companies. Net margin has only 2 values: left out.
+    assert medians == {"roe": (0.25, 4)}
+    assert industry_medians([company(0.1), company(0.2)]) == {}

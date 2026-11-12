@@ -96,7 +96,7 @@ def format_metric(name: str, value: float | None, currency: str = "USD") -> str:
     if name == "market_cap":
         return money(value)  # from Yahoo Finance, always in dollars
     if name == "piotroski_f":
-        return f"{value:.0f} of 9"
+        return f"{value:g} of 9"  # a median of several companies can be 6.5
     if name in ("altman_z", "beneish_m"):
         return f"{value:.2f}"
     if name in DOLLARS:
