@@ -574,3 +574,26 @@ Same rules and format as session 2.
   **Not checked:** the values themselves for these 30, beyond spot checks of the fixed items (DUK
   revenue $32,237M and NEE $27,412M match the tagged totals). The table records what is missing, not
   whether what's present is right.
+
+## S4 Task 1 — Compare page: an exact ticker always wins
+
+- **2026-11-12 · decision:** the compare box now matches from the start of each entry (Streamlit's
+  `filter_mode="prefix"`) and lists the shortest tickers first. Enter picks the first match, and the
+  first entry starting with "F" is now "F — Ford": no shorter ticker exists, and FAST, FE and the rest
+  come after it. **Why this and not a smarter order:** the box filters in the browser and tells the app
+  only what was picked, not what was typed, so the app can't correct a wrong pick afterwards. With
+  substring matching no order works at all: "T — AT&T" contains "a" and "A — Agilent Technologies"
+  contains "t", so one of them always loses.
+- **2026-11-12 · decision:** every company is in the compare list twice, once ticker first ("KO — COCA
+  COLA CO") and once name first ("COCA COLA CO — KO"). **Why:** matching from the start would otherwise
+  end name suggestions. **Trade-offs:** (1) a name is now suggested only from its first word: "Coca"
+  suggests Coca-Cola, "Hathaway" suggests nothing, though typing it and pressing Enter still gets the
+  "did you mean BRK-B, BRK-A" message; (2) within one ticker length the order is still largest first,
+  but "AAP" + Enter now picks Advance Auto Parts (ticker AAP), not Apple, which is what "exact ticker
+  wins" means; (3) the list is 20,807 entries instead of 10,405; it still suggests within a second.
+- **2026-11-12 · not changed:** the company page. It takes typed text as typed and already resolves an
+  exact ticker first.
+- **2026-11-12 · checked:** in a real browser F → Ford, ma → Mastercard, T → AT&T, brk.b → BRK-B,
+  "Coca" → Coca-Cola, "apple inc" → Apple. A script over all 10,405 SEC tickers found 0 where the first
+  match is a different company. 208 tests pass (190 before); the new ones cover one- and two-letter
+  tickers that also appear inside longer entries (F/FAST, MA/MAR, T/TM, M/MSFT, W/Wayfair).

@@ -234,6 +234,46 @@ def test_compare_shows_table_and_chart_for_each_company():
     assert not app.exception
 
 
+SHORT_TICKERS = [  # largest first, like the SEC's list; every one- or two-letter ticker also hides in a longer entry
+    edgar.Company("MSFT", "MICROSOFT CORP", "1"),
+    edgar.Company("MA", "Mastercard Inc", "2"),
+    edgar.Company("META", "Meta Platforms, Inc.", "3"),
+    edgar.Company("T", "AT&T INC.", "4"),
+    edgar.Company("TM", "TOYOTA MOTOR CORP/", "5"),
+    edgar.Company("MAR", "MARRIOTT INTERNATIONAL INC /MD/", "6"),
+    edgar.Company("F", "FORD MOTOR CO", "7"),
+    edgar.Company("FAST", "FASTENAL CO", "8"),
+    edgar.Company("M", "Macy's, Inc.", "9"),
+    edgar.Company("W", "Wayfair Inc.", "10"),
+]
+
+
+@pytest.mark.parametrize("typed", [c.ticker for c in SHORT_TICKERS] + ["f", "ma", "t", "m"])
+def test_compare_box_offers_the_exact_ticker_first(typed):
+    from finance_analyzer.app import exact_ticker_first
+
+    options = exact_ticker_first(SHORT_TICKERS)
+    # What the browser does with filter_mode="prefix": Enter picks the first entry starting with the typed text.
+    first = next(text for text in options if text.lower().startswith(typed.lower()))
+    assert options[first] == typed.upper()
+
+
+def test_compare_box_still_suggests_companies_by_name():
+    from finance_analyzer.app import exact_ticker_first
+
+    options = exact_ticker_first(SHORT_TICKERS)
+    first = next(text for text in options if text.lower().startswith("ford"))
+    assert first == "FORD MOTOR CO — F" and options[first] == "F"
+
+
+@pytest.mark.parametrize("typed, ticker", [("F", "F"), ("ma", "MA"), ("FORD MOTOR CO — F", "F")])
+def test_compare_loads_one_and_two_letter_tickers(monkeypatch, typed, ticker):
+    monkeypatch.setattr(edgar, "list_companies", lambda: COMPANIES + SHORT_TICKERS)
+    app = compare(["AAPL", typed])
+    assert not app.exception and not app.error
+    assert list(app.dataframe[0].value.columns)[1:] == ["AAPL FY2026 (Sep 26)", f"{ticker} FY2026 (Sep 26)"]
+
+
 def test_compare_reports_an_unknown_ticker():
     app = compare(["AAPL", "NOPE"])
     assert not app.exception and "No company found for “NOPE”" in app.error[0].value
