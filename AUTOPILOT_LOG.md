@@ -1,5 +1,52 @@
 # Autopilot log
 
+## Summary of session 4 (2026-11-12)
+
+**Built:** all 6 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
+is merged.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | #35 | `compare-exact-ticker` | compare page: typing a ticker and pressing Enter always picks that ticker |
+| 2 | #36 | `tsmc-ifrs-bonds` | TSMC's bonds counted as debt (#26): debt/equity 0.24×, was 0.02× |
+| 3 | #38 | `foreign-valuation` | P/E, P/B, EV/EBIT, FCF yield for foreign filers; market cap converted, rate and date shown |
+| 4 | #39 | `remove-devcontainer` | `.devcontainer` deleted |
+| 5 | #40 | `accept-40-f-a` | 40-F/A accepted |
+| 6 | #41 | `release-notes-1.1.0` | CHANGELOG: 1.1.0 notes; 1.0.0 now covers everything up to session 3 |
+
+220 tests pass locally (190 before).
+
+**Already live (not waiting for a merge):** one new issue, #37 (TSMC's FY2025 statements are missing
+from the SEC's data feed).
+
+**The 5 decisions most worth your review:**
+1. **Task 2 doesn't do exactly what you asked.** You said to add bonds to debt for every IFRS filer.
+   Novo Nordisk (IFRS) tags its bonds *inside* its borrowings figure, so that would have doubled its
+   long-term debt (DKK 230bn shown, 119bn true). Bonds are added only when they are larger than the
+   borrowings figure, which proves they aren't part of it. TSMC is fixed; of 40 companies compared row
+   by row, only TSMC changed. A company whose separate bonds are smaller than its bank loans would
+   still be understated; none of the 11 IFRS companies I looked at has that shape.
+2. **TSMC's valuation ratios use FY2024 profit** (task 3, #37): the SEC's feed has nothing from its
+   FY2025 report, so its P/E reads 61×, higher than finance sites show. Found while checking task 3;
+   filed, not fixed.
+3. **Compare-page name search got narrower** (task 1). To make an exact ticker always win, the box now
+   matches from the start of each entry. Every company is listed twice (ticker first, name first), so
+   "Coca" still suggests Coca-Cola, but "Hathaway" suggests nothing; typing it and pressing Enter still
+   gets the "did you mean BRK-B" message. Also "AAP" + Enter now picks Advance Auto Parts, not Apple.
+4. **Currency conversion was out of scope in `SPEC.md`** (task 3). I changed the spec in the same PR:
+   market cap is converted for valuation; statements still aren't. Toyota's FCF yield stays
+   unavailable (no capital expenditure, #27), so "works for TM" is 3 of 4 ratios.
+5. **`.devcontainer` was deleted, not fixed** (task 4): Streamlit Cloud doesn't read it, and a fixed one
+   can't be tested without opening a Codespace on your account. The log lists what a working one needs.
+
+Smaller ones: the 1.1.0 changelog heading says "not released yet" and `pyproject.toml` still says
+1.0.0, so releasing means setting the date, bumping the version and tagging; 1.0.0's date moved to
+2026-11-12, the day session 3 was merged; I used `EUR=X` rather than your `EURUSD=X` example because it
+is quoted the same way round as `TWD=X`; 40-F/A is covered by a unit test only (no downloaded company
+has one); `LEARNING.md` suggestion under S4 task 3.
+
+---
+
 ## Summary of session 3 (2026-11-12)
 
 **Built:** all 4 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
@@ -13,7 +60,7 @@ is merged.
 | 4 | #34 | `stress-test-coverage` | 30-company stress test, `docs/COVERAGE.md`, five data fixes |
 
 190 tests pass locally (148 before). `pytest` and `docker` passed on GitHub for #24 and #25 when this
-was written; #28 and #34 were still running.
+was written; #28 and #34 were still running (both passed afterwards).
 
 **Not done:** committing your `LEARNING.md`. The copy on disk is identical to the one committed on
 Nov 6, so there was nothing to commit. If you saved a new one somewhere else, tell me where.
@@ -691,3 +738,18 @@ Same rules and format as session 2.
 - **2026-11-12 · checked:** 220 tests pass. All 40 downloaded companies parse to exactly the same rows
   as before. **Not checked on real data:** none of those 40 has a 40-F/A (Canadian Natural Resources,
   the one 40-F filer, has never amended), so this is covered by the unit test only.
+
+## S4 Task 6 — Release notes for v1.1.0
+
+- **2026-11-12 · done:** `CHANGELOG.md` now has two versions. **1.0.0** absorbed what was under
+  "Unreleased" (search, foreign filers, the stress test, docs), as you defined it: everything up to
+  session 3. Its data, screens, test count (190) and known limits were updated to match, and its date
+  is 2026-11-12, the day session 3 was merged. **1.1.0** lists this session: added (foreign valuation,
+  40-F/A), fixed (compare search, TSMC debt), removed (`.devcontainer`), known limits (#37, #27,
+  #29–#33).
+- **2026-11-12 · decision:** the 1.1.0 heading reads "not released yet (notes prepared 2026-11-12)" and
+  `pyproject.toml` stays at 1.0.0. **Why:** you asked for notes to be prepared, not for a release, and
+  a version number that is ahead of the last release is harder to notice than a heading that says so.
+  **To release:** merge the six PRs, put the date in the heading, set `version = "1.1.0"` in
+  `pyproject.toml`, run `uv lock`, then tag. No tag exists for 1.0.0 either.
+- **2026-11-12 · checked:** every claim in the 1.1.0 notes against the S4 task entries above.
