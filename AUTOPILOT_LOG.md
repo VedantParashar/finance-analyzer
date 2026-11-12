@@ -682,3 +682,12 @@ Same rules and format as session 2.
   and watch it start.
 - **2026-11-12 · checked:** 219 tests pass; no file mentions the folder. **Not checked:** the live app
   after this merges (it shouldn't notice).
+
+## S4 Task 5 — 40-F/A accepted
+
+- **2026-11-12 · done:** `40-F/A` (an amended Canadian annual report) is now an accepted annual form,
+  beside 10-K/A and 20-F/A. One word in `parse.ANNUAL_FORMS` and one more case in the form test.
+  As with the other amendments, "latest filing wins" means an amendment's figures replace the original's.
+- **2026-11-12 · checked:** 220 tests pass. All 40 downloaded companies parse to exactly the same rows
+  as before. **Not checked on real data:** none of those 40 has a 40-F/A (Canadian Natural Resources,
+  the one 40-F filer, has never amended), so this is covered by the unit test only.

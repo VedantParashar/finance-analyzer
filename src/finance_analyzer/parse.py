@@ -26,8 +26,8 @@ from finance_analyzer.schema import (
     LineItem,
 )
 
-# Annual reports: 10-K for US companies, 20-F for most foreign ones, 40-F for Canadian ones.
-ANNUAL_FORMS = {"10-K", "10-K/A", "20-F", "20-F/A", "40-F"}
+# Annual reports: 10-K for US companies, 20-F for most foreign ones, 40-F for Canadian ones; /A = amended.
+ANNUAL_FORMS = {"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"}
 BALANCE_TOLERANCE = 0.001  # 0.1% of total assets, so small rounding differences still pass
 SPLIT_NET_INCOME_TOLERANCE = 0.01  # 1%: real splits can arrive alongside small restatements
 
