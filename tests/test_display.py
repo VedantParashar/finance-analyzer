@@ -135,3 +135,14 @@ def test_missing_years_reports_gaps_but_not_53_week_years():
         "Nothing between FY2021 (ended Dec 31, 2021) and FY2023 (ended Dec 31, 2023): the SEC data has no "
         "full-year 10-K figures for the time in between, so growth and averaged ratios for FY2023 can't be calculated."
     ]
+
+
+def test_amounts_carry_the_reporting_currency():
+    assert display.money(1_500_000_000, "EUR") == "EUR 1,500M" and display.money(-2e6) == "-$2M"
+    assert display.format_value("JPY/shares", 3052.5) == "JPY 3,052.50"
+    assert display.format_value("USD/shares", 6.13) == "$6.13"
+    assert display.format_metric("free_cash_flow", 5e9, "TWD") == "TWD 5,000M"
+    assert display.format_metric("market_cap", 5e9, "TWD") == "$5,000M"  # Yahoo's market cap is in dollars
+    assert display.format_input("revenue (FY2024)", 4e9, "EUR") == "EUR 4,000M"
+    rows = [StoredLineItem("SAP", "diluted_eps", date(2025, 12, 31), 2.5, "EUR/shares", "a", "", datetime(2026, 1, 1))]
+    assert display.currency(rows) == "EUR" and display.currency([]) == "USD"

@@ -435,3 +435,57 @@ Same rules and format as session 2.
 - **Suggested for `LEARNING.md`:** *Normalization* = turning different spellings of the same thing
   (BRK.B, brk b) into one standard form before looking it up. *Autocomplete* = suggestions that narrow
   as you type.
+
+## S3 Task 3 — Foreign filers (IFRS, 20-F, 40-F)
+
+- **2026-11-12 · decision:** SPEC.md scope is now "companies filing with the SEC, US GAAP or IFRS";
+  "EU companies" in the out-of-scope list became "companies that don't file with the SEC" and "currency
+  conversion".
+- **2026-11-12 · decision:** annual forms are 10-K, 10-K/A, 20-F, 20-F/A and 40-F, exactly as asked.
+  **Not added:** 40-F/A (not in the request; one word in `parse.ANNUAL_FORMS` if wanted).
+- **2026-11-12 · decision:** the IFRS tags are a separate table, `schema.IFRS_TAGS`, keyed by line item
+  name, covering all 23 items (temporary equity is empty: IFRS has no such line) plus three helper
+  items. **Why:** one readable block, and the 23 existing item definitions stay untouched.
+  **Rejected:** a new field on every `LineItem`.
+- **2026-11-12 · decision:** the reporting currency is the currency most annual total-assets facts are
+  in. **Why:** TSMC and Toyota also give a US dollar translation of the latest year, so "any currency
+  present" would pick wrongly; the home currency always has more facts. It is stored in each row's
+  existing `unit` column ("EUR", "EUR/shares"), so the database needed no new column.
+- **2026-11-12 · decision:** each fiscal year uses one taxonomy only: that of the latest filing
+  reporting its total assets. **Why:** Toyota's FY2019–20 exist under both, and mixing them added US
+  GAAP temporary equity to an IFRS balance sheet, failing the balance check by JPY 500–590bn. After the
+  change both years balance.
+- **2026-11-12 · decision:** non-dollar amounts read "EUR 1,234M" (code, then number); dollars stay
+  "$1,234M". **Rejected:** currency symbols (€, ¥, NT$): a table to maintain, and ¥ is ambiguous.
+- **2026-11-12 · decision:** for companies that don't report in dollars, P/E, P/B, EV/EBIT and FCF
+  yield are unavailable with the reason; market cap (in dollars, from Yahoo) still shows. **Why:**
+  dividing a dollar market cap by euro or yen profit gives a meaningless number, and conversion was
+  explicitly not wanted yet. The company page says which currency it's in; the compare page notes when
+  currencies differ and labels the over-time chart "millions, each in its own currency".
+- **2026-11-12 · decision (search, found while testing this task):** on the compare page, typing "AAPL"
+  and pressing Enter chose Streamlit's "Select 632 matches" entry, i.e. four look-alike companies, and
+  "ko" chose Koss before Coca-Cola. Fixed by switching that box off "select all" and to plain substring
+  matching, which keeps the SEC's largest-first order. **Still imperfect:** one- and two-letter tickers
+  (F, T, MA) on the compare page offer a bigger company containing those letters first; pick from the
+  list. The company page isn't affected (typed text is resolved by our own exact-ticker rule).
+- **2026-11-12 · two small tag changes:** IFRS interest expense reads `InterestExpense`, then
+  `FinanceCosts` (not `InterestExpenseOnBorrowings`, which at TSMC is 1% of the real figure); and US
+  GAAP short-term investments gained `AvailableForSaleSecuritiesDebtSecuritiesCurrent` (ASML). The
+  second also fills Apple FY2009–10 ($18,201M and $14,359M, which match its 10-K); nothing else
+  changed across AAPL, KO, TSLA, NVDA, JPM, GS and BRK-B (2,301 rows compared before and after).
+- **2026-11-12 · outcome:** 187 tests pass. Real data, per company:
+
+  | Company | Reports | Years | Latest-year metrics | Gaps |
+  |---|---|---|---|---|
+  | TSM | IFRS, TWD | 2015–2024 | 19 of 19 (gross margin 56.1%, net margin 40.0%, ROE 30.2%, all match its annual report) | **Debt leaves out bonds**, so debt/equity shows 0.02× (about 0.25× is right) and ROIC is overstated: #26. All years balance. |
+  | ASML | US GAAP, EUR | 2007–2025 | 19 of 19 (gross margin 52.8%, net margin 29.4%) | FY2015–17 miss the balance check by EUR 66–152M (0.4–0.9% of assets); not investigated. |
+  | SAP | IFRS, EUR | 2015–2025 | 19 of 19 (gross margin 72.9%, net margin 19.5%) | No inventory (none exists; treated as 0). Capital expenditure includes intangibles. Interest expense is `FinanceCosts` before FY2023. FY2017–18 miss the balance check by EUR 58–71M. |
+  | TM | US GAAP to FY2020, IFRS after, JPY | FY2008–FY2025 | 16 of 19 | **No cost of revenue or capital expenditure since FY2021** (Toyota's own tags, not in the SEC data), so gross margin, free cash flow and FCF margin are unavailable: #27. Diluted share count missing FY2021–22. All years balance. |
+
+  All four: valuation ratios unavailable (no conversion). Checked in a real browser: TSM and TM pages
+  render with the currency note; AAPL + SAP + TM on compare shows the currency note.
+  **Not checked:** a 40-F filer on real data (task 4 includes some).
+- **Suggested for `LEARNING.md`:** *IFRS* = the accounting rules used in most countries outside the US
+  (the US uses *US GAAP*). *20-F* = the annual report a foreign company files with the SEC, like a
+  10-K. *Reporting currency* = the currency a company's statements are written in. *ADR* = a US-listed
+  share that stands for shares of a foreign company.

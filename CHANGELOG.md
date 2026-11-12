@@ -2,6 +2,16 @@
 
 What each version added, newest first. Dates are year-month-day.
 
+## Unreleased
+
+- **Search:** find a company by ticker or name, with suggestions; BRK.B, BRK-B and `brk b` all work;
+  popular examples on both pages; separate messages for unknown tickers, funds and companies with no
+  annual report.
+- **Foreign filers:** companies that file a 20-F or 40-F, under US GAAP or IFRS (e.g. TSMC, ASML, SAP,
+  Toyota), shown in their reporting currency. No currency conversion yet, so valuation ratios are
+  unavailable for them, and the compare page notes when currencies differ.
+- Docs: live link, CONTRIBUTING.md, this changelog and issue templates.
+
 ## 1.0.0 — 2026-11-11
 
 The first complete version: everything in [SPEC.md](SPEC.md)'s v1 scope.

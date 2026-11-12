@@ -70,6 +70,7 @@ def company_workbook(
     years = sorted(metrics)
     by_key = {(row.item, row.fiscal_year_end): row for row in rows}
     reported = {row.item for row in rows}
+    currency = display.currency(rows)
     book = Workbook()
 
     # Every schema item gets a row, so formulas always point somewhere; gaps stay blank.
@@ -79,6 +80,7 @@ def company_workbook(
     item_rows = {}
     for item, line_item in ITEMS.items():
         unit, scale, number_format = UNITS[line_item.unit]
+        unit = unit.replace("$", display.symbol(currency))
         items.append([display.label(item), unit])
         item_rows[item] = row_number = items.max_row
         for column, end in enumerate(years, FIRST_YEAR_COLUMN):
@@ -98,7 +100,7 @@ def company_workbook(
     names = [name for group in display.GROUPS.values() for name in group] + ["dupont"]
     metric_rows = {name: row_number for row_number, name in enumerate(names, 2)}
     for name in names:
-        unit = " (in $M)" if name in display.DOLLARS else ""
+        unit = f" (in {display.symbol(currency)}M)" if name in display.DOLLARS else ""
         sheet.append([display.LABELS[name], FORMULA_TEXT[name] + unit])
     for column, end in enumerate(years, FIRST_YEAR_COLUMN):
         def cell(item, years_back=0, column=column):

@@ -1,15 +1,17 @@
 # Finance Analyzer — Spec (v1)
 
 ## Goal
-A free, open-source app that helps students analyse and compare public companies, and teaches what each number means.
+A free, open-source app that helps students analyse and compare public companies that file with the US SEC, and teaches what each number means.
 
 ## Users
 Finance and business students doing case studies, stock pitches and theses.
 
-## v1 scope (US companies only)
+## v1 scope (companies filing with the SEC, US GAAP or IFRS)
 
 **Input & data**
-- Input: a stock ticker.
+- Input: a stock ticker or company name.
+- Companies: any that file annual reports with the SEC: US companies (10-K) and foreign filers (20-F, 40-F), reporting under US GAAP or IFRS.
+- Currency: figures are shown in the company's reporting currency; no conversion.
 - Financial statements: SEC EDGAR XBRL "company facts" API.
 - Share price and market cap: yfinance.
 - Storage: DuckDB, local file.
@@ -52,7 +54,8 @@ data adapters → standard schema → metrics engine → Streamlit UI
 - **Streamlit UI**: the screens; it only displays what the engine computes.
 
 ## Out of scope for v1
-- EU companies
+- Companies that don't file with the SEC (most EU and Asian companies without a US listing)
+- Currency conversion (so no valuation ratios for companies that don't report in US dollars)
 - PDF upload
 - LLM summaries
 - Red-flag scores

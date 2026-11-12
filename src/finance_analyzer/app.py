@@ -147,11 +147,11 @@ def refresh_button(ticker: str, rows: list[store.StoredLineItem]) -> None:
     )
 
 
-def metric_card(name: str, metric: Metric, prior: Metric | None) -> None:
+def metric_card(name: str, metric: Metric, prior: Metric | None, currency: str) -> None:
     with st.container(border=True):
         st.metric(
             display.LABELS[name],
-            display.format_metric(name, metric.value),
+            display.format_metric(name, metric.value, currency),
             delta=display.yoy_delta(name, metric.value, prior.value if prior else None),
             delta_color="inverse" if name == "debt_to_equity" else "normal",
         )
@@ -162,9 +162,9 @@ def metric_card(name: str, metric: Metric, prior: Metric | None) -> None:
         with st.expander("Formula and meaning"):
             st.markdown(f"**Formula:** {FORMULA_TEXT[name]}")
             for key, value in metric.inputs.items():
-                st.markdown(f"- {key.replace('_', ' ')} = {display.format_input(key, value)}")
+                st.markdown(f"- {key.replace('_', ' ')} = {display.format_input(key, value, currency)}")
             if metric.value is not None:
-                st.markdown(f"= **{display.format_metric(name, metric.value)}**")
+                st.markdown(f"= **{display.format_metric(name, metric.value, currency)}**")
             learn(name)
 
 
@@ -175,12 +175,12 @@ def learn(name: str) -> None:
     st.markdown(f"**Common traps:** {text['traps']}")
 
 
-def trend_chart(title: str, labels: list[str], series: dict[str, list], kind: str, percent: bool) -> go.Figure:
+def trend_chart(title: str, labels: list[str], series: dict[str, list], kind: str, tickformat: str) -> go.Figure:
     """Bars or lines over the years; None values show as gaps, never as zero."""
     trace = go.Bar if kind == "bar" else go.Scatter
     figure = go.Figure([trace(name=name, x=labels, y=values) for name, values in series.items()])
     figure.update_layout(title=title, height=320, margin={"t": 40, "b": 20}, legend={"orientation": "h"})
-    figure.update_yaxes(tickformat=".0%" if percent else "$,.0f")
+    figure.update_yaxes(tickformat=tickformat)
     return figure
 
 
@@ -215,6 +215,12 @@ def company_page() -> None:
 
     st.header(f"{info['name']} ({ticker})")
     st.caption(info["industry"])
+    currency = display.currency(rows)
+    if currency != "USD":
+        st.info(
+            f"{ticker} reports in {currency}. Amounts are shown as reported and aren't converted to US dollars. "
+            "Ratios (margins, returns, growth) are unaffected; the valuation ratios need a conversion and are unavailable."
+        )
     bank_banner(ticker, info)
     st.download_button(
         "Download Excel with live formulas",
@@ -242,7 +248,7 @@ def company_page() -> None:
         st.markdown(f"**{group}**")
         for column, name in zip(st.columns(4), names):
             with column:
-                metric_card(name, latest[name], prior.get(name))
+                metric_card(name, latest[name], prior.get(name), currency)
 
     st.subheader("Valuation at today's price")
     valuation_metrics, price_note = valuation(ticker, rows)
@@ -252,19 +258,19 @@ def company_page() -> None:
     )
     for column, name in zip(st.columns(5), display.PRICE_METRICS):
         with column:
-            metric_card(name, valuation_metrics[name], None)
+            metric_card(name, valuation_metrics[name], None, currency)
 
     st.subheader("Trends")
     by_key = {(row.item, row.fiscal_year_end): row.value / 1e6 for row in rows}
     left, right = st.columns(2)
     left.plotly_chart(
         trend_chart(
-            "Revenue and net income ($M)",
+            f"Revenue and net income ({display.symbol(currency)}M)",
             labels,
             {label: [by_key.get((item, end)) for end in years] for label, item in
              [("Revenue", "revenue"), ("Net income", "net_income")]},
             "bar",
-            percent=False,
+            "$,.0f" if currency == "USD" else ",.0f",
         )
     )
     right.plotly_chart(
@@ -273,11 +279,11 @@ def company_page() -> None:
             labels,
             {display.LABELS[name]: [metrics[end][name].value for end in years] for name in display.GROUPS["Profitability"]},
             "line",
-            percent=True,
+            ".0%",
         )
     )
     left.plotly_chart(
-        trend_chart("Return on equity", labels, {"ROE": [metrics[end]["roe"].value for end in years]}, "line", True)
+        trend_chart("Return on equity", labels, {"ROE": [metrics[end]["roe"].value for end in years]}, "line", ".0%")
     )
 
     dupont_section(metrics, years, labels)
@@ -348,6 +354,9 @@ def compare_page() -> None:
         max_selections=4,
         placeholder="Type tickers or company names, e.g. AAPL, Coca-Cola",
         accept_new_options=True,
+        select_all=False,  # otherwise Enter on "AAPL" picks "Select 632 matches": four look-alike companies
+        # Plain substring matching keeps the SEC's largest-first order, so "ko" offers Coca-Cola before Koss.
+        filter_mode="contains",
         key="compare",
     )
     if not choices:
@@ -371,6 +380,14 @@ def compare_page() -> None:
         bank_banner(ticker, loaded[2])
 
     latest_ends = {ticker: max(metrics) for ticker, (_, metrics, _) in companies.items()}
+    currencies = {ticker: display.currency(rows) for ticker, (rows, _, _) in companies.items()}
+    mixed = len(set(currencies.values())) > 1
+    if mixed:
+        each = ", ".join(f"{ticker} in {currency}" for ticker, currency in currencies.items())
+        st.info(
+            f"These companies report in different currencies ({each}) and nothing is converted. Ratios compare "
+            "fairly; amounts such as free cash flow don't."
+        )
     note = display.year_end_note(latest_ends)
     if note:
         st.info(note)
@@ -387,7 +404,7 @@ def compare_page() -> None:
         line = {"Metric": display.LABELS[name]}
         for ticker in companies:
             metric = latest[ticker][name]
-            line[columns[ticker]] = display.format_metric(name, metric.value)
+            line[columns[ticker]] = display.format_metric(name, metric.value, currencies[ticker])
             if metric.reason:
                 missing.append(f"{display.LABELS[name]}, {ticker}: {metric.reason}")
         table.append(line)
@@ -399,7 +416,7 @@ def compare_page() -> None:
 
     st.subheader("Over time")
     name = st.selectbox("Metric", names, format_func=display.LABELS.get)
-    scale = 1e6 if name in display.DOLLARS else 1  # free cash flow in $M
+    scale = 1e6 if name in display.DOLLARS else 1  # free cash flow in millions
     figure = go.Figure()
     for ticker, (_, metrics, _) in companies.items():
         years = sorted(metrics)[-YEARS_SHOWN:]
@@ -410,8 +427,12 @@ def compare_page() -> None:
     # Real year-end dates on the x-axis, so different fiscal calendars line up honestly.
     figure.update_layout(height=380, margin={"t": 20}, xaxis_title="Fiscal year end", legend={"orientation": "h"})
     figure.update_yaxes(
-        tickformat=".2f" if name in display.MULTIPLES else "$,.0f" if name in display.DOLLARS else ".0%",
-        title="$M" if name in display.DOLLARS else None,
+        tickformat=".2f" if name in display.MULTIPLES else ",.0f" if name in display.DOLLARS else ".0%",
+        title=(
+            None if name not in display.DOLLARS
+            else "millions, each in its own currency" if mixed
+            else f"{display.symbol(next(iter(currencies.values())))}M"
+        ),
     )
     st.plotly_chart(figure)
 

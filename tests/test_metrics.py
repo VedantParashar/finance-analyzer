@@ -206,3 +206,11 @@ def test_pe_is_unavailable_for_a_loss_but_fcf_yield_can_be_negative():
     result = price_metrics(rows_from({date(2026, 12, 31): year}), 10_000 * M)
     assert result["pe"].value is None and result["pe"].reason == "net income is zero or negative"
     assert result["fcf_yield"].value == pytest.approx(-0.015)
+
+
+def test_valuation_ratios_are_unavailable_when_the_statements_are_not_in_dollars():
+    rows = [row._replace(unit="EUR") for row in rows_from(AAPL)]
+    result = price_metrics(rows, 3_700_000 * M)
+    assert result["market_cap"].value == 3_700_000 * M
+    for name in ("pe", "pb", "ev_ebit", "fcf_yield"):
+        assert result[name].value is None and "statements in EUR" in result[name].reason

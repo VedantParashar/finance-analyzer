@@ -62,18 +62,30 @@ def fiscal_year(end: date) -> str:
     return f"FY{end.year}"
 
 
-def money(value: float) -> str:
+def currency(rows: list[StoredLineItem]) -> str:
+    """The currency the company reports in, read from the stored units ("EUR", "EUR/shares")."""
+    return next((row.unit.split("/")[0] for row in rows if row.unit != "shares"), "USD")
+
+
+def symbol(currency: str) -> str:
+    """What goes in front of an amount: "$" for dollars, otherwise the currency code and a space."""
+    return "$" if currency == "USD" else f"{currency} "
+
+
+def money(value: float, currency: str = "USD") -> str:
     sign = "-" if value < 0 else ""
-    return f"{sign}${abs(value) / 1e6:,.0f}M"
+    return f"{sign}{symbol(currency)}{abs(value) / 1e6:,.0f}M"
 
 
-def format_metric(name: str, value: float | None) -> str:
+def format_metric(name: str, value: float | None, currency: str = "USD") -> str:
     if value is None:
         return "unavailable" if name in PRICE_METRICS else "—"
     if name in MULTIPLES:
         return f"{value:.2f}×"
+    if name == "market_cap":
+        return money(value)  # from Yahoo Finance, always in dollars
     if name in DOLLARS:
-        return money(value)
+        return money(value, currency)
     return f"{value:.1%}"
 
 
@@ -89,20 +101,23 @@ def yoy_delta(name: str, current: float | None, prior: float | None) -> str | No
 
 
 def format_value(unit: str, value: float) -> str:
-    if unit == "USD/shares":
-        return f"${value:.2f}"
+    """A stored value with its unit: "EUR", "EUR/shares" or "shares"."""
+    if unit.endswith("/shares"):
+        return f"{symbol(unit.split('/')[0])}{value:,.2f}"
     if unit == "shares":
         return f"{value / 1e6:,.0f}M shares"
-    return money(value)
+    return money(value, unit)
 
 
-def format_input(key: str, value: float) -> str:
+def format_input(key: str, value: float, currency: str = "USD") -> str:
     """Format one Metric.inputs entry, e.g. "average total_assets" or "cash (FY2024)"."""
     base = key.removeprefix("average ").split(" (FY")[0]
     if base in ITEMS:
-        return format_value(ITEMS[base].unit, value)
-    if "invested capital" in base or base in {"market cap", "enterprise value"}:
+        return format_value(ITEMS[base].unit.replace("USD", currency), value)
+    if base == "market cap":
         return money(value)
+    if "invested capital" in base or base == "enterprise value":
+        return money(value, currency)
     if base in {"asset turnover", "equity multiplier"}:
         return f"{value:.2f}×"
     return f"{value:.1%}"  # tax rate, net margin
