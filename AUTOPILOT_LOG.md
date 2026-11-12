@@ -663,3 +663,22 @@ Same rules and format as session 2.
   against another source; Yahoo's market cap for the US-listed shares (ADRs) is taken as given.
 - **LEARNING.md suggestion:** "Exchange rate pair": `TWD=X` means "Taiwan dollars per one US dollar".
   To compare a dollar market cap with profits in Taiwan dollars, both must be in the same currency first.
+
+## S4 Task 4 — `.devcontainer` removed
+
+- **2026-11-12 · decision:** deleted `.devcontainer/devcontainer.json` rather than fixing it.
+  **What it was:** settings for GitHub Codespaces (an editor in the browser), added on Nov 11 by
+  Streamlit's "edit in Codespaces" button, not by this project. It asked for Python 3.11 and a
+  `requirements.txt`, neither of which this project uses, so a Codespace opened from it couldn't start
+  the app.
+  **Why delete:** (1) Streamlit Community Cloud doesn't read it: the live app is built from
+  `pyproject.toml`, `uv.lock` and `streamlit_app.py`, so nothing changes there. (2) Nothing in the repo
+  refers to it. (3) A fixed version couldn't be tested from here, since that needs a Codespace on your
+  GitHub account, and it would also need `SEC_USER_AGENT` set as a Codespaces secret. An untested
+  config that looks supported is worse than none. (4) The README already has two tested ways to run the
+  app: `uv` and Docker.
+  **If you want Codespaces later:** it is about ten lines (Python 3.12 image, `uv sync` after create,
+  `uv run finance-analyzer` on attach, port 8501) plus the secret; best written when you can open one
+  and watch it start.
+- **2026-11-12 · checked:** 219 tests pass; no file mentions the folder. **Not checked:** the live app
+  after this merges (it shouldn't notice).
