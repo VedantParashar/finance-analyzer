@@ -933,3 +933,29 @@ Same rules and format as session 2.
 - **`SPEC.md`:** benchmark line added under Screens.
 - **LEARNING.md suggestion:** "Median": line the values up in order and take the middle one. Unlike an
   average, one extreme company can't drag it.
+
+## S5 Task 5 — Shareable links
+
+- **2026-11-12 · what it does:** `?ticker=AAPL` opens the company page on that company and
+  `?compare=AAPL,KO` opens the compare page with those companies. It also works the other way: once a
+  company or comparison is on screen the browser's address is updated to match, so "copy the address"
+  is the share button. Examples: `https://datadough.streamlit.app/?ticker=AAPL`,
+  `https://datadough.streamlit.app/?compare=AAPL,KO`.
+- **2026-11-12 · decision:** a link is read **once**, when the page is first opened. After that the
+  search box decides, and the address follows it. **Why:** otherwise the link and the box would fight:
+  picking another company would be overridden by the old `?ticker=` on the next refresh of the page.
+- **2026-11-12 · decision:** text from a link is treated exactly like typed text, so `?ticker=brk.b`
+  finds BRK-B and a wrong ticker gets the usual "No company found" message. It is cut to 40 characters
+  first, and a compare link is cut to the first 4 different companies (the box's limit). **Why:** a link
+  can come from anyone, so it gets no more trust than the keyboard.
+- **2026-11-12 · decision:** `?compare=` works at the site's root (as in your example) as well as on
+  `/compare_page`; at the root the app moves to the compare page itself.
+- **2026-11-12 · not in the link:** the Period toggle (fiscal years / TTM) and the compare page's chart
+  metric. A link always opens on fiscal years. Streamlit also clears the address when you switch page
+  from the sidebar, which is right here: each page then writes its own.
+- **2026-11-12 · checked:** in a real browser: `?ticker=KO`, `?ticker=brk.b` (address becomes
+  `?ticker=BRK-B`), `?compare=AAPL,KO`, `/compare_page?compare=WMT,COST,TGT`, and the address changing
+  to `?ticker=MSFT` after picking Microsoft. 266 tests pass (262 before). **Not checked:** on the live
+  site, where the address bar belongs to Streamlit Cloud's wrapper page; Streamlit documents query
+  parameters as working there, but I couldn't confirm it from here.
+- **README and `SPEC.md`:** one line each.

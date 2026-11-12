@@ -26,6 +26,8 @@ Built for finance and business students doing case studies, stock pitches and th
    their formulas, valuation at today's price, trend charts and data checks.
 3. On the **Compare** page, pick 2 to 4 companies the same way.
 4. **Download Excel with live formulas** gives you a workbook you can change and trace.
+5. To share what you're looking at, copy the address from your browser: it links straight to the company
+   (`https://datadough.streamlit.app/?ticker=AAPL`) or the comparison (`…/?compare=AAPL,KO`).
 
 Good to know: the first view of a company takes a few seconds while its filings download. The hosted
 app sleeps when nobody has used it for a while; if you see a "wake up" screen, click the button and

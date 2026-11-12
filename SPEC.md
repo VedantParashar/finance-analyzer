@@ -42,6 +42,7 @@ Finance and business students doing case studies, stock pitches and theses.
 - Industry benchmark next to each ratio: the median across stored companies in the same 2-digit SIC group
 - Peer suggestions on the company page: 5 companies with the same SEC industry (SIC) code, closest in revenue
 - Excel export with live formulas
+- Shareable links: `?ticker=AAPL` opens a company, `?compare=AAPL,KO` a comparison
 
 **Data checks**
 - Assets = liabilities + equity

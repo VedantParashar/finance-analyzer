@@ -201,6 +201,46 @@ def test_industry_medians_appear_once_three_companies_in_the_group_are_stored():
     assert not any("Industry median: $" in c for c in captions)  # no median for free cash flow, an amount
 
 
+def from_link(**params):
+    app = AppTest.from_file(APP, default_timeout=30)
+    for name, value in params.items():
+        app.query_params[name] = value
+    return app.run()
+
+
+def test_a_ticker_link_opens_that_company_and_the_address_follows_the_search_box():
+    app = from_link(ticker="jpm")
+    assert not app.exception and app.header[0].value == "JPMorgan Chase & Co. (JPM)"
+    assert app.selectbox[0].value == "JPM — JPMorgan Chase & Co." and app.query_params["ticker"] == "JPM"
+    app = app.selectbox[0].set_value("AAPL").run()  # the link is only read once; after that the box decides
+    assert app.header[0].value == "Apple Inc. (AAPL)" and app.query_params["ticker"] == "AAPL"
+    app = app.selectbox[0].set_value(None).run()
+    assert "ticker" not in app.query_params and "Search for a company" in app.info[0].value
+
+
+def test_a_compare_link_opens_the_compare_page_with_those_companies():
+    app = from_link(compare="AAPL, sap,AAPL")
+    assert not app.exception and app.title[0].value == "Compare"
+    assert app.multiselect[0].value == ["AAPL — Apple Inc.", "SAP — SAP SE"]
+    assert list(app.dataframe[0].value.columns)[1:] == ["AAPL FY2026 (Sep 26)", "SAP FY2026 (Sep 26)"]
+    assert app.query_params["compare"] == "AAPL,SAP"
+
+
+def test_a_link_with_a_wrong_or_oversized_ticker_gets_the_usual_message():
+    app = from_link(ticker="NOPE" + "X" * 500)
+    assert not app.exception and "No company found for “NOPE" in app.error[0].value
+    assert len(app.error[0].value) < 300  # the link's text was cut to 40 characters
+    app = from_link(compare="A,B,C,D,E,F")
+    assert not app.exception and len(app.multiselect[0].value) == 4
+
+
+def test_the_compare_address_is_cleared_until_two_companies_are_picked():
+    app = compare(["AAPL", "JPM"])
+    assert app.query_params["compare"] == "AAPL,JPM"
+    app = app.multiselect[0].set_value(["AAPL"]).run()
+    assert "compare" not in app.query_params
+
+
 def test_peers_are_suggested_and_one_click_opens_compare():
     app = company("aapl")
     buttons = {b.label: b for b in app.button}
