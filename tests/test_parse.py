@@ -636,3 +636,37 @@ def test_cash_uses_the_restricted_cash_total_only_for_years_without_plain_cash()
     facts["facts"]["us-gaap"]["Revenues"]["units"]["USD"].append(fact("2016-10-01", earlier, 1, "10-K", "2017-11-03", "R0"))
     cash = [(row.fiscal_year_end, row.value, row.derivation) for row in _line_items(facts) if row.item == "cash"]
     assert cash == [(earlier, 50, ""), (YEAR_END, 70, "includes restricted cash")]
+
+
+def ifrs_debt(borrowings, noncurrent_bonds, current_bonds=None):
+    point = lambda val: {"units": {"EUR": [{"end": "2025-12-31", "val": val, "form": "20-F", "filed": "2026-03-01", "accn": "A"}]}}
+    extra = {"NoncurrentPortionOfNoncurrentBondsIssued": point(noncurrent_bonds)}
+    if borrowings is not None:
+        extra["LongtermBorrowings"] = point(borrowings)
+    if current_bonds is not None:
+        extra["CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings"] = point(10)
+        extra["CurrentBondsIssuedAndCurrentPortionOfNoncurrentBondsIssued"] = point(current_bonds)
+    return {(row.item, row.value, row.derivation) for row in _line_items(ifrs_company(**extra)) if "debt" in row.item}
+
+
+def test_ifrs_bonds_reported_apart_from_borrowings_are_added():
+    """TSMC's shape: bank loans of 32 as borrowings, bonds of 927 on their own line."""
+    assert ifrs_debt(32, 927) == {
+        ("long_term_debt", 959, "borrowings + bonds issued, reported apart from borrowings")
+    }
+    assert ifrs_debt(None, 927) == {("long_term_debt", 927, "bonds issued (no other borrowings reported)")}
+    assert ("short_term_debt", 70, "borrowings + bonds issued, reported apart from borrowings") in ifrs_debt(32, 927, 60)
+
+
+def test_ifrs_bonds_that_are_part_of_borrowings_are_not_counted_twice():
+    """Novo Nordisk's shape: borrowings of 119 already include the bonds of 111."""
+    assert ifrs_debt(119, 111, current_bonds=10) == {("long_term_debt", 119, ""), ("short_term_debt", 10, "")}
+
+
+def test_us_gaap_companies_never_get_bonds_added():
+    facts = company(
+        Assets=[instant(YEAR_END, 500, FILED, "A")],
+        LongTermDebtNoncurrent=[instant(YEAR_END, 30, FILED, "A")],
+        NoncurrentPortionOfNoncurrentBondsIssued=[instant(YEAR_END, 900, FILED, "A")],
+    )
+    assert [row.value for row in _line_items(facts) if row.item == "long_term_debt"] == [30]

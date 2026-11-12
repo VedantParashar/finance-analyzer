@@ -597,3 +597,29 @@ Same rules and format as session 2.
   "Coca" → Coca-Cola, "apple inc" → Apple. A script over all 10,405 SEC tickers found 0 where the first
   match is a different company. 208 tests pass (190 before); the new ones cover one- and two-letter
   tickers that also appear inside longer entries (F/FAST, MA/MAR, T/TM, M/MSFT, W/Wayfair).
+
+## S4 Task 2 — TSMC debt: bonds reported apart from borrowings (#26)
+
+- **2026-11-12 · departed from the instruction, on evidence:** you asked for bonds to be added to debt
+  for every IFRS filer, because double-counting is a US GAAP risk. It is an IFRS risk too: Novo Nordisk
+  (IFRS, already in the stress test) reports long-term borrowings of DKK 118.9bn **and** tags the
+  DKK 111.4bn of bonds inside that figure. Adding bonds for every IFRS filer would have shown Novo with
+  DKK 230bn of long-term debt, nearly double the truth.
+- **2026-11-12 · decision:** bonds are added, for IFRS filers only, when they are larger than the
+  borrowings figure for that year (or when no borrowings figure exists). **Why:** a part can't be bigger
+  than its whole, so bonds larger than borrowings can't already be inside it. TSMC: bonds TWD 926.6bn
+  against borrowings of 31.8bn, added. Novo: 111.4bn against 118.9bn, left alone. The row is labelled
+  "borrowings + bonds issued, reported apart from borrowings". The same rule runs on short-term debt.
+  **Known gap:** a company whose separate bonds are *smaller* than its bank loans still has them left
+  out (debt understated, as before); none of the 11 IFRS companies checked has that shape.
+  **Rejected:** comparing with the `Borrowings` total; TSMC doesn't report one.
+- **2026-11-12 · result:** TSM FY2024 long-term debt TWD 958.4bn (was 31.8bn); debt/equity 0.24×
+  (was 0.02×); FY2020–23: 0.19×, 0.34×, 0.30×, 0.27×. ROIC FY2024 36%. TSMC's short-term debt didn't
+  change: its "current portion of long-term borrowings" (59.9bn) already includes the current bonds
+  (57.1bn). FY2016–19 gain long-term debt rows from bonds alone (no borrowings were tagged then).
+- **2026-11-12 · checked:** every parsed row for 40 companies (the 7 reference companies, TSM, ASML,
+  SAP, TM and the 29 that load from the stress test) was printed before and after and compared: 12,179
+  rows, and the only differences are TSM's long-term debt. US GAAP companies can't change: the rule
+  reads IFRS tags only. 211 tests pass, including both shapes (TSMC's and Novo's).
+  **Not checked:** TSMC's figure against its printed annual report; 958.4bn is the sum of its two tagged
+  lines.

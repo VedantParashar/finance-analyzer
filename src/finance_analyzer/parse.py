@@ -9,6 +9,7 @@ from typing import NamedTuple
 from finance_analyzer.edgar import NoFinancialStatements, fetch_company_facts
 from finance_analyzer.schema import (
     CASH_LAST_RESORT,
+    CURRENT_BONDS,
     CURRENT_MATURITIES_OF_LONG_TERM_DEBT,
     IFRS_TAGS,
     ITEMS,
@@ -17,6 +18,7 @@ from finance_analyzer.schema import (
     MARKETABLE_SECURITIES_ANY_TERM,
     MARKETABLE_SECURITIES_NONCURRENT,
     MINORITY_INTEREST,
+    NONCURRENT_BONDS,
     OTHER_SHORT_TERM_INVESTMENTS,
     SHORT_TERM_BORROWING_PARTS,
     SHORT_TERM_BORROWINGS,
@@ -215,6 +217,24 @@ def _by_end(facts: dict, item: LineItem) -> dict[str, tuple[int | float, str]]:
     return {end: (value, accn) for end, value, accn in _annual_values(facts, item)}
 
 
+def _with_separate_bonds(rows: list[LineItemRow], facts: dict, item: str, bonds: LineItem) -> list[LineItemRow]:
+    """IFRS filers only: add bonds that a company reports apart from its borrowings (TSMC).
+
+    Most companies' borrowings figure already includes their bonds (Novo Nordisk), and adding them again
+    would count them twice. So bonds are added only when they're larger than the borrowings figure:
+    a part can't be bigger than its whole.
+    """
+    by_end = {row.fiscal_year_end: row for row in rows}
+    for end, (value, accn) in _by_end(facts, bonds).items():
+        row = by_end.get(end)
+        if row is None and value:
+            by_end[end] = LineItemRow(item, end, value, accn, "bonds issued (no other borrowings reported)")
+        elif row is not None and value > row.value:
+            derivation = f"{row.derivation or 'borrowings'} + bonds issued, reported apart from borrowings"
+            by_end[end] = row._replace(value=row.value + value, derivation=derivation)
+    return list(by_end.values())
+
+
 def _short_term_debt_rows(facts: dict) -> list[LineItemRow]:
     """DebtCurrent where reported, otherwise borrowings plus current maturities of long-term debt."""
     total = _by_end(facts, ITEMS["short_term_debt"])
@@ -234,7 +254,7 @@ def _short_term_debt_rows(facts: dict) -> list[LineItemRow]:
         value = sum(value for _, (value, _) in parts)
         derivation = "short-term debt = " + " + ".join(name for name, _ in parts)
         rows.append(LineItemRow("short_term_debt", end, value, parts[0][1][1], derivation))
-    return rows
+    return _with_separate_bonds(rows, facts, "short_term_debt", CURRENT_BONDS)
 
 
 def _short_term_investments_rows(facts: dict) -> list[LineItemRow]:
@@ -271,7 +291,7 @@ def _long_term_debt_rows(facts: dict) -> list[LineItemRow]:
         for end, value, accn in _annual_values(facts, LONG_TERM_DEBT_LAST_RESORT)
         if end not in covered
     ]
-    return rows
+    return _with_separate_bonds(rows, facts, "long_term_debt", NONCURRENT_BONDS)
 
 
 def _cash_rows(facts: dict) -> list[LineItemRow]:

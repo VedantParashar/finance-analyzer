@@ -198,6 +198,10 @@ CASH_LAST_RESORT = LineItem(
 # share on its own (Rivian from FY2024).
 MINORITY_INTEREST = LineItem("minority_interest", ("MinorityInterest",), "USD", "instant")
 
+# Bonds a company has issued. IFRS only (no US GAAP tags): see _with_separate_bonds() in parse.py.
+NONCURRENT_BONDS = LineItem("non-current bonds issued", (), "USD", "instant")
+CURRENT_BONDS = LineItem("current bonds issued", (), "USD", "instant")
+
 # Usually means total debt including the current part (Apple, KO, NVDA), but Tesla uses it for
 # the non-current part only. Used only when no non-current tag is reported, and labelled as such.
 LONG_TERM_DEBT_LAST_RESORT = LineItem("long_term_debt", ("LongTermDebt",), "USD", "instant")
@@ -245,4 +249,6 @@ IFRS_TAGS: dict[str, tuple[str, ...]] = {
     "minority_interest": ("NoncontrollingInterests",),
     "short-term borrowings": ("ShorttermBorrowings",),
     "current maturities of long-term debt": ("CurrentPortionOfLongtermBorrowings",),
+    "non-current bonds issued": ("NoncurrentPortionOfNoncurrentBondsIssued",),
+    "current bonds issued": ("CurrentBondsIssuedAndCurrentPortionOfNoncurrentBondsIssued",),
 }
