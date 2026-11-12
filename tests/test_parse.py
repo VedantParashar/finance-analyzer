@@ -550,7 +550,7 @@ def test_reporting_currency_is_the_one_most_total_assets_are_in():
     assert parse.reporting_currency({"facts": {}}) == "USD"
 
 
-@pytest.mark.parametrize("form", ["20-F", "20-F/A", "40-F"])
+@pytest.mark.parametrize("form", ["20-F", "20-F/A", "40-F", "40-F/A"])
 def test_ifrs_annual_reports_are_read_in_the_reporting_currency(form):
     rows = {row.item: row.value for row in _line_items(ifrs_company(form))}
     assert rows == {
