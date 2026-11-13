@@ -201,11 +201,11 @@ def test_trailing_twelve_months_view_swaps_the_figures_and_shows_the_quarters():
     assert not app.exception and not app.error
     assert any("Twelve months to Jun 27, 2026" in i.value for i in app.info)
     assert list(table(app, "Line item").columns)[-2:] == ["12m to Jun 2025", "12m to Jun 2026"]
-    assert table(app, "Line item").iloc[0, -1] == "$526,717M"  # revenue, 478,834 × 1.1
+    assert table(app, "Line item").iloc[0, -1] == "526,717"  # revenue in $M, 478,834 × 1.1
     assert "Metrics for 12m to Jun 2026" in [s.value for s in app.subheader]
     quarters = [frame.value for frame in app.dataframe if frame.value.columns[0] == "Line item"][1]
     assert list(quarters.columns) == ["Line item", "Mar 28, 2026", "Jun 27, 2026"]
-    assert list(quarters.iloc[0]) == ["Revenue", "$100,000M", "$110,000M *"]
+    assert list(quarters.iloc[0]) == ["Revenue", "100,000", "110,000 *"]
     assert any("Profit, equity, debt and cash flow are for the 12m to Jun 2026." in c.value for c in app.caption)
     # P/E uses the twelve-month profit: 3,700,000 ÷ (132,175 × 1.1)
     assert {m.label: m.value for m in app.metric}["P/E"] == "25.45×"
@@ -485,7 +485,7 @@ def test_foreign_filer_shows_its_currency_and_converts_market_cap_for_valuation(
     assert cards["Free cash flow"] == "EUR 136,056M" and cards["Net margin"] == "27.6%"
     # $3,700,000M × 0.9 = EUR 3,330,000M; ÷ net income of 132,175M = 25.19
     assert cards["Market cap"] == "$3,700,000M" and cards["P/E"] == "25.19×"
-    assert table(app, "Line item").iloc[0, -1] == "EUR 478,834M"  # revenue in the line-item table
+    assert table(app, "Line item").iloc[0, -1] == "478,834"  # revenue in the line-item table, in EUR M
     assert any("converted into EUR at 1 USD = 0.9000 EUR (Yahoo Finance, Nov 12, 2026)" in c.value for c in app.caption)
     assert any("market cap = EUR 3,330,000M" in m.value for m in app.markdown)
     assert any("EUR per US dollar = 0.9000" in m.value for m in app.markdown)

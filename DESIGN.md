@@ -59,14 +59,15 @@ Warnings (bank and REIT banners, failed balance checks) use Streamlit's own warn
 - a delta chip: the year-on-year change, green up or red down (inverted for debt/equity, where up is
   worse), with an arrow;
 - a sparkline of the last five years when there are at least two values;
-- an ⓘ popover holding the formula with the company's numbers, what it means, what's good, and the
-  traps. Long text never sits on the card itself;
+- an ⓘ "How it's calculated" popover holding the formula with the company's numbers, what it means, what's good, and the
+  traps, and any notes on how a line item was derived. Long text never sits on the card itself;
 - at most one short caption below: the industry median, or why the value is missing.
 
 **Financial table**: `st.dataframe` with
 - the first column pinned (it stays put while the years scroll);
 - numbers right-aligned, the unit in the header (`$M`), not in every cell;
-- negative numbers in red and in parentheses: `(1,234)`;
+- negative numbers in red and in parentheses: `(1,234)`. Tables can't follow the theme, so they use one
+  red that reads on both backgrounds, `#EF4444`;
 - `—` for a value that isn't reported, never `0`; `*` after a value we calculated, with the footnote
   below the table.
 

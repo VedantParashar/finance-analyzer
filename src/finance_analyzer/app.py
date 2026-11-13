@@ -9,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import httpx
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -245,15 +246,28 @@ def metric_card(
             st.caption(f"Industry median: {display.format_metric(name, benchmark[0])} ({benchmark[1]} companies)")
         if metric.reason:
             st.caption(f"Not available: {metric.reason}")
-        for note in metric.notes:
-            st.caption(f"ⓘ {note}")
-        with st.expander("Formula and meaning"):
+        # The long text lives in a popover, so every card in a row keeps the same height.
+        with st.popover("How it's calculated", icon=":material/info:", type="tertiary"):
             st.markdown(f"**Formula:** {FORMULA_TEXT[name]}")
             for key, value in metric.inputs.items():
                 st.markdown(f"- {key.replace('_', ' ')} = {display.format_input(key, value, currency)}")
             if metric.value is not None:
                 st.markdown(f"= **{display.format_metric(name, metric.value, currency)}**")
+            for note in metric.notes:
+                st.caption(f"ⓘ {note}")
             learn(name)
+
+
+def financial_table(table: list[dict[str, str]], unit: str | None = None) -> None:
+    """A table of figures: first column pinned (with the unit in its header), numbers right-aligned,
+    negatives, already in parentheses, in red."""
+    frame = pd.DataFrame(table)
+    first = frame.columns[0]
+    config = {first: st.column_config.TextColumn(f"{first} · {unit}" if unit else first, pinned=True)}
+    config |= {column: st.column_config.TextColumn(alignment="right") for column in frame.columns[1:]}
+    # One red that reads on the light and the dark background (DESIGN.md: red means down or negative).
+    styled = frame.style.map(lambda text: "color: #EF4444" if str(text).startswith("(") else "")
+    st.dataframe(styled, hide_index=True, column_config=config)
 
 
 def learn(name: str) -> None:
@@ -439,7 +453,7 @@ def overview_tab(
     )
     with snapshot:
         st.subheader("Key ratios vs industry")
-        st.dataframe(display.ratio_snapshot(latest, medians, labels[-1]), hide_index=True)
+        financial_table(display.ratio_snapshot(latest, medians, labels[-1]))
         if not medians:
             st.caption("No industry median yet: it needs more companies from this industry loaded into the app.")
     peers_section(ticker, info)
@@ -448,13 +462,13 @@ def overview_tab(
 def financials_tab(rows: list[store.StoredLineItem], years: list, name_period, quarters: dict | None, currency: str) -> None:
     st.caption("The line items behind every ratio, as reported in the annual reports (10-K, 20-F or 40-F).")
     table, derivations = display.line_item_table(rows, years, name_period)
-    st.dataframe(table, hide_index=True)
+    financial_table(table, display.table_unit(currency))
     if derivations:
         with st.expander("\\* Values we calculated rather than read straight from the filing"):
             st.markdown("\n".join(f"- {line}" for line in derivations))
     if quarters is not None:
         with st.expander("The single quarters behind these figures"):
-            st.dataframe(display.quarterly_table(quarters, currency), hide_index=True)
+            financial_table(display.quarterly_table(quarters, currency), display.table_unit(currency))
             st.caption(
                 "\\* Calculated. Companies report some items only for the year so far, so a quarter is that figure "
                 "minus the quarters before it. The fourth quarter is never reported on its own: it is the full "
@@ -599,12 +613,12 @@ def red_flags_section(metrics: dict, years: list, labels: list[str], currency: s
             value = metrics[end][name].value
             line[label] = display.short_verdict(name, value)
         table.append(line)
-    st.dataframe(table, hide_index=True)
+    financial_table(table)
 
 
 def dupont_section(metrics: dict, years: list, labels: list[str]) -> None:
     st.subheader("DuPont breakdown")
-    with st.expander("Formula and meaning"):
+    with st.popover("How it's calculated", icon=":material/info:", type="tertiary"):
         st.markdown(f"**Formula:** {FORMULA_TEXT['dupont']}")
         learn("dupont")
     dupont = metrics[years[-1]]["dupont"]
@@ -626,7 +640,7 @@ def dupont_section(metrics: dict, years: list, labels: list[str]) -> None:
         table.append(line)
     table.append({"Factor": "ROE", **{label: display.format_metric("dupont", metrics[end]["dupont"].value)
                                       for label, end in zip(labels, years)}})
-    st.dataframe(table, hide_index=True)
+    financial_table(table)
 
 
 def compare_page() -> None:
