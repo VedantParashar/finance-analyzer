@@ -163,3 +163,14 @@ def test_best_worst_follows_each_metrics_direction_and_skips_what_cant_be_ranked
     assert display.best_worst("market_cap", {"A": 1e12, "B": 2e12}) == (None, None)  # size, not quality
     every_metric = [name for group in display.GROUPS.values() for name in group] + display.RED_FLAGS + display.PRICE_METRICS
     assert set(every_metric) - display.HIGHER_IS_BETTER - display.LOWER_IS_BETTER == {"equity_multiplier", "market_cap", *display.RED_FLAGS}
+
+
+def test_source_column_links_the_latest_year_that_has_the_item():
+    y1, y2 = date(2024, 12, 31), date(2025, 12, 31)
+    rows = [
+        StoredLineItem("TEST", "revenue", y1, 100e6, "USD", "OLD", "", datetime(2026, 11, 11)),
+        StoredLineItem("TEST", "revenue", y2, 120e6, "USD", "NEW", "", datetime(2026, 11, 11)),
+        StoredLineItem("TEST", "cash", y1, 5e6, "USD", "OLD", "", datetime(2026, 11, 11)),  # not reported in y2
+    ]
+    table, _ = display.line_item_table(rows, [y1, y2], sources={"OLD": "old-link", "NEW": "new-link"})
+    assert [(line["Line item"], line["Source"]) for line in table] == [("Revenue", "new-link"), ("Cash", "old-link")]

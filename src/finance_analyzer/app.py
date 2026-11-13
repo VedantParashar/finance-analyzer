@@ -64,6 +64,16 @@ def trailing(ticker: str) -> tuple[list[store.StoredLineItem], dict, dict]:
     return rows, company_metrics(rows), parse.quarterly_values(edgar.fetch_company_facts(ticker))
 
 
+@st.cache_data(ttl=timedelta(days=1), show_spinner=False)
+def filing_links(ticker: str) -> dict[str, tuple[str, str]]:
+    """Accession number → (label such as "10-K, filed 2025-10-31", URL of the filing on the SEC site)."""
+    cik = edgar.get_cik(ticker)
+    return {
+        accn: (display.source_label(form, filed), edgar.filing_url(cik, accn))
+        for accn, (form, filed) in parse.filings(edgar.fetch_company_facts(ticker)).items()
+    }
+
+
 def sic_code(ticker: str) -> int:
     """A stored company's SIC code: from the peers file when it's there (no download), else from the SEC."""
     if ticker in peers.COMPANIES:
@@ -233,7 +243,7 @@ def refresh_button(ticker: str) -> None:
 
 def metric_card(
     name: str, metric: Metric, prior: Metric | None, currency: str, benchmark: tuple[float, int] | None = None,
-    history: list[float | None] | None = None,
+    history: list[float | None] | None = None, links: dict[str, tuple[str, str]] | None = None,
 ) -> None:
     with st.container(border=True, height="stretch"):  # cards in a row share the tallest one's height
         st.metric(
@@ -253,7 +263,9 @@ def metric_card(
         with st.popover("How it's calculated", icon=":material/info:", type="tertiary"):
             st.markdown(f"**Formula:** {FORMULA_TEXT[name]}")
             for key, value in metric.inputs.items():
-                st.markdown(f"- {key.replace('_', ' ')} = {display.format_input(key, value, currency)}")
+                source = (links or {}).get(metric.sources.get(key, ""))
+                link = f" · [{source[0]}]({source[1]})" if source else ""  # the filing this number was read from
+                st.markdown(f"- {key.replace('_', ' ')} = {display.format_input(key, value, currency)}{link}")
             if metric.value is not None:
                 st.markdown(f"= **{display.format_metric(name, metric.value, currency)}**")
             for note in metric.notes:
@@ -268,6 +280,8 @@ def financial_table(table: list[dict[str, str]], unit: str | None = None) -> Non
     first = frame.columns[0]
     config = {first: st.column_config.TextColumn(f"{first} · {unit}" if unit else first, pinned=True)}
     config |= {column: st.column_config.TextColumn(alignment="right") for column in frame.columns[1:]}
+    if "Source" in frame.columns:  # a link whose text is the part after "#": "10-K, filed 2025-10-31"
+        config["Source"] = st.column_config.LinkColumn(display_text=r"#(.+)$")
     # One red that reads on the light and the dark background (DESIGN.md: red means down or negative).
     styled = frame.style.map(lambda text: "color: #EF4444" if str(text).startswith("(") else "")
     st.dataframe(styled, hide_index=True, column_config=config, height="content")  # every row, no inner scroll
@@ -360,20 +374,21 @@ def company_page() -> None:
             note += " The latest report is the annual one, so these match the latest fiscal year."
         st.info(note)
     in_industry, medians = industry(info["sic"] // 100, ticker) if info["sic"] else ([], {})
+    links = filing_links(ticker)
 
     overview, financials, ratios, flags, value, checks = st.tabs(
         ["Overview", "Financials", "Ratios", "Red flags", "Valuation", "Data checks"]
     )
     with overview:
-        overview_tab(ticker, info, rows, metrics, years, labels, currency, medians)
+        overview_tab(ticker, info, rows, metrics, years, labels, currency, medians, links)
     with financials:
-        financials_tab(rows, years, name_period, quarters, currency)
+        financials_tab(rows, years, name_period, quarters, currency, links)
     with ratios:
-        ratios_tab(info, rows, metrics, years, labels, currency, in_industry, medians)
+        ratios_tab(info, rows, metrics, years, labels, currency, in_industry, medians, links)
     with flags:
-        red_flags_section(metrics, years, labels, currency, info, medians)
+        red_flags_section(metrics, years, labels, currency, info, medians, links)
     with value:
-        valuation_tab(ticker, rows, labels, currency, quarters is not None)
+        valuation_tab(ticker, rows, labels, currency, quarters is not None, links)
     with checks:
         data_checks_section(ticker, annual_rows)
 
@@ -420,7 +435,7 @@ def price_tile(ticker: str) -> None:
 
 def overview_tab(
     ticker: str, info: dict, rows: list[store.StoredLineItem], metrics: dict, years: list, labels: list[str],
-    currency: str, medians: dict,
+    currency: str, medians: dict, links: dict[str, tuple[str, str]],
 ) -> None:
     st.caption(
         f"The headline numbers for {labels[-1]}"
@@ -441,7 +456,7 @@ def overview_tab(
     for column, name in zip(kpis[2:], ["operating_margin", "free_cash_flow"]):
         with column:
             metric_card(name, latest[name], prior.get(name), currency, medians.get(name),
-                        [metrics[end][name].value for end in years])
+                        [metrics[end][name].value for end in years], links)
 
     chart, snapshot = st.columns([3, 2])
     by_million = {key: value / 1e6 for key, value in by_key.items()}
@@ -463,9 +478,16 @@ def overview_tab(
     peers_section(ticker, info)
 
 
-def financials_tab(rows: list[store.StoredLineItem], years: list, name_period, quarters: dict | None, currency: str) -> None:
-    st.caption("The line items behind every ratio, as reported in the annual reports (10-K, 20-F or 40-F).")
-    table, derivations = display.line_item_table(rows, years, name_period)
+def financials_tab(
+    rows: list[store.StoredLineItem], years: list, name_period, quarters: dict | None, currency: str,
+    links: dict[str, tuple[str, str]],
+) -> None:
+    st.caption(
+        "The line items behind every ratio, as reported in the annual reports (10-K, 20-F or 40-F). Source opens "
+        "the filing the latest figure was read from on the SEC's site."
+    )
+    sources = {accn: f"{url}#{label}" for accn, (label, url) in links.items()}
+    table, derivations = display.line_item_table(rows, years, name_period, sources)
     financial_table(table, display.table_unit(currency))
     if derivations:
         with st.expander("\\* Values we calculated rather than read straight from the filing"):
@@ -482,7 +504,7 @@ def financials_tab(rows: list[store.StoredLineItem], years: list, name_period, q
 
 def ratios_tab(
     info: dict, rows: list[store.StoredLineItem], metrics: dict, years: list, labels: list[str], currency: str,
-    in_industry: list[str], medians: dict,
+    in_industry: list[str], medians: dict, links: dict[str, tuple[str, str]],
 ) -> None:
     st.subheader(f"Metrics for {labels[-1]}")
     st.caption(f"Changes are against {labels[-2]}." if len(labels) > 1 else "No prior year stored.")
@@ -503,7 +525,7 @@ def ratios_tab(
         for column, name in zip(st.columns(4), names):
             with column:
                 metric_card(name, latest[name], prior.get(name), currency, medians.get(name),
-                            [metrics[end][name].value for end in years])
+                            [metrics[end][name].value for end in years], links)
 
     if info["sic"] == REIT_SIC:
         st.markdown("**Real estate (REIT)**")
@@ -514,7 +536,7 @@ def ratios_tab(
         for column, name in zip(st.columns(4), display.REIT_METRICS):
             with column:
                 metric_card(name, latest[name], prior.get(name), currency, None,
-                            [metrics[end][name].value for end in years])
+                            [metrics[end][name].value for end in years], links)
 
     st.subheader("Trends")
     left, right = st.columns(2)
@@ -533,7 +555,10 @@ def ratios_tab(
     dupont_section(metrics, years, labels)
 
 
-def valuation_tab(ticker: str, rows: list[store.StoredLineItem], labels: list[str], currency: str, twelve_months: bool) -> None:
+def valuation_tab(
+    ticker: str, rows: list[store.StoredLineItem], labels: list[str], currency: str, twelve_months: bool,
+    links: dict[str, tuple[str, str]],
+) -> None:
     valuation_metrics, price_note = valuation(ticker, rows)
     st.caption(
         f"{price_note} Profit, equity, debt and cash flow are for the {labels[-1]}." if twelve_months else
@@ -542,7 +567,7 @@ def valuation_tab(ticker: str, rows: list[store.StoredLineItem], labels: list[st
     )
     for column, name in zip(st.columns(5), display.PRICE_METRICS):
         with column:
-            metric_card(name, valuation_metrics[name], None, currency)
+            metric_card(name, valuation_metrics[name], None, currency, links=links)
 
 
 def open_company(text: str) -> None:
@@ -610,7 +635,10 @@ def data_checks_section(ticker: str, rows: list[store.StoredLineItem]) -> None:
         st.markdown(f"✓ **Missing years:** none, every year from {first} to {last} is stored.")
 
 
-def red_flags_section(metrics: dict, years: list, labels: list[str], currency: str, info: dict, medians: dict) -> None:
+def red_flags_section(
+    metrics: dict, years: list, labels: list[str], currency: str, info: dict, medians: dict,
+    links: dict[str, tuple[str, str]],
+) -> None:
     st.caption(
         "Four well-known screens for financial trouble or low-quality earnings. They are prompts to read the "
         "annual report more closely, not verdicts: each one misfires on some kinds of company (see "
@@ -621,7 +649,7 @@ def red_flags_section(metrics: dict, years: list, labels: list[str], currency: s
     for column, name in zip(st.columns(4), display.RED_FLAGS):
         with column:
             metric_card(name, metrics[years[-1]][name], None, currency, medians.get(name),
-                        [metrics[end][name].value for end in years])
+                        [metrics[end][name].value for end in years], links)
     table = []
     for name in display.RED_FLAGS:
         line = {"Score": display.LABELS[name]}

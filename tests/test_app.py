@@ -196,12 +196,12 @@ def test_company_page_loads_and_shows_every_section():
 
 def test_trailing_twelve_months_view_swaps_the_figures_and_shows_the_quarters():
     app = company("aapl")
-    assert list(table(app, "Line item").columns)[-1] == "FY2026"
+    assert list(table(app, "Line item").columns)[-2:] == ["FY2026", "Source"]
     app = app.button_group[0].set_value("Trailing 12 months").run()
     assert not app.exception and not app.error
     assert any("Twelve months to Jun 27, 2026" in i.value for i in app.info)
-    assert list(table(app, "Line item").columns)[-2:] == ["12m to Jun 2025", "12m to Jun 2026"]
-    assert table(app, "Line item").iloc[0, -1] == "526,717"  # revenue in $M, 478,834 × 1.1
+    assert list(table(app, "Line item").columns)[-3:-1] == ["12m to Jun 2025", "12m to Jun 2026"]
+    assert table(app, "Line item").iloc[0, -2] == "526,717"  # revenue in $M, 478,834 × 1.1
     assert "Metrics for 12m to Jun 2026" in [s.value for s in app.subheader]
     quarters = [frame.value for frame in app.dataframe if frame.value.columns[0] == "Line item"][1]
     assert list(quarters.columns) == ["Line item", "Mar 28, 2026", "Jun 27, 2026"]
@@ -216,7 +216,7 @@ def test_a_company_without_quarterly_reports_stays_on_fiscal_years():
     app = app.button_group[0].set_value("Trailing 12 months").run()
     assert not app.exception and not app.error
     assert any("No usable quarterly figures" in i.value and "Showing fiscal years." in i.value for i in app.info)
-    assert list(table(app, "Line item").columns)[-1] == "FY2026"
+    assert list(table(app, "Line item").columns)[-2:] == ["FY2026", "Source"]
 
 
 def test_industry_medians_appear_once_three_companies_in_the_group_are_stored():
@@ -488,7 +488,7 @@ def test_foreign_filer_shows_its_currency_and_converts_market_cap_for_valuation(
     assert cards["Free cash flow"] == "EUR 136,056M" and cards["Net margin"] == "27.6%"
     # $3,700,000M × 0.9 = EUR 3,330,000M; ÷ net income of 132,175M = 25.19
     assert cards["Market cap"] == "$3,700,000M" and cards["P/E"] == "25.19×"
-    assert table(app, "Line item").iloc[0, -1] == "478,834"  # revenue in the line-item table, in EUR M
+    assert table(app, "Line item").iloc[0, -2] == "478,834"  # revenue in the line-item table, in EUR M
     assert any("converted into EUR at 1 USD = 0.9000 EUR (Yahoo Finance, Nov 12, 2026)" in c.value for c in app.caption)
     assert any("market cap = EUR 3,330,000M" in m.value for m in app.markdown)
     assert any("EUR per US dollar = 0.9000" in m.value for m in app.markdown)
@@ -517,3 +517,12 @@ def test_compare_notes_different_currencies():
     assert (row.iloc[1], row.iloc[2]) == ("$136,056M", "EUR 136,056M")
     pe = table[table["Metric"] == "P/E"].iloc[0]
     assert (pe.iloc[1], pe.iloc[2]) == ("27.99×", "25.19×")  # SAP's market cap converted at 0.9
+
+
+def test_every_figure_links_to_the_filing_it_was_read_from(monkeypatch):
+    revenue = {"units": {"USD": [{"accn": "accn", "form": "10-K", "filed": "2026-10-31", "val": 1, "end": "2026-09-26"}]}}
+    monkeypatch.setattr(edgar, "fetch_company_facts", lambda ticker: {"facts": {"us-gaap": {"Revenues": revenue}}})
+    app = company("AAPL")
+    url = "https://www.sec.gov/Archives/edgar/data/1/accn/accn-index.htm"  # AAPL's CIK is 1 in the test list
+    assert table(app, "Line item").iloc[0, -1] == f"{url}#10-K, filed 2026-10-31"  # shown as the text after #
+    assert any(f"net income = $132,175M · [10-K, filed 2026-10-31]({url})" in m.value for m in app.markdown)

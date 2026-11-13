@@ -50,6 +50,17 @@ class BalanceCheck(NamedTuple):
     liabilities_derived: bool
 
 
+def filings(facts: dict) -> dict[str, tuple[str, str]]:
+    """Accession number → (form, filing date) for every filing the company's facts come from."""
+    return {
+        fact["accn"]: (fact["form"], fact["filed"])
+        for tags in facts.get("facts", {}).values()
+        for tag in tags.values()
+        for unit in tag.get("units", {}).values()
+        for fact in unit
+    }
+
+
 def _is_full_year(fact: dict) -> bool:
     if "start" not in fact:
         return False
