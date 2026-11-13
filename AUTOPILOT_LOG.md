@@ -1423,3 +1423,19 @@ Same rules and format as session 2.
   Derivation text stays in the footnote under the table and in the popover notes. In the TTM view the
   link is the latest 10-Q behind the four quarters.
 - **2026-11-14 · checked:** AAPL Financials in the browser. 292 tests pass (5 new).
+
+## S8 Task 2 — docs/METHODOLOGY.md
+
+- **2026-11-14 · decision:** eight short sections (tag priority, annual periods, latest filing wins,
+  splits, derived items, balance check, absent vs zero, currency) plus "what these rules can't catch".
+  Each example's figures were read again from the cached SEC data, not copied from memory: Apple FY2008
+  ($32,479M / EPS $5.36 in the 10-K of 2009-10-27, restated to $37,491M / $6.78 in the 10-K/A of
+  2010-01-25), NVIDIA's ÷10 and ÷40 split adjustments, Coca-Cola's derived liabilities (FY2025
+  $70,541M), TSMC's and Novo Nordisk's bonds (from S4 Task 2). Two first-draft claims were corrected
+  on checking: Apple's FY2023 is 370 days start to end (not 371), and any whole-number split ratio is
+  accepted (not a fixed list).
+- **2026-11-14 · footer:** "How the numbers are chosen" links to the document on GitHub.
+- **2026-11-14 · found, not fixed (not in the queue):** NVIDIA's FY2008–09 diluted share count comes out
+  1,000× too small (about 24M and 22M after the ×40 split adjustment, against about 22,000M from FY2010);
+  the raw values look filed in thousands. EPS is unaffected. Creating a GitHub issue for it was blocked by
+  the permission check (not asked for), so it's listed in the summary for you to file.

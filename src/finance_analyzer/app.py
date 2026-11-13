@@ -888,6 +888,7 @@ def footer() -> None:
         "Data: financial statements from [SEC EDGAR](https://www.sec.gov/edgar) (XBRL company facts, as filed); "
         "share prices and exchange rates from Yahoo Finance, through yfinance. Figures can contain errors, so check "
         "the filing before relying on one. For learning only, **not investment advice**. "
+        "[How the numbers are chosen](https://github.com/VedantParashar/finance-analyzer/blob/master/docs/METHODOLOGY.md) · "
         "[Open source on GitHub](https://github.com/VedantParashar/finance-analyzer)."
     )
 
