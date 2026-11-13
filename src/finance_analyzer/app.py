@@ -234,7 +234,7 @@ def metric_card(
     name: str, metric: Metric, prior: Metric | None, currency: str, benchmark: tuple[float, int] | None = None,
     history: list[float | None] | None = None,
 ) -> None:
-    with st.container(border=True):
+    with st.container(border=True, height="stretch"):  # cards in a row share the tallest one's height
         st.metric(
             display.LABELS[name],
             display.format_metric(name, metric.value, currency),
@@ -430,7 +430,7 @@ def overview_tab(
     kpis = st.columns(4)
     for column, (label, item) in zip(kpis, [("Revenue", "revenue"), ("Net income", "net_income")]):
         values = [by_key.get((item, end)) for end in years]
-        with column.container(border=True):
+        with column.container(border=True, height="stretch"):
             st.metric(
                 label,
                 display.money(values[-1], currency) if values[-1] is not None else "—",
@@ -608,7 +608,8 @@ def red_flags_section(metrics: dict, years: list, labels: list[str], currency: s
         st.caption("These scores were built for industrial and commercial companies and don't apply to banks, brokers or insurers.")
     for column, name in zip(st.columns(4), display.RED_FLAGS):
         with column:
-            metric_card(name, metrics[years[-1]][name], None, currency, medians.get(name))
+            metric_card(name, metrics[years[-1]][name], None, currency, medians.get(name),
+                        [metrics[end][name].value for end in years])
     table = []
     for name in display.RED_FLAGS:
         line = {"Score": display.LABELS[name]}

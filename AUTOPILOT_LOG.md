@@ -1279,3 +1279,19 @@ Same rules and format as session 2.
 - **2026-11-13 · number formatting:** checked by eye on every page; cards use `$478,834M`, tables plain
   millions with the unit in the header, ratios `24.3%` / `1.07×`, deltas `+1.2 pp`. All of it still comes
   from `display.py`. 283 tests pass.
+
+## S7 Task 7 — Visual check and README screenshots
+
+- **2026-11-13 · checked:** 32 screenshots, one browser session (Playwright via `uvx`, cached Chromium):
+  landing, AAPL's six tabs and AAPL/KO/NVDA compare, each in light and dark at 1400px and 390px. All 32:
+  no exceptions, no console errors, no sideways scroll. The script stays in the scratchpad, as in
+  session 2.
+- **2026-11-13 · fixed after review against DESIGN.md:** the red-flag cards had no sparklines (now
+  there, grey: a score has no "up is good" delta); overview cards had different heights (cards now
+  stretch to the tallest in their row, `height="stretch"`, as the landing tiles already did).
+- **2026-11-13 · not fixed (minor):** on a phone the header's price and buttons stay right-aligned under
+  the name, leaving a gap on the left; readable, and changing it means per-width CSS on Streamlit's
+  columns.
+- **2026-11-13 · README:** new `landing.png` (light), `company.png` (AAPL overview, light) and
+  `compare.png` (AAPL/KO/NVDA, dark, to show both themes), plus a line on switching themes and a link to
+  DESIGN.md. The share price in them is the live one on 2026-11-13.
