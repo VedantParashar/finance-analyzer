@@ -417,7 +417,7 @@
      "value": 184432,
      "line": "Sales and other operating revenues (total revenues and other income: 189,031)",
      "status": "from filing, to be checked by owner",
-     "note": "Since total revenues come first (S9), the app uses Chevron's Revenues tag, which the statement labels \"Total Revenues and Other Income\": it adds income from equity affiliates and other income to sales."
+     "note": "Known limit ([#75](https://github.com/VedantParashar/finance-analyzer/issues/75)): the app prefers total revenues, and Chevron's Revenues tag is its \"Total Revenues and Other Income\", which adds income from equity affiliates ($3,000M) and other income ($1,599M) to sales."
     },
     "operating_income": {
      "value": null,
