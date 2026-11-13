@@ -300,8 +300,7 @@
     "revenue": {
      "value": 713163,
      "line": "Total revenues",
-     "status": "from filing, to be checked by owner",
-     "note": "The app's first revenue tag (revenue from contracts with customers) is Walmart's net sales; total revenues also include membership and other income ($6,750M). A tag-priority question, not a parsing error."
+     "status": "from filing, to be checked by owner"
     },
     "operating_income": {
      "value": 29825,
@@ -417,7 +416,8 @@
     "revenue": {
      "value": 184432,
      "line": "Sales and other operating revenues (total revenues and other income: 189,031)",
-     "status": "from filing, to be checked by owner"
+     "status": "from filing, to be checked by owner",
+     "note": "Since total revenues come first (S9), the app uses Chevron's Revenues tag, which the statement labels \"Total Revenues and Other Income\": it adds income from equity affiliates and other income to sales."
     },
     "operating_income": {
      "value": null,

@@ -485,7 +485,7 @@ def test_same_day_tie_goes_to_earlier_tag():
             }
         }
     }
-    assert annual_revenue(tie) == [("2018-09-29", 2, "A")]
+    assert annual_revenue(tie) == [("2018-09-29", 1, "B")]  # Revenues (total revenues) comes first
 
 
 def test_start_dates_one_day_apart_count_as_one_year():
@@ -676,8 +676,8 @@ def test_revenue_tagged_twice_a_thousand_times_apart_takes_the_smaller():
     """Tigo Energy FY2025: $103,536,000 under one revenue tag, $103,536,000,000 under the preferred one."""
     year = lambda val: fact("2017-10-01", YEAR_END, val, "10-K", FILED, "T")
     facts = company()
-    facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"] = {"units": {"USD": [year(103_536_000_000)]}}
-    facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [year(103_536_000)]}}
+    facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [year(103_536_000_000)]}}
+    facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"] = {"units": {"USD": [year(103_536_000)]}}
     row = next(row for row in _line_items(facts) if row.item == "revenue")
     assert (row.value, row.derivation) == (103_536_000, "revenue was also tagged 1,000× larger; the smaller figure is used")
 
@@ -687,8 +687,8 @@ def test_revenue_tags_that_differ_by_anything_else_are_left_alone(other):
     """Goods-only revenue beside total revenue is normal; only an exact 1,000× or 1,000,000× is a slip."""
     year = lambda val: fact("2017-10-01", YEAR_END, val, "10-K", FILED, "T")
     facts = company()
-    facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"] = {"units": {"USD": [year(103_536_000)]}}
-    facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [year(other)]}}
+    facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [year(103_536_000)]}}
+    facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"] = {"units": {"USD": [year(other)]}}
     row = next(row for row in _line_items(facts) if row.item == "revenue")
     assert (row.value, row.derivation) == (103_536_000, "")
 
@@ -698,7 +698,11 @@ def year(val, accn="R"):
 
 
 def operating_income(**tags):
-    rows = [row for row in _line_items(company(**tags), tags.pop("financial", False)) if row.item == "operating_income"]
+    financial, revenues = tags.pop("financial", False), tags.pop("Revenues", None)
+    facts = company(**tags)
+    if revenues:  # company() always tags Revenues as 1
+        facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": revenues}}
+    rows = [row for row in _line_items(facts, financial) if row.item == "operating_income"]
     return [(row.value, row.derivation.split(" =")[0]) for row in rows]
 
 
@@ -710,8 +714,7 @@ def test_reported_operating_income_is_never_replaced():
 
 
 def test_operating_income_derived_from_cost_of_revenue_and_operating_expenses():
-    # company() always tags Revenues as 1; the first revenue tag wins over it.
-    tags = {"RevenueFromContractWithCustomerExcludingAssessedTax": year(100), "CostOfRevenue": year(40), "OperatingExpenses": year(35)}
+    tags = {"Revenues": year(100), "CostOfRevenue": year(40), "OperatingExpenses": year(35)}
     assert operating_income(**tags) == [(25, "operating income")]
 
 

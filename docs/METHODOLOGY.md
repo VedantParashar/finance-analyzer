@@ -15,10 +15,13 @@ Each line item has an ordered list of XBRL tags (`schema.py`). All of them are r
 value for the same year in the same filing, the earlier tag in the list wins. Companies that report under
 IFRS (most foreign filers) have their own list under `IFRS_TAGS`.
 
-> **Example:** revenue. Companies moved from `SalesRevenueNet` / `Revenues` to
-> `RevenueFromContractWithCustomerExcludingAssessedTax` when the ASC 606 revenue standard arrived in 2018,
-> so that tag comes first and the older ones fill the earlier years. Utilities (NextEra, Duke) use
-> `RegulatedAndUnregulatedOperatingRevenue`, which is further down the list.
+> **Example:** revenue. Many companies tag both total revenues (`Revenues`) and revenue from contracts
+> with customers (`RevenueFromContractWithCustomerExcludingAssessedTax`, from the 2018 ASC 606 standard).
+> Total revenues comes first, because the contract figure can leave revenue out: Walmart's membership
+> income ($6,750M in FY2026), most of a REIT's rent (American Tower: $10,645M total against $936M of
+> contract revenue). The cost: where a company's "total" also holds other income, that's included too
+> (Chevron's $189,031M "total revenues and other income" against $184,432M of sales). Utilities (NextEra,
+> Duke) use `RegulatedAndUnregulatedOperatingRevenue`, further down the list.
 
 ## 2. Annual periods only
 

@@ -19,9 +19,10 @@ ITEMS = {
         LineItem(
             "revenue",
             (
-                # Companies moved to the first tag with the ASC 606 revenue standard (2018).
-                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                # Total revenues first: when a filing tags both, the contract-revenue tag (ASC 606, from 2018)
+                # can leave out other revenue, e.g. Walmart's membership income.
                 "Revenues",
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
                 "SalesRevenueNet",
                 "SalesRevenueGoodsNet",  # last resort: goods only for companies that also sell services
                 "RegulatedAndUnregulatedOperatingRevenue",  # utilities (NextEra, Duke)
