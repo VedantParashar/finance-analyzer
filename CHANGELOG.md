@@ -2,7 +2,41 @@
 
 What each version added, newest first. Dates are year-month-day.
 
-## 1.3.0 — unreleased
+## 1.4.0 — unreleased
+
+Data you can trace and check: every number links to its filing, the rules and the measured accuracy are
+written down, and three kinds of wrong figures are fixed.
+
+### Added
+- **Trace any number:** a Source column in Financials (form type, filing date, link to the filing on
+  sec.gov) and a filing link next to every input in "How it's calculated".
+- **[METHODOLOGY.md](docs/METHODOLOGY.md):** how each number is chosen, with real examples (Apple's
+  restated FY2008, NVIDIA's splits, Coca-Cola's liabilities, TSMC's and Novo Nordisk's bonds).
+- **[ACCURACY.md](docs/ACCURACY.md) and `scripts/accuracy.py`:** 95 headline figures for 10 companies
+  checked against the filings' own statements; 93 match, and both differences are explained.
+- **Feedback:** a Feedback link when `FEEDBACK_URL` is set (https only), and "Report a wrong number" on
+  every metric, opening a prefilled GitHub issue.
+- **Docs and repo:** a rewritten README with a demo GIF, a case study (Apple vs Coca-Cola), a code of
+  conduct, a security policy, a docs index, and the decision log moved to `docs/decision-log.md`.
+
+### Changed
+- **Revenue prefers total revenues** over revenue from contracts with customers when a company tags both.
+  Eight of 55 companies change: Walmart (+1%, membership income now included), American Tower (FY2025
+  $936M → $10,645M: rent was missing), Welltower, Berkshire Hathaway, Pfizer FY2021, Mastercard
+  FY2018–19 (net instead of gross revenue), Occidental and Chevron (its "total revenues and other income"
+  now counts, which includes non-revenue income).
+
+### Fixed
+- **Share counts filed in thousands** are multiplied back when net income ÷ EPS shows it (#72): NVIDIA
+  FY2008–09, Advance Auto Parts FY2008 and Crocs FY2012.
+
+### Known limits
+- Chevron's revenue now includes other income (see above).
+- `peers.json` keeps last year's revenue under the old tag order until it's rebuilt.
+- Companies already saved in a local database keep their old figures until they're reloaded (Refresh,
+  or the 7-day refresh). The hosted app starts empty after a restart.
+
+## 1.3.0 — 2026-11-13
 
 A redesign that makes the app look like a financial research site, operating income for companies
 that don't report it, and FFO for REITs.
