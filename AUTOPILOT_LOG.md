@@ -1464,3 +1464,17 @@ Same rules and format as session 2.
     labelled fallback (cash including restricted cash) is used.
 - **2026-11-14 · checked:** `matches()` has assert-based self-checks in the script (rounding, decimals,
   EPS). The script isn't run by the tests (it needs the network), like `coverage.py`.
+
+## S8 Task 4 — Feedback and "Report a wrong number"
+
+- **2026-11-14 · decision:** `FEEDBACK_URL` is read from Streamlit secrets, then the environment, and
+  used only if it starts with `https://` (it comes from configuration and becomes a link; a
+  `javascript:` value is ignored, tested). Unset: no link at all. Set: a "Feedback" button in the company
+  header and a link in the footer. Documented in `.env.example` and DEPLOY.md.
+- **2026-11-14 · decision:** every metric's "How it's calculated" popover ends with "Report a wrong
+  number", a new GitHub issue prefilled with company, metric, period and the value shown, labelled
+  `data-quality` (GitHub applies the label only for people allowed to label; the rest still open the
+  issue). The ticker comes from the page's own `?ticker=` address, so only the period had to be passed
+  to the cards.
+- **2026-11-14 · fixed while checking:** with four buttons the Share button wrapped onto a second line;
+  the header's columns are now 2:3. 295 tests pass (3 new).

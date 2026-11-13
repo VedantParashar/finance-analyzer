@@ -526,3 +526,21 @@ def test_every_figure_links_to_the_filing_it_was_read_from(monkeypatch):
     url = "https://www.sec.gov/Archives/edgar/data/1/accn/accn-index.htm"  # AAPL's CIK is 1 in the test list
     assert table(app, "Line item").iloc[0, -1] == f"{url}#10-K, filed 2026-10-31"  # shown as the text after #
     assert any(f"net income = $132,175M · [10-K, filed 2026-10-31]({url})" in m.value for m in app.markdown)
+
+
+def test_feedback_link_appears_only_when_configured_and_https(monkeypatch):
+    monkeypatch.delenv("FEEDBACK_URL", raising=False)
+    app = company("AAPL")
+    assert not app.get("link_button") and not any("[Feedback]" in c.value for c in app.caption)
+    monkeypatch.setenv("FEEDBACK_URL", "javascript:alert(1)")  # not https: ignored
+    assert not company("AAPL").get("link_button")
+    monkeypatch.setenv("FEEDBACK_URL", "https://forms.example.com/datadough")
+    app = company("AAPL")
+    assert [b.proto.url for b in app.get("link_button")] == ["https://forms.example.com/datadough"]
+    assert any("[Feedback](https://forms.example.com/datadough)" in c.value for c in app.caption)
+
+
+def test_each_metric_offers_a_prefilled_report_a_wrong_number_link():
+    app = company("AAPL")
+    reports = [m.value for m in app.markdown if "Report a wrong number" in m.value]
+    assert any("Wrong+number%3F+AAPL+Net+margin+FY2026" in link for link in reports)
