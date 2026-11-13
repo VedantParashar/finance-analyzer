@@ -1178,3 +1178,22 @@ Same rules and format as session 2.
 - **2026-11-13 · checked:** Playwright through `uvx` with the cached Chromium, as in session 2 (the
   Playwright plugin still wants Google Chrome): Inter is applied, the dark background is `#0B1220`, no
   console errors. 278 tests pass.
+
+## S7 Task 2 — Landing page
+
+- **2026-11-13 · decision:** a new **Home** page is the default; navigation moved from the sidebar to the
+  top (`st.navigation(position="top")`), the usual place on a research site. Hero: a "Datadough" badge,
+  the headline, one sentence, a 52px search box ("Search any company or ticker") and example chips
+  (`st.pills`). Three tiles (Analyse, Compare, Learn), each with a one-click start (Apple; AAPL, MSFT,
+  NVDA; Coca-Cola). Footer on every page: SEC EDGAR and Yahoo Finance as sources, "not investment
+  advice", a GitHub link. **Rejected:** a centred hero (Streamlit's input widths fight centring; left
+  aligned reads like Stripe/Koyfin anyway).
+- **2026-11-13 · decision:** picking a company on Home fills the company page's search box and switches
+  page (the same mechanism the peer buttons already use), so the company page stays the one place that
+  resolves typed text. `?ticker=AAPL` links now switch from Home to the company page; `?compare=` was
+  already handled. Old links keep working (tested).
+- **2026-11-13 · decision:** `toolbarMode = "viewer"` hides Streamlit's developer menu items ("Deploy");
+  the settings menu with the light/dark switch stays.
+- **2026-11-13 · scope:** a landing page isn't one of SPEC.md's screens; it adds no feature, only a way
+  in, so SPEC.md is unchanged.
+- **2026-11-13 · checked:** screenshots at 1400px light and 390px dark; no console errors. 280 tests pass.

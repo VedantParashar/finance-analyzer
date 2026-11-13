@@ -26,8 +26,10 @@
 }
 
 /* Landing page hero. */
-.st-key-hero { padding: 48px 0 24px; text-align: center; }
+.st-key-hero { padding: 40px 0 24px; max-width: 760px; }
 .st-key-hero h1 { font-size: 2.6rem; letter-spacing: -0.02em; }
+.st-key-home_search [role="group"] { min-height: 52px; }
+.st-key-home_search input { font-size: 1.05rem; }
 
 @media (max-width: 640px) {
   .block-container { padding-left: 16px; padding-right: 16px; }

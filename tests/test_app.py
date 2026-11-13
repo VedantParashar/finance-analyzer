@@ -94,10 +94,30 @@ def company(ticker):
     return app.selectbox[0].set_value(ticker).run()
 
 
-def test_empty_page_asks_for_a_company_and_offers_examples():
+def test_landing_page_has_a_search_box_examples_feature_tiles_and_a_footer():
     app = AppTest.from_file(APP).run()
+    assert not app.exception and app.title[0].value == "Understand any public company"
+    assert app.selectbox[0].label == "Search any company or ticker"
+    assert app.button_group[0].options == ["AAPL"]  # the only example in the test's company list
+    assert [b.label for b in app.button] == ["Analyse Apple", "Compare AAPL, MSFT, NVDA", "Learn with Coca-Cola"]
+    footer = app.caption[-1].value
+    assert "SEC EDGAR" in footer and "Yahoo Finance" in footer and "not investment advice" in footer
+    app = app.button_group[0].set_value("AAPL").run()  # an example chip opens that company
+    assert not app.exception and app.header[0].value == "Apple Inc. (AAPL)"
+
+
+def test_landing_page_tiles_open_the_company_and_compare_pages():
+    app = AppTest.from_file(APP).run().button[0].click().run()
+    assert not app.exception and app.header[0].value == "Apple Inc. (AAPL)"
+    app = AppTest.from_file(APP).run().button[1].click().run()
+    assert not app.exception and app.title[0].value == "Compare"
+    assert app.multiselect[0].value == ["AAPL — Apple Inc."]  # the only one in the test's company list
+
+
+def test_empty_company_page_asks_for_a_company_and_offers_examples():
+    app = company("AAPL").selectbox[0].set_value(None).run()
     assert not app.exception and "Search for a company" in app.info[0].value
-    assert [b.label for b in app.button] == ["AAPL"]  # the only example in the test's company list
+    assert [b.label for b in app.button] == ["AAPL"]
     app = app.button[0].click().run()
     assert not app.exception and app.header[0].value == "Apple Inc. (AAPL)"
 
@@ -415,7 +435,7 @@ def test_cloud_entry_point_runs_the_same_app_and_starts_the_pre_load_once():
     st.cache_resource.clear()
     PRELOADS.clear()
     app = AppTest.from_file(str(Path(__file__).parents[1] / "streamlit_app.py"), default_timeout=30).run()
-    assert not app.exception and "Search for a company" in app.info[0].value
+    assert not app.exception and app.title[0].value == "Understand any public company"
     app.run()  # a second page view in the same server process
     for thread in threading.enumerate():
         if thread.name == "preload":

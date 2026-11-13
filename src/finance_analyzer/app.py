@@ -189,7 +189,7 @@ def open_from_link() -> None:
         st.session_state["compare"] = list(dict.fromkeys(map(from_link, tickers)))[:4]  # the box holds four at most
         st.switch_page(PAGES["compare"])
     elif "ticker" in st.query_params:
-        st.session_state["company"] = from_link(st.query_params["ticker"])
+        open_company(from_link(st.query_params["ticker"]))
 
 
 def choose(key: str, value) -> None:
@@ -425,6 +425,12 @@ def company_page() -> None:
     data_checks_section(ticker, annual_rows)
 
 
+def open_company(text: str) -> None:
+    """Fill the company page's search box with this text and go there."""
+    st.session_state["company"] = text
+    st.switch_page(PAGES["company"])
+
+
 def open_compare(tickers: list[str]) -> None:
     """Fill the compare page's search box with these tickers and go there."""
     found = [company for company in map(edgar.find_ticker, tickers) if company]
@@ -635,6 +641,59 @@ def compare_page() -> None:
     )
     st.plotly_chart(figure)
 
+def home_page() -> None:
+    with st.container(key="hero"):
+        st.badge("Datadough · free and open source, for students", color="primary")
+        st.title("Understand any public company")
+        st.markdown(
+            "Five years of a company's own SEC filings turned into ratios, trends and red flags, "
+            "each explained in plain English."
+        )
+        options = options_or_explain()
+        if options is None:
+            return
+        choice = st.selectbox(
+            "Search any company or ticker",
+            options,
+            index=None,
+            placeholder="Search any company or ticker, e.g. AAPL or Coca-Cola",
+            accept_new_options=True,
+            label_visibility="collapsed",
+            key="home_search",
+        )
+        examples = [ticker for ticker in EXAMPLES if edgar.find_ticker(ticker)]
+        picked = st.pills("Try", examples, key="home_example")
+    if choice or picked:
+        open_company(choice or option(edgar.find_ticker(picked)))
+
+    tiles = [
+        ("Analyse", ":material/query_stats:", "Statements and 18 metrics over five years, by fiscal year or the "
+         "last twelve months, with the industry median next to each.", "Analyse Apple",
+         lambda: open_company(option(edgar.find_ticker("AAPL")))),
+        ("Compare", ":material/compare_arrows:", "Put 2 to 4 companies side by side: ratios, red-flag scores and "
+         "valuation, best and worst marked.", "Compare AAPL, MSFT, NVDA",
+         lambda: open_compare(["AAPL", "MSFT", "NVDA"])),
+        ("Learn", ":material/school:", "Every number shows its formula filled in with the company's own figures, "
+         "what it means, what's good and the common traps.", "Learn with Coca-Cola",
+         lambda: open_company(option(edgar.find_ticker("KO")) if edgar.find_ticker("KO") else "KO")),
+    ]
+    for column, (title, icon, text, action, go_to) in zip(st.columns(3), tiles):
+        with column.container(border=True, height="stretch"):
+            st.markdown(f"#### {icon} {title}")
+            st.markdown(text)
+            if st.button(action, key=f"tile-{title}", type="tertiary", icon=":material/arrow_forward:", icon_position="right"):
+                go_to()
+
+
+def footer() -> None:
+    st.divider()
+    st.caption(
+        "Data: financial statements from [SEC EDGAR](https://www.sec.gov/edgar) (XBRL company facts, as filed); "
+        "share prices and exchange rates from Yahoo Finance, through yfinance. Figures can contain errors, so check "
+        "the filing before relying on one. For learning only, **not investment advice**. "
+        "[Open source on GitHub](https://github.com/VedantParashar/finance-analyzer)."
+    )
+
 
 @st.cache_resource(show_spinner=False)  # once per server process, however many people open the app
 def start_preload() -> threading.Thread:
@@ -650,11 +709,13 @@ def run(preload_companies: bool = False) -> None:
     use_secret_user_agent()
     if preload_companies:
         start_preload()
-    PAGES["company"] = st.Page(company_page, title="Company")
-    PAGES["compare"] = st.Page(compare_page, title="Compare")
-    page = st.navigation(list(PAGES.values()))
+    PAGES["home"] = st.Page(home_page, title="Home", icon=":material/home:", default=True)
+    PAGES["company"] = st.Page(company_page, title="Company", icon=":material/business:")
+    PAGES["compare"] = st.Page(compare_page, title="Compare", icon=":material/compare_arrows:")
+    page = st.navigation(list(PAGES.values()), position="top")
     open_from_link()
     page.run()
+    footer()
 
 
 # Streamlit runs this file as __main__; importing it (as the tests do) only defines the pages.
