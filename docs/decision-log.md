@@ -1582,3 +1582,35 @@ Same rules and format as session 2.
   FY2026 cash flow statement read for task 3.
 - **2026-11-14 · marked not verified (2 claims):** why Coca-Cola's balance sheet is asset-heavy, and why
   its free cash flow stayed low in FY2025 (the FY2025 10-K wasn't read for this).
+
+## S9 Task 1 — Revenue: total revenues before contract revenue
+
+- **2026-11-14 · change:** in the revenue tag list, `Revenues` now comes before
+  `RevenueFromContractWithCustomerExcludingAssessedTax`. Tag order only decides when one filing tags both
+  for the same year, so companies that tag one of them are untouched.
+- **2026-11-14 · checked row by row, all 55 companies in the local SEC cache (the 53 stored ones and
+  2 more):** 8 change, 47 don't. Old → new, $M:
+  - **Walmart**, FY2017–FY2026, every year +0.7% to +1.0%: FY2026 706,413 → 713,163 (membership income).
+  - **American Tower**, FY2019–2025: FY2025 936 → 10,645 (the contract tag held only non-lease
+    services; rent is most of a tower REIT's revenue). The old figure was badly wrong.
+  - **Welltower**, FY2021–2025, +28% to +48%: FY2025 8,453 → 10,838 (rental income added).
+  - **Berkshire Hathaway**, FY2018–2025, +41% to +50%: FY2025 247,244 → 371,444 (insurance premiums and
+    investment income added).
+  - **Pfizer**, FY2021 only: 73,636 → 81,288 (Pfizer's reported total).
+  - **Mastercard**, FY2018–19: 21,831 → 14,950 and 24,980 → 16,883, *down*: the contract tag was gross
+    revenue before rebates and incentives; net revenue is what Mastercard reports.
+  - **Occidental**, FY2019–2025, −3.0% to +9.0%: FY2024 22,710 → 22,019. Its total revenues net in other
+    items (e.g. derivative results), so the total can be below contract revenue. Still OXY's headline.
+  - **Chevron**, FY2018–2025, +0.2% to +4.8%: FY2025 184,432 → 189,031. **Owner should decide:**
+    Chevron's `Revenues` is its "Total Revenues and Other Income", which adds equity-affiliate income
+    ($3,000M) and other income to sales, so it's not revenue in the usual sense. Kept as the rule says.
+    A narrow fix if wanted: keep contract revenue when total − contract equals income from equity
+    affiliates + other income, as tagged.
+- **2026-11-14 · accuracy rerun: still 93 of 95.** Walmart revenue now matches; Chevron revenue no
+  longer does (the note above, also in `docs/ACCURACY.md`). Chevron cash is unchanged.
+- **2026-11-14 · also updated:** METHODOLOGY.md's tag-priority example (now Walmart, American Tower and
+  the Chevron caveat) and three parse tests that encoded the old order. **Not done:** `peers.json` still
+  holds last year's revenue under the old order until `scripts/build_peers.py` is run again (about once
+  a year, as before); companies already saved in a local database keep the old revenue until they're
+  reloaded (Refresh, or the 7-day refresh); the hosted app starts empty after a restart, so it's
+  unaffected. 295 tests pass.
