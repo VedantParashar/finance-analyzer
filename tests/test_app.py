@@ -354,8 +354,12 @@ def test_compare_shows_table_and_chart_for_each_company():
     assert [s.value for s in app.subheader] == ["Latest fiscal year", "Over time"]
     table = app.dataframe[0].value
     assert list(table.columns) == ["Metric", "AAPL FY2026 (Sep 26)", "JPM FY2026 (Sep 26)"]
-    assert list(table["Metric"])[-5:] == ["Market cap", "P/E", "P/B", "EV / EBIT", "FCF yield"]
+    assert list(table["Metric"])[-9:] == [
+        "Altman Z″", "Piotroski F", "Beneish M", "Accruals ratio", "Market cap", "P/E", "P/B", "EV / EBIT", "FCF yield",
+    ]
     assert table.iloc[-4, 1] == "27.99×"
+    flags = table.set_index("Metric").loc[["Altman Z″", "Piotroski F", "Beneish M", "Accruals ratio"]]
+    assert list(flags.iloc[:, 0]) == ["—", "—", "—", "-3.4% · No flag"]  # the test data lacks the other inputs
     assert len(app.warning) == 1  # JPM's bank banner
     assert not app.info  # same year-ends, so no note
     app = app.selectbox[0].select("free_cash_flow").run()

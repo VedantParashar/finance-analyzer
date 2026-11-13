@@ -1,5 +1,38 @@
 # Autopilot log
 
+## Summary of session 6 (2026-11-13)
+
+**Built:** 5 of 6 queue tasks, each on its own branch and pull request, stacked in this order; task 1
+was skipped as the queue allowed. Nothing is merged.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | (#49) | — | pre-load opt-in: **skipped**, no sign of memory trouble (logged in #49) |
+| 2 | #49 | `coverage-rerun` | `docs/COVERAGE.md` rerun with red-flag availability and the five new line items |
+| 3 | #50 | `learning-notes` | 18 suggested terms added to `LEARNING.md`, no existing text changed |
+| 4 | #51 | `release-notes-1.2.0` | CHANGELOG 1.2.0 for session 5; version 1.2.0; `uv lock` |
+| 5 | #52 | `tygo-revenue-scale` | revenue tagged 1,000× too large by a second tag: the smaller is used and labelled |
+| 6 | #53 | `red-flags-compare-excel` | red-flag scores on the compare page and in the Excel export |
+
+277 tests pass locally (271 before).
+
+**Worth your attention:**
+1. **The live app asks for a login.** https://datadough.streamlit.app redirects to a Streamlit login
+   page, so visitors following the README can't use it. If that isn't intended, check the app's
+   sharing settings at share.streamlit.io. It's also why I couldn't check the live app's memory
+   (task 1): locally, the full pre-load adds about 25 MB at its peak (201 MB against 176 MB).
+2. **Excel: Piotroski F and Beneish M are values, not formulas** (task 6), with every input in the
+   cell comment. Altman Z″ and the accruals ratio are live formulas.
+3. **1.2.0 is dated 2026-11-13 and covers session 5 only** (task 4); this session's changes would go in
+   the next version. No git tag.
+4. **The scale-slip rule covers revenue only** (task 5), as asked; only Tigo Energy changed among 41
+   companies checked row by row.
+5. **Coverage:** nothing that was measured before changed. Red-flag scores are available for 18–20 of
+   29 companies (accruals ratio for all 29); every gap comes from a missing line item, mostly known
+   issues #29, #31, #33 and #1.
+
+---
+
 ## Summary of session 5 (2026-11-12)
 
 **Built:** all 6 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
@@ -1102,3 +1135,23 @@ Same rules and format as session 2.
   Every parsed row for the other 40 companies is unchanged (15,032 rows compared).
 - **2026-11-13 · checked:** 275 tests pass (271 before), including a ratio that is 2× or 500× (left
   alone: goods-only revenue beside total revenue is normal).
+
+## S6 Task 6 — Red-flag scores on the compare page and in the Excel export
+
+- **2026-11-13 · compare page:** four rows, Altman Z″, Piotroski F, Beneish M and accruals ratio, sit
+  between the ratios and the five valuation rows, each with its verdict ("3.20 · Safe zone",
+  "-1.15 · ⚠ Flag"), the same short form as the company page's red-flag table. A missing score reads "—"
+  and its reason is listed under "Why some values are missing". The caption under the table says which
+  rows are which. **Not added:** the scores to the "Over time" chart (not asked).
+- **2026-11-13 · Excel export, decision on "formulas only where simple":**
+  - **Altman Z″ and the accruals ratio are live formulas** over the line-items sheet, like the other
+    metrics: each is one sum of ratios with no conditions.
+  - **Piotroski F and Beneish M are values**, with every input in the cell's comment: the nine tests
+    with pass or fail, and the eight indexes with the line items behind them. As formulas they would be
+    nine IF() tests and eight nested ratios each, too long to read or trust.
+  - A year the engine can't score reads "n/a" with the reason as a comment, as for every metric.
+- **2026-11-13 · checked:** the workbook's red-flag cells for AAPL, NVDA, SAP, WMT and JPM (352 cells
+  over every stored year) equal the engine's values: formulas evaluated in Python agree exactly, and
+  the stored values differ only in the 16th digit (Excel keeps 15). The Apple and Coca-Cola hand
+  calculations from `tests/test_red_flags.py` are now also tested through the workbook. Compare page
+  checked in a real browser (AAPL, KO, NVDA), no errors. 277 tests pass (275 before).
