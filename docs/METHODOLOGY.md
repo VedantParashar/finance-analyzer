@@ -112,6 +112,10 @@ shown with its date.
   revenue tagged twice at a 1,000× difference (Tigo Energy), and diluted share counts filed in thousands,
   caught because net income ÷ EPS must give the share count (NVIDIA FY2008–09, Advance Auto Parts FY2008,
   Crocs FY2012). Other items aren't checked for this.
+- A "total revenues" tag that also holds income that isn't revenue. Chevron tags its "Total Revenues and
+  Other Income" ($189,031M in FY2025) as total revenues, so its revenue includes $3,000M of income from
+  equity affiliates and $1,599M of other income on top of $184,432M of sales
+  ([#75](https://github.com/VedantParashar/finance-analyzer/issues/75)).
 - A company that uses a tag nobody else uses for a common line. Those show as "not reported" and are
   listed in [COVERAGE.md](COVERAGE.md).
 - How the app's figures compare with the filings themselves is measured in [ACCURACY.md](ACCURACY.md).

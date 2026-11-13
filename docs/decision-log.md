@@ -1671,3 +1671,14 @@ Same rules and format as session 2.
   had no changelog entry. CHANGELOG 1.3.0 now carries its date (2026-11-13, the release date) instead of
   "unreleased", and **1.4.0 (unreleased) covers sessions 8 and 9**. **Rejected:** a separate entry for
   session 8 (there's no release between them).
+
+## S10 Task 1 — Chevron's revenue: a known limit (#75)
+
+- **2026-11-14 · issue #75 filed** with the FY2025 lines from Chevron's 10-K: sales and other operating
+  revenues $184,432M, income from equity affiliates $3,000M, other income $1,599M, "Total Revenues and
+  Other Income" $189,031M (the figure the app now shows). Every number was re-read from the filing's
+  statement page before filing; the $1,599M first came from subtraction and was confirmed as its own
+  line. The issue describes the narrow fix but nothing was changed in code, as asked.
+- **2026-11-14 · docs:** METHODOLOGY.md lists it under "what these rules can't catch". ACCURACY.md is
+  written by `scripts/accuracy.py`, so the note went into the Chevron fixture (where the script picks it
+  up) rather than into the report by hand, which the next run would overwrite. Rerun: still 93 of 95.

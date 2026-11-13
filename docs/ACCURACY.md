@@ -33,7 +33,7 @@ the filing prints it (millions; EPS to the cent), is the same number.
 - KO Total liabilities: no total liabilities line on the balance sheet; the app calculates 70,541 (not counted).
 - WMT Total liabilities: no total liabilities line on the balance sheet; the app calculates 178,488 (not counted).
 - PFE Operating income: no operating income line (the app calculates EBIT); the app calculates 10,191 (not counted).
-- **CVX Revenue:** filing 184,432 (“Sales and other operating revenues (total revenues and other income: 189,031)”), app 189,031.00. Since total revenues come first (S9), the app uses Chevron's Revenues tag, which the statement labels "Total Revenues and Other Income": it adds income from equity affiliates and other income to sales.
+- **CVX Revenue:** filing 184,432 (“Sales and other operating revenues (total revenues and other income: 189,031)”), app 189,031.00. Known limit ([#75](https://github.com/VedantParashar/finance-analyzer/issues/75)): the app prefers total revenues, and Chevron's Revenues tag is its "Total Revenues and Other Income", which adds income from equity affiliates ($3,000M) and other income ($1,599M) to sales.
 - CVX Operating income: no operating income line (the app calculates EBIT); the app calculates 20,960 (not counted).
 - **CVX Cash:** filing 6,293 (“Cash and cash equivalents”), app 7,285.00. Chevron's FY2025 data has no plain cash tag, so the app uses cash including restricted cash, labelled "includes restricted cash" (METHODOLOGY.md, derived items).
 
