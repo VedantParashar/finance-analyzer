@@ -1439,3 +1439,28 @@ Same rules and format as session 2.
   1,000× too small (about 24M and 22M after the ×40 split adjustment, against about 22,000M from FY2010);
   the raw values look filed in thousands. EPS is unaffected. Creating a GitHub issue for it was blocked by
   the permission check (not asked for), so it's listed in the summary for you to file.
+
+## S8 Task 3 — Accuracy check against the filings
+
+- **2026-11-14 · decision (where the expected values come from):** each value was read from the filing's
+  own financial statements, the pages the SEC renders for every filing (`R2.htm`… listed in
+  `FilingSummary.xml`), not from the company-facts data the app uses, so the check doesn't grade the app
+  against its own input. A scratch helper listed every statement line; I picked each value by its
+  label, confirmed the first column is the fiscal year the app stores (it was, for all 10; TSMC's second
+  column is a US dollar translation), and recorded the label and the filing link in
+  `scripts/accuracy_fixtures.json`. Every value is marked "from filing, to be checked by owner".
+- **2026-11-14 · decision (what isn't a value):** where the statements print no such line (total
+  liabilities at Amazon, Coca-Cola and Walmart; operating income at Pfizer and Chevron) the fixture is
+  null, "not presented in the filing", and it's left out of the match rate. The report still shows what
+  the app calculates there. TSMC's EPS line appears twice: 44.67 per share is used, 223.37 is per ADS.
+  NVIDIA's capex line includes intangible assets.
+- **2026-11-14 · result: 93 of 95 match** (10 companies × 10 figures, 5 not presented). A match means
+  the app's value rounded the way the filing prints it is the same number. The two differences:
+  - **Walmart revenue:** app $706,413M (net sales) against total revenues $713,163M. The revenue tag
+    priority puts "revenue from contracts with customers" first, which at Walmart excludes $6,750M of
+    membership and other income. **Owner should decide** whether total revenues should win when both
+    are tagged; not changed here.
+  - **Chevron cash:** app $7,285M against $6,293M. Chevron's FY2025 data has no plain cash tag, so the
+    labelled fallback (cash including restricted cash) is used.
+- **2026-11-14 · checked:** `matches()` has assert-based self-checks in the script (rounding, decimals,
+  EPS). The script isn't run by the tests (it needs the network), like `coverage.py`.
