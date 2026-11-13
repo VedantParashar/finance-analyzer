@@ -6,12 +6,13 @@ Run from the project folder: uv run --env-file .env finance-analyzer
 import os
 import threading
 from datetime import timedelta
+from pathlib import Path
 
 import httpx
 import plotly.graph_objects as go
 import streamlit as st
 
-from finance_analyzer import display, edgar, export, parse, peers, preload, prices, store
+from finance_analyzer import charts, display, edgar, export, parse, peers, preload, prices, store
 from finance_analyzer.metrics import FORMULA_TEXT, MIN_FOR_MEDIAN, Metric, company_metrics, industry_medians, price_metrics
 
 YEARS_SHOWN = 5
@@ -29,6 +30,7 @@ def use_secret_user_agent() -> None:
         os.environ["SEC_USER_AGENT"] = user_agent  # edgar.py reads it from here and stays free of Streamlit
 EXAMPLES = ["AAPL", "MSFT", "NVDA", "KO", "WMT", "TSLA"]
 COMPARE_EXAMPLES = [["AAPL", "MSFT", "NVDA"], ["KO", "PEP"], ["WMT", "COST", "TGT"]]
+STYLE = Path(__file__).with_name("style.css").read_text()
 QUOTE_MINUTES = 15  # how long a share price is reused before asking Yahoo Finance again
 
 
@@ -267,9 +269,7 @@ def trend_chart(title: str, labels: list[str], series: dict[str, list], kind: st
     """Bars or lines over the years; None values show as gaps, never as zero."""
     trace = go.Bar if kind == "bar" else go.Scatter
     figure = go.Figure([trace(name=name, x=labels, y=values) for name, values in series.items()])
-    figure.update_layout(title=title, height=320, margin={"t": 40, "b": 20}, legend={"orientation": "h"})
-    figure.update_yaxes(tickformat=tickformat)
-    return figure
+    return charts.style(figure, tickformat, title)
 
 
 def company_page() -> None:
@@ -623,10 +623,10 @@ def compare_page() -> None:
         figure.add_scatter(
             name=ticker, x=years, y=[None if v is None else v / scale for v in values], mode="lines+markers"
         )
+    charts.style(figure, ".2f" if name in display.MULTIPLES else ",.0f" if name in display.DOLLARS else ".0%")
     # Real year-end dates on the x-axis, so different fiscal calendars line up honestly.
-    figure.update_layout(height=380, margin={"t": 20}, xaxis_title="Fiscal year end", legend={"orientation": "h"})
+    figure.update_layout(height=380, xaxis_title="Fiscal year end")
     figure.update_yaxes(
-        tickformat=".2f" if name in display.MULTIPLES else ",.0f" if name in display.DOLLARS else ".0%",
         title=(
             None if name not in display.DOLLARS
             else "millions, each in its own currency" if mixed
@@ -645,7 +645,8 @@ def start_preload() -> threading.Thread:
 
 
 def run(preload_companies: bool = False) -> None:
-    st.set_page_config(page_title="Finance Analyzer", layout="wide")
+    st.set_page_config(page_title="Datadough", page_icon=":material/query_stats:", layout="wide")
+    st.html(f"<style>{STYLE}</style>")  # the few rules config.toml can't express, see DESIGN.md
     use_secret_user_agent()
     if preload_companies:
         start_preload()

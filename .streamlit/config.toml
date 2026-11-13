@@ -1,3 +1,44 @@
 [browser]
 # Streamlit sends anonymous usage statistics by default; this app keeps everything local.
 gatherUsageStats = false
+
+# The look is described in DESIGN.md. Shared by both themes:
+[theme]
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+baseFontSize = 15
+baseRadius = "8px"
+buttonRadius = "8px"
+metricValueFontSize = "1.6rem"
+metricValueFontWeight = 600
+headingFontWeights = [700, 600, 600, 600, 600, 600]
+headingFontSizes = ["2rem", "1.25rem", "1.05rem"]
+showWidgetBorder = true
+chartCategoricalColors = ["#2563EB", "#F59E0B", "#8B5CF6", "#06B6D4"]
+
+[theme.light]
+primaryColor = "#2563EB"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F6FA"
+textColor = "#0F172A"
+borderColor = "#E2E8F0"
+dataframeBorderColor = "#E2E8F0"
+dataframeHeaderBackgroundColor = "#F4F6FA"
+linkColor = "#2563EB"
+greenColor = "#15803D"
+redColor = "#DC2626"
+blueColor = "#2563EB"
+grayColor = "#64748B"
+
+[theme.dark]
+primaryColor = "#3B82F6"
+backgroundColor = "#0B1220"
+secondaryBackgroundColor = "#121B2E"
+textColor = "#E2E8F0"
+borderColor = "#1F2A40"
+dataframeBorderColor = "#1F2A40"
+dataframeHeaderBackgroundColor = "#121B2E"
+linkColor = "#60A5FA"
+greenColor = "#22C55E"
+redColor = "#F87171"
+blueColor = "#3B82F6"
+grayColor = "#94A3B8"

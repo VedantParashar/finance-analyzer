@@ -1,0 +1,37 @@
+/* Only what config.toml can't do. See DESIGN.md. Streamlit exposes no theme colours to CSS, so every colour
+   here is translucent and reads on the light and the dark background alike. */
+
+/* Content width: wide layout, but capped so lines and tables stay readable on large screens. */
+.block-container { max-width: 1280px; padding-top: 2rem; }
+
+/* Columns of digits line up. */
+[data-testid="stMetricValue"], [data-testid="stMetricDelta"], [data-testid="stDataFrame"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Metric cards: muted label, a little more room inside. */
+[data-testid="stMetricLabel"] p { font-size: 0.8rem; font-weight: 500; opacity: 0.75; }
+[data-testid="stMetric"] { padding: 4px 2px; }
+
+/* Captions a touch smaller and muted. */
+[data-testid="stCaptionContainer"] { font-size: 0.8rem; }
+
+/* The company header stays at the top while the page scrolls. */
+.st-key-company-header {
+  position: sticky; top: 3.75rem; z-index: 50;
+  /* frosted: the page scrolling underneath blurs away, in either theme */
+  background: rgba(127,127,127,0.06); backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  padding: 8px 12px 4px; border-radius: 8px; border-bottom: 1px solid rgba(100,116,139,0.25);
+}
+
+/* Landing page hero. */
+.st-key-hero { padding: 48px 0 24px; text-align: center; }
+.st-key-hero h1 { font-size: 2.6rem; letter-spacing: -0.02em; }
+
+@media (max-width: 640px) {
+  .block-container { padding-left: 16px; padding-right: 16px; }
+  .st-key-hero { padding-top: 16px; }
+  .st-key-hero h1 { font-size: 1.9rem; }
+  .st-key-company-header { position: static; }
+}
