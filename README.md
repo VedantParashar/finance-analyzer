@@ -14,9 +14,14 @@ Built for finance and business students doing case studies, stock pitches and th
 
 ## Screenshots
 
-| Company page | Compare page |
+![Home page: search any company or ticker](docs/screenshots/landing.png)
+
+| Company page (Apple, light theme) | Compare page (Apple, Coca-Cola, NVIDIA, dark theme) |
 |---|---|
 | ![Company page](docs/screenshots/company.png) | ![Compare page](docs/screenshots/compare.png) |
+
+The app follows your system's light or dark setting; switch it in the ⋮ menu → Settings. The look is
+described in [DESIGN.md](DESIGN.md).
 
 ## Use it online
 
