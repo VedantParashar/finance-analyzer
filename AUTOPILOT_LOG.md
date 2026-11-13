@@ -1325,3 +1325,28 @@ Same rules and format as session 2.
   those years under any tag we read. JPM stays "unavailable", as before.
 - **2026-11-13 · learning text:** one sentence added to operating margin's traps about the EBIT
   fallback. 286 tests pass (3 new).
+
+## S7 Task 9 — FFO for REITs (#31)
+
+- **2026-11-13 · decision:** FFO = net income + depreciation and amortization − gains on sale of real
+  estate, in its own `REIT_FORMULAS` (like the red-flag scores), shown only for SIC 6798: a "Real estate
+  (REIT)" group on the Ratios tab with a card (delta, sparkline, popover) and an FFO row in the Excel
+  export (live formula). Not on the compare page, not benchmarked (an amount). **Scope:** FFO wasn't in
+  SPEC.md's v1 metrics; SPEC.md now lists it, as earlier sessions did for their additions.
+- **2026-11-13 · decision (data):** no REIT tags real-estate depreciation on its own, so all tagged
+  depreciation and amortization is added back (a `shortcut:` comment in `metrics.py`). Gains: a new line
+  item `gain_on_sale_of_real_estate` (`GainsLossesOnSalesOfInvestmentRealEstate`,
+  `GainLossOnSaleOfProperties`, `GainLossOnSaleOfRealEstateInvestmentProperty`; IFRS
+  `GainsLossesOnDisposalsOfInvestmentProperties`). It joins the engine's "zero if never reported" list:
+  a REIT that never tags gains gets 0 with a visible note; one that tags them in other years but not this
+  one gets "unavailable" for that year.
+- **2026-11-13 · checked (latest year):** O $3,405M, AMT $4,670M, SPG $6,791M, PSA $2,935M, EQIX
+  $3,400M; PLD and WELL unavailable (gains tagged in earlier years, not FY2025). **Owner should
+  review:** SPG looks high because its net income holds one-off gains not tagged as property sales;
+  impairments aren't added back either. Both are in the learning text's traps, which tell students to
+  compare with the company's own FFO. Not done: FFO per share, P/FFO, AFFO, the REIT banner and the
+  capex tags from #31, so #31 stays open.
+- **2026-11-13 · also fixed (found on Realty Income's page):** percentage axes showed "3%, 3%, 2%" on a
+  narrow range; ticks now use ".1~%" (40%, 2.5%). Belongs with task 1's chart style; it rides here.
+- **2026-11-13 · process:** `gh pr create` hung for over ten minutes on task 8; stopped and rerun (PR
+  #61). 287 tests pass (1 new for FFO; the export test now checks FFO's formula too).

@@ -3,7 +3,7 @@ from datetime import date, datetime
 import pytest
 
 from finance_analyzer.metrics import (
-    FORMULA_TEXT, FORMULAS, PRICE_FORMULAS, RED_FLAG_FORMULAS, company_metrics, price_metrics,
+    FORMULA_TEXT, FORMULAS, PRICE_FORMULAS, RED_FLAG_FORMULAS, REIT_FORMULAS, company_metrics, price_metrics,
 )
 from finance_analyzer.store import StoredLineItem
 
@@ -177,11 +177,11 @@ def test_unusual_tax_rate_still_calculates_roic_with_a_note(income_tax, expected
 
 def test_every_year_gets_every_metric():
     metrics = company_metrics(rows_from(KO))
-    assert all(len(year) == 19 + 4 for year in metrics.values())  # the ratios, then the red-flag scores
+    assert all(len(year) == 19 + 4 + 1 for year in metrics.values())  # the ratios, red-flag scores, FFO
 
 
 def test_every_formula_has_text():
-    assert FORMULA_TEXT.keys() == FORMULAS.keys() | RED_FLAG_FORMULAS.keys() | PRICE_FORMULAS.keys()
+    assert FORMULA_TEXT.keys() == FORMULAS.keys() | RED_FLAG_FORMULAS.keys() | PRICE_FORMULAS.keys() | REIT_FORMULAS.keys()
 
 
 def test_price_metrics_use_market_cap_and_the_latest_fiscal_year():
@@ -250,3 +250,19 @@ def test_industry_medians_need_three_companies_and_skip_amounts():
     # ROE: middle of 0.10, 0.20, 0.30, 0.50 = 0.25, from 4 companies. Net margin has only 2 values: left out.
     assert medians == {"roe": (0.25, 4)}
     assert industry_medians([company(0.1), company(0.2)]) == {}
+
+
+def test_ffo_adds_back_depreciation_and_takes_out_property_sale_gains():
+    # Realty Income's FY2025 shape, in $M: net income 1,000, depreciation 2,524, gains 178.
+    years = {
+        date(2024, 12, 31): {"net_income": 900, "depreciation_amortization": 2300},  # no gain tagged this year
+        date(2025, 12, 31): {"net_income": 1000, "depreciation_amortization": 2524, "gain_on_sale_of_real_estate": 178},
+    }
+    metrics = company_metrics(rows_from(years))
+    latest, earlier = metrics[date(2025, 12, 31)]["ffo"], metrics[date(2024, 12, 31)]["ffo"]
+    assert latest.value == pytest.approx(3346 * M)
+    # The REIT tags gains in some years, so a year without one can't be assumed to have none.
+    assert earlier.value is None and earlier.reason == "gain_on_sale_of_real_estate not reported for FY2024"
+    never = company_metrics(rows_from({date(2025, 12, 31): {"net_income": 1000, "depreciation_amortization": 2524}}))
+    ffo = never[date(2025, 12, 31)]["ffo"]
+    assert ffo.value == pytest.approx(3524 * M) and "gain_on_sale_of_real_estate assumed 0 (never reported)" in ffo.notes

@@ -29,6 +29,7 @@ Finance and business students doing case studies, stock pitches and theses.
 - Growth: revenue growth, EPS growth
 - DuPont breakdown of ROE
 - Red-flag scores, per year: Altman Z″, Piotroski F, Beneish M, accruals ratio
+- Real estate investment trusts (SIC 6798) only: funds from operations (FFO) = net income + depreciation and amortization − gains on sale of real estate
 
 **Learning layer** (for every metric)
 - The formula, filled in with the company's real numbers

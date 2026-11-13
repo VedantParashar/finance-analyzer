@@ -31,7 +31,8 @@ def style(figure: go.Figure, tickformat: str = "", title: str | None = None) -> 
         figure.update_layout(title_text=title)
     figure.update_xaxes(showgrid=False, tickfont_color=MUTED, title_font_color=MUTED)
     figure.update_yaxes(
-        gridcolor=GRID, zeroline=False, tickformat=tickformat, hoverformat=".1%" if tickformat.endswith("%") else tickformat,  # axis 20%, hover 24.3%
+        # ".1~%": one decimal only where needed (40%, 2.5%), so a narrow range never repeats a label.
+        gridcolor=GRID, zeroline=False, tickformat=".1~%" if tickformat.endswith("%") else tickformat, hoverformat=".1%" if tickformat.endswith("%") else tickformat,  # axis 20%, hover 24.3%
         tickfont_color=MUTED, title_font_color=MUTED,
     )
     return figure
