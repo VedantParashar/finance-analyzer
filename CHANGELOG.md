@@ -2,6 +2,48 @@
 
 What each version added, newest first. Dates are year-month-day.
 
+## 1.3.0 — unreleased
+
+A redesign that makes the app look like a financial research site, operating income for companies
+that don't report it, and FFO for REITs.
+
+### Added
+- **A design system** (`DESIGN.md`): a light and a dark theme (deep navy, one blue accent, green and red
+  only for up and down), the Inter font, one chart style for every chart, and rules for cards, tables,
+  tabs and loading, empty and error states. The app follows the visitor's system setting; the ⋮ menu
+  switches it.
+- **A home page** with a big search box, example tickers, three tiles (Analyse, Compare, Learn) and a
+  footer naming the data sources and saying it's not investment advice. Navigation moved to the top.
+- **Company page in tabs:** Overview · Financials · Ratios · Red flags · Valuation · Data checks, under a
+  header that stays on screen with the exchange, industry, today's share price and change, and the
+  Refresh, Excel and Share buttons. The Overview has four headline cards, the revenue and profit chart
+  and key ratios next to the industry median.
+- **Metric cards** with a sparkline of the years shown and a "How it's calculated" popover holding the
+  formula, the learning text and any notes (the expanders are gone).
+- **Financial tables** with the first column pinned, figures right-aligned in millions with the unit in
+  the header, and negative numbers in red and in parentheses.
+- **Compare page:** each company keeps one colour in its chip, its table column and its chart line; the
+  best and worst value in each row are marked; the chart is picked by group and metric.
+- **Operating income where none is reported** (#29): revenue − cost of revenue − operating expenses
+  where tagged, otherwise EBIT (pretax income + interest expense), always marked as calculated and never
+  used for banks, brokers or insurers. Chevron, Occidental, Pfizer, Lilly, Shell and Canadian Natural now
+  have operating margin, ROIC, interest coverage, EV/EBIT and Altman Z″.
+- **FFO (funds from operations) for REITs** (SIC 6798), with learning text and a live Excel formula, and
+  a new line item for gains on sale of real estate.
+- Browser tabs name the company or comparison; loading messages name the company.
+
+### Changed
+- Amounts in tables are now plain millions (`478,834`) with the unit in the header; cards still read
+  `$478,834M`.
+- The "SEC data loaded…" note moved to the Data checks tab.
+
+### Known limits
+- FFO adds back all depreciation and amortization (no REIT tags the real-estate part alone) and
+  doesn't add back impairments, so it can differ from a REIT's own FFO. Realty Income still has no
+  operating income for FY2024–25 (no interest expense tagged).
+- The rest of #31 (REIT banner, property purchases as capital expenditure) is still open.
+- On a phone the header's price and buttons sit right-aligned under the name.
+
 ## 1.2.0 — 2026-11-13
 
 Red-flag scores, peers, the trailing twelve months, industry benchmarks and shareable links.
