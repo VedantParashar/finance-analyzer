@@ -11,4 +11,5 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from finance_analyzer.app import run  # noqa: E402
 
-run()
+# The hosted disk starts empty after every restart, so fill it with the stress-test companies in the background.
+run(preload_companies=True)

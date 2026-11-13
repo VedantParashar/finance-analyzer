@@ -1,5 +1,40 @@
 # Autopilot log
 
+## Summary of session 5 (2026-11-12)
+
+**Built:** all 6 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
+is merged. `pytest` and `docker` pass on GitHub for all six.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | #43 | `red-flag-scores` | Altman Z″, Piotroski F, Beneish M, accruals ratio, per year, "Red flags" section |
+| 2 | #44 | `peer-suggestions` | 5 peers by SIC code and revenue closeness, one click to compare |
+| 3 | #45 | `quarterly-ttm` | quarters (Q4 = FY − 9M), TTM, Period toggle on the company page |
+| 4 | #46 | `industry-benchmarks` | median per metric across stored companies in the same 2-digit SIC group |
+| 5 | #47 | `shareable-links` | `?ticker=AAPL`, `?compare=AAPL,KO` |
+| 6 | #48 | `preload-stress-companies` | background pre-load of the 30 stress-test companies on the hosted app; timings |
+
+271 tests pass locally (220 before).
+
+**The 5 decisions most worth your review:**
+1. **Altman Z is the Z″ version** (task 1): the classic score needs a share price for every past year.
+   Cut-offs are 2.6 and 1.1 and the numbers won't match finance sites.
+2. **Peers come from a file shipped with the app** (task 2), `peers.json`, rebuilt about once a year
+   with `scripts/build_peers.py`. Revenue in it is a year old by design.
+3. **TTM is fed through the annual rules and not saved in the database** (task 3). Foreign filers have
+   no quarterly data and stay annual. Three real-data bugs were found and fixed on the way (Amazon,
+   Costco, split dating).
+4. **Industry medians need 3 stored companies** (task 4) and the sample is whatever is in the database.
+5. **Pre-load saves about a second, not more** (task 6), measured on my machine only. See S5 task 6.
+
+**Not done (not in the queue):** `CHANGELOG.md` has no entries for this session, and
+`docs/COVERAGE.md` wasn't rerun, so it doesn't list the five line items added in task 1.
+
+`SPEC.md` changed in tasks 1–5: red-flag scores, quarterly data, peers, benchmarks and links were all
+outside the written v1 scope.
+
+---
+
 ## Summary of session 4 (2026-11-12)
 
 **Built:** all 6 queue tasks, each on its own branch and pull request, stacked in this order. Nothing
@@ -959,3 +994,34 @@ Same rules and format as session 2.
   site, where the address bar belongs to Streamlit Cloud's wrapper page; Streamlit documents query
   parameters as working there, but I couldn't confirm it from here.
 - **README and `SPEC.md`:** one line each.
+
+## S5 Task 6 — Pre-load on the hosted app, and first-load time
+
+- **2026-11-12 · what it does:** `streamlit_app.py` (the file Streamlit Cloud runs) now starts a
+  background job, once per server start, that loads every stress-test company not yet in the database
+  and fetches its company info. Pages never wait for it. `uv run finance-analyzer` and Docker don't
+  pre-load. The 30-ticker list moved to `src/finance_analyzer/preload.py`; `scripts/coverage.py` reads
+  it from there.
+- **2026-11-12 · two safety changes it needed:** downloads are written under a temporary name and then
+  renamed, so a page can't read a half-written file; saving a company takes a lock, so a page view and
+  the pre-load can't write the same company at once.
+- **2026-11-12 · measured (my machine, empty data folder, real SEC downloads, one run each):**
+
+  | | no pre-load | pre-loaded |
+  |---|---|---|
+  | MSFT | 2.3 s | 1.6 s |
+  | WMT | 1.9 s | 0.9 s |
+  | PFE | 2.0 s | 1.0 s |
+  | NEE | 2.0 s | 0.9 s |
+  | RIVN | 1.5 s | 1.0 s |
+
+  Time is from pressing Enter to the Data checks section showing. The pre-load itself took 39 s for 29
+  companies (ExxonMobil fails as before, #32) and left 98 MB on disk. KO, not pre-loaded, took 2.0 s on
+  the pre-loaded server.
+- **2026-11-12 · honest reading:** the gain is about one second here, because my connection downloads a
+  company in under a second. What remains after pre-loading is parsing and drawing the page.
+  **Not measured:** the live site, where downloads are likely slower and the gain larger; memory use on
+  Streamlit Cloud's 1 GB limit while 30 files are parsed one after another; a single run per figure, so
+  differences of a few tenths mean nothing.
+- **2026-11-12 · checked:** 271 tests pass, including that the hosted entry point starts the pre-load
+  once and the local one never does.
