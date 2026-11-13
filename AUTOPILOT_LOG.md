@@ -1086,3 +1086,19 @@ Same rules and format as session 2.
   the next version's notes.
 - **2026-11-13 · included as a known limit:** the live app asks for a login (see S6 task 1).
 - **2026-11-13 · checked:** 271 tests pass.
+
+## S6 Task 5 — Revenue tagged twice at the wrong scale (Tigo Energy)
+
+- **2026-11-13 · done:** when another revenue tag gives the same fiscal year exactly 1,000× or
+  1,000,000× smaller than the chosen figure (within 0.1%, for rounding), the parser uses the smaller one
+  and labels the row "revenue was also tagged 1,000× larger; the smaller figure is used". It's the same
+  rule as `scripts/build_peers.py`. Because the trailing-twelve-months view reuses the annual rules, it
+  gets the fix too.
+- **2026-11-13 · decision:** revenue only, as asked. Tigo's other lines (cost of revenue, profit,
+  assets) were already at the right scale. **Not covered:** the "single quarters" expander in the TTM
+  view reads tags directly and would still show the larger figure for an affected company.
+- **2026-11-13 · result:** Tigo Energy's revenue for FY2022–FY2025 drops from $81.3bn–$145.2bn to
+  $81.3M–$145.2M; FY2025 gross margin 42.8% and asset turnover 1.37× (before: revenue 1,300× its assets).
+  Every parsed row for the other 40 companies is unchanged (15,032 rows compared).
+- **2026-11-13 · checked:** 275 tests pass (271 before), including a ratio that is 2× or 500× (left
+  alone: goods-only revenue beside total revenue is normal).

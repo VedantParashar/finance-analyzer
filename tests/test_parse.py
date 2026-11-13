@@ -670,3 +670,24 @@ def test_us_gaap_companies_never_get_bonds_added():
         NoncurrentPortionOfNoncurrentBondsIssued=[instant(YEAR_END, 900, FILED, "A")],
     )
     assert [row.value for row in _line_items(facts) if row.item == "long_term_debt"] == [30]
+
+
+def test_revenue_tagged_twice_a_thousand_times_apart_takes_the_smaller():
+    """Tigo Energy FY2025: $103,536,000 under one revenue tag, $103,536,000,000 under the preferred one."""
+    year = lambda val: fact("2017-10-01", YEAR_END, val, "10-K", FILED, "T")
+    facts = company()
+    facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"] = {"units": {"USD": [year(103_536_000_000)]}}
+    facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [year(103_536_000)]}}
+    row = next(row for row in _line_items(facts) if row.item == "revenue")
+    assert (row.value, row.derivation) == (103_536_000, "revenue was also tagged 1,000× larger; the smaller figure is used")
+
+
+@pytest.mark.parametrize("other", [103_536_000 * 2, 51_768_000_000, 103_536_000_000])
+def test_revenue_tags_that_differ_by_anything_else_are_left_alone(other):
+    """Goods-only revenue beside total revenue is normal; only an exact 1,000× or 1,000,000× is a slip."""
+    year = lambda val: fact("2017-10-01", YEAR_END, val, "10-K", FILED, "T")
+    facts = company()
+    facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"] = {"units": {"USD": [year(103_536_000)]}}
+    facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [year(other)]}}
+    row = next(row for row in _line_items(facts) if row.item == "revenue")
+    assert (row.value, row.derivation) == (103_536_000, "")
