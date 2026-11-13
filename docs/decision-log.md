@@ -4,6 +4,30 @@ Every decision made during the Claude Code sessions that built this app, with th
 alternatives rejected, newest session summary first. (Kept as `AUTOPILOT_LOG.md` in the repo root until
 session 8.)
 
+## Summary of session 10 (2026-11-14)
+
+**Built:** all 3 queue tasks, each on its own branch and pull request, stacked in this order (#76 on
+master). Nothing is merged.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | #76 | `chevron-revenue-note` | issue #75 filed; Chevron's revenue documented as a known limit in METHODOLOGY and ACCURACY; no code change |
+| 2 | #77 | `rebuild-peers` | `peers.json` rebuilt: 281 of 4,239 revenues change; AMT's peers all new, JPM's reordered |
+| 3 | #78 | `version-1.4.0` | CHANGELOG 1.4.0 dated 2026-11-14; version 1.4.0; `uv lock` |
+
+299 tests pass locally (unchanged: no code changed this session).
+
+**Worth your attention:**
+1. **Peers for the six asked for:** AAPL, KO, WMT and NVDA unchanged. JPM: same five banks, Capital One
+   moves from fifth to third (its revenue $8,062M → $53,434M). AMT: all five new (WELL, EQIX, PLD, BSTT,
+   WY instead of NNN, MPT, CUZ, SLG, DEI), because its own revenue went from $936M to $10,645M.
+2. **The rebuild corrected many more companies than the 8 checked last session**, mostly REITs, insurers
+   and banks whose contract-revenue tag was a small part of revenue (Rexford $1M → $1,003M, Oscar Health
+   $29M → $11,701M). Those figures only feed peer ranking; each company's own page reads its filings.
+3. **Release:** no tag or GitHub release was made; create v1.4.0 after merging #76–#78.
+
+---
+
 ## Summary of session 9 (2026-11-14)
 
 **Built:** all 3 queue tasks, each on its own branch and pull request, stacked in this order (#71 on
@@ -1701,3 +1725,11 @@ Same rules and format as session 2.
   - **AMT** NNN, MPT, CUZ, SLG, DEI → **WELL, EQIX, PLD, BSTT, WY**: all five new. American Tower's own
     revenue went from $936M to $10,645M, so its closest REITs by size are now the large ones.
 - **2026-11-14 · checked:** 299 tests pass (the tests use their own small peers list).
+
+## S10 Task 3 — Version 1.4.0
+
+- **2026-11-14 · changelog:** 1.4.0 dated 2026-11-14. Added this session's two items (rebuilt peers in
+  "Changed"; Chevron's revenue in "Known limits", now with the $4,599M and #75). Removed the known limit
+  "peers.json keeps the old revenue order", which task 2 fixed.
+- **2026-11-14 · version:** `pyproject.toml` 1.3.0 → 1.4.0 and `uv lock` (one line each). **Not done (not
+  asked):** no git tag and no GitHub release; create release v1.4.0 after merging, as for v1.3.0.
