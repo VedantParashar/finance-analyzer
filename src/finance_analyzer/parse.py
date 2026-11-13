@@ -435,8 +435,30 @@ def _line_items(facts: dict, financial: bool = False) -> list[LineItemRow]:
     ]
     rows += _derived_liabilities(facts)
     rows += _derived_operating_income(facts, rows, financial)
+    rows = _shares_filed_in_thousands(rows)
     order = list(ITEMS)
     return sorted(rows, key=lambda row: (order.index(row.item), row.fiscal_year_end))
+
+
+def _shares_filed_in_thousands(rows: list[LineItemRow]) -> list[LineItemRow]:
+    """Diluted share counts filed as thousands of shares, multiplied back (#72; NVIDIA FY2008–09).
+
+    EPS = net income ÷ diluted shares, so the same year's net income and EPS say what the count must be.
+    A count is multiplied by 1,000 only when it doesn't reproduce the filed EPS and 1,000 times it does.
+    """
+    by_key = {(row.item, row.fiscal_year_end): row for row in rows}
+    fixed = []
+    for row in rows:
+        income, eps = by_key.get(("net_income", row.fiscal_year_end)), by_key.get(("diluted_eps", row.fiscal_year_end))
+        if row.item == "diluted_shares" and income and eps and eps.value and row.value > 0:
+            # EPS is rounded to the cent; 2% more covers the usual gap between net income and income to shareholders.
+            tolerance = max(0.006, 0.02 * abs(eps.value))
+            fits = lambda count: abs(income.value / count - eps.value) <= tolerance
+            if not fits(row.value) and fits(row.value * 1000):
+                note = "filed in thousands of shares, ×1,000 (net income ÷ diluted EPS gives that count)"
+                row = row._replace(value=row.value * 1000, derivation=f"{row.derivation}; {note}" if row.derivation else note)
+        fixed.append(row)
+    return fixed
 
 
 def _derived_operating_income(facts: dict, rows: list[LineItemRow], financial: bool) -> list[LineItemRow]:

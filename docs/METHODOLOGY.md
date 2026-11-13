@@ -108,9 +108,10 @@ shown with its date.
 
 ## What these rules can't catch
 
-- A value tagged with the wrong scale (thousands instead of units) where no second tag gives the right
-  one. One known case: revenue tagged twice at a 1,000× difference is caught (Tigo Energy); other items
-  aren't checked for this.
+- A value tagged with the wrong scale (thousands instead of units), except in two checked cases:
+  revenue tagged twice at a 1,000× difference (Tigo Energy), and diluted share counts filed in thousands,
+  caught because net income ÷ EPS must give the share count (NVIDIA FY2008–09, Advance Auto Parts FY2008,
+  Crocs FY2012). Other items aren't checked for this.
 - A company that uses a tag nobody else uses for a common line. Those show as "not reported" and are
   listed in [COVERAGE.md](COVERAGE.md).
 - How the app's figures compare with the filings themselves is measured in [ACCURACY.md](ACCURACY.md).

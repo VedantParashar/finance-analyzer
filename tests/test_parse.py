@@ -729,3 +729,21 @@ def test_ebit_used_when_no_cost_totals_are_tagged_but_never_for_financial_compan
 def test_filings_map_each_accession_number_to_its_form_and_date():
     facts = company(Assets=[instant(YEAR_END, 500, FILED, "A-1")])
     assert parse.filings(facts) == {"A-1": ("10-K", FILED), "R": ("10-K", "2018-11-05")}
+
+
+@pytest.mark.parametrize(
+    "income, eps, shares, expected",
+    [
+        (797_645_000, 1.31, 606_732, 606_732_000),  # NVIDIA FY2008, filed in thousands (#72)
+        (-30_041_000, -0.05, 548_126, 548_126_000),  # NVIDIA FY2009: a loss, EPS rounded to the cent
+        (797_645_000, 1.31, 606_732_000, 606_732_000),  # filed in units: left alone
+        (797_645_000, 1.31, 300_000_000, 300_000_000),  # doesn't fit either way: left alone, not guessed
+    ],
+)
+def test_share_counts_filed_in_thousands_are_multiplied_back(income, eps, shares, expected):
+    facts = company(NetIncomeLoss=[fact("2017-10-01", YEAR_END, income, "10-K", FILED, "A")])
+    for tag, unit, value in (("EarningsPerShareDiluted", "USD/shares", eps),
+                             ("WeightedAverageNumberOfDilutedSharesOutstanding", "shares", shares)):
+        facts["facts"]["us-gaap"][tag] = {"units": {unit: [fact("2017-10-01", YEAR_END, value, "10-K", FILED, "A")]}}
+    row = next(row for row in _line_items(facts) if row.item == "diluted_shares")
+    assert row.value == expected and ("filed in thousands" in row.derivation) == (expected != shares)
