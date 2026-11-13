@@ -1025,3 +1025,38 @@ Same rules and format as session 2.
   differences of a few tenths mean nothing.
 - **2026-11-12 · checked:** 271 tests pass, including that the hosted entry point starts the pre-load
   once and the local one never does.
+
+## S6 Task 1 — Pre-load opt-in: skipped
+
+- **2026-11-13 · skipped, as the queue allowed:** there is no sign of memory problems from the
+  pre-load. **Evidence:**
+  1. I couldn't look at the live app: https://datadough.streamlit.app now redirects to a Streamlit
+     login page, so it is set to private (or viewer-only) and its logs need your account.
+  2. Locally, on an empty data folder, a full pre-load of the 30 companies peaked at **201 MB**, against
+     **176 MB** for just starting the app: the pre-load adds about 25 MB, because it loads one company
+     at a time and keeps nothing in memory afterwards.
+  3. Streamlit's documentation gives Community Cloud apps 690 MB to 2.7 GB of memory ("as of February
+     2024"; https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app). An app over
+     its limit shows "Oh no."
+- **2026-11-13 · seen during the measurement:** PLOW failed once with a read timeout from the SEC (the
+  30-second limit) and was simply skipped, as designed; the next view of PLOW downloads it again.
+- **If you do see "Oh no." or "gone over its resource limits"** on the live app: tell me, and the opt-in
+  switch is a two-line change in `streamlit_app.py`.
+- **Worth knowing:** if the private setting wasn't intended, anyone following the README's "Try it"
+  button currently lands on a login page. Share settings are under ⋮ → Settings → Sharing at
+  share.streamlit.io.
+
+## S6 Task 2 — Coverage rerun
+
+- **2026-11-13 · done:** `scripts/coverage.py` rerun on live SEC data; `docs/COVERAGE.md` regenerated.
+  The script now also records the four red-flag scores for each company's latest year: a "Red flags"
+  count column, a "Red flags unavailable" column with the reason for each missing score, and a summary
+  line. The five line items added in session 5 appear in the missing / partly missing columns like the
+  others.
+- **2026-11-13 · result:** unchanged from 2026-11-12 for everything that was there before (29 of 30
+  load, 8 with all 19 metrics, 20 of 29 balance; every company's metric count, years and balance
+  failures are identical). Red flags: Altman Z″ 20 of 29, Piotroski F 19, Beneish M 18, accruals ratio
+  29. A new hand-written section explains the gaps: every one comes from a missing line item, mostly
+  the known issues #29, #31, #33 and #1. **Not filed:** three one-company gaps (NVO property, SONY
+  receivables, BABA retained earnings).
+- **2026-11-13 · checked:** 271 tests pass; the script isn't part of them (it needs the network).

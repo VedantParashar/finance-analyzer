@@ -9,11 +9,11 @@ from datetime import date
 from pathlib import Path
 
 from finance_analyzer import display, edgar, parse, store
-from finance_analyzer.metrics import FORMULAS, company_metrics
+from finance_analyzer.metrics import FORMULAS, RED_FLAG_FORMULAS, company_metrics
 from finance_analyzer.preload import GROUPS
 from finance_analyzer.schema import ITEMS
 
-# Written by hand after the 2026-11-12 run; update it when the tables below change.
+# Written by hand after the 2026-11-12 run, red flags after the 2026-11-13 run; update it when the tables change.
 FINDINGS = """## What the gaps have in common
 
 | Pattern | Companies | Effect | Status |
@@ -34,6 +34,24 @@ Fixed during this run (all were missing before it):
 - **Cash** (TGT, CVX, PLOW): where plain cash isn't tagged, the total including restricted cash is used and labelled.
 - **Shareholders' equity** (NVO, CNQ, RIVN): where only total equity is tagged, it is total equity less any minority interest, labelled as calculated.
 - **Interest expense** (OXY) and **capital expenditure** (LLY): one extra fallback tag each.
+
+## Red-flag scores: why some are unavailable
+
+Every gap comes from a line item a score needs; none is a fault in a score's formula.
+
+| Missing input | Companies | Scores affected | Status |
+|---|---|---|---|
+| Operating income (no subtotal) | CVX, OXY, PFE, LLY, SHEL, CNQ | Altman Z″ | [#29](https://github.com/VedantParashar/finance-analyzer/issues/29) |
+| Cost of revenue | OXY, NEE, DUK, AMT, SHEL, CNQ | Piotroski F, Beneish M | [#33](https://github.com/VedantParashar/finance-analyzer/issues/33) |
+| Current assets, receivables (REITs) | O, PLD | all three except the accruals ratio | [#31](https://github.com/VedantParashar/finance-analyzer/issues/31) |
+| Long-term debt never tagged in recent years (probably "none") | CALM, O | Piotroski F, Beneish M | [#1](https://github.com/VedantParashar/finance-analyzer/issues/1) |
+| Property, plant and equipment in the latest year | NVO | Beneish M | not filed: reported in earlier years only |
+| Receivables | SONY | Beneish M | not filed: Sony tags its own receivables lines |
+| Retained earnings | BABA | Altman Z″ | not filed: no retained earnings tag in the latest year |
+| Three consecutive years with a balance sheet | CRWV | Piotroski F | correct: listed in 2025 |
+
+Of the five line items added for the scores, SG&A is missing for the two utilities (NEE, DUK), which
+report no such line, and receivables, property and retained earnings for some REITs and foreign filers.
 """
 RECENT_YEARS = 5
 NOT_EXPECTED = {"temporary_equity"}  # most companies have none, so its absence isn't a gap
@@ -52,6 +70,7 @@ def check(ticker: str) -> dict:
     have = {(row.item, row.fiscal_year_end) for row in rows}
     checks = parse.balance_checks(edgar.fetch_company_facts(ticker))
     latest = {name: metric for name, metric in metrics[years[-1]].items() if name in FORMULAS}  # not the red-flag scores
+    flags = {name: metrics[years[-1]][name] for name in RED_FLAG_FORMULAS}
     return {
         "currency": display.currency(rows),
         "years": f"{display.fiscal_year(years[0])}–{display.fiscal_year(years[-1])}",
@@ -70,6 +89,8 @@ def check(ticker: str) -> dict:
             for c in checks if not c.passed
         ],
         "year_gaps": len(display.missing_years(years)),
+        "flags_ok": [name for name, metric in flags.items() if metric.value is not None],
+        "flags_missing": [f"{display.LABELS[name]} ({metric.reason})" for name, metric in flags.items() if metric.value is None],
     }
 
 
@@ -85,25 +106,30 @@ def main() -> None:
         f"- **Loaded:** {len(loaded)} of {len(results)}.",
         f"- **All 19 metrics for the latest year:** {sum(r['metrics_ok'] == 19 for r in loaded.values())} companies.",
         f"- **Every stored year balances:** {sum(not r['balance_failures'] for r in loaded.values())} of {len(loaded)}.",
+        "- **Red-flag scores for the latest year:** "
+        + ", ".join(f"{display.LABELS[name]} {sum(name in r['flags_ok'] for r in loaded.values())} of {len(loaded)}"
+                    for name in RED_FLAG_FORMULAS) + ".",
         "",
         "How to read it: *Missing items* were not found in any of the last five fiscal years; *partly missing*",
         "in some of them. Temporary equity is left out (most companies have none). *Metrics* counts the 19",
-        "ratios for the latest fiscal year. Balance failures cover every stored year, with assets minus",
+        "ratios for the latest fiscal year; *Red flags* the four red-flag scores, with the first reason for",
+        "each one that's unavailable. Balance failures cover every stored year, with assets minus",
         "(liabilities + equity).",
         "",
     ]
     lines += [FINDINGS]
     for group, tickers in GROUPS.items():
-        lines += [f"## {group}", "", "| Ticker | Currency | Years | Metrics | Missing items | Partly missing | Metrics unavailable | Balance failures |", "|---|---|---|---|---|---|---|---|"]
+        lines += [f"## {group}", "", "| Ticker | Currency | Years | Metrics | Red flags | Missing items | Partly missing | Metrics unavailable | Red flags unavailable | Balance failures |", "|---|---|---|---|---|---|---|---|---|---|"]
         for ticker in tickers:
             r = results[ticker]
             if "error" in r:
-                lines.append(f"| {ticker} | | | **failed** | {r['error']} | | | |")
+                lines.append(f"| {ticker} | | | **failed** | | {r['error']} | | | | |")
                 continue
             cells = [
-                ticker, r["currency"], r["years"], f"{r['metrics_ok']} of 19",
+                ticker, r["currency"], r["years"], f"{r['metrics_ok']} of 19", f"{len(r['flags_ok'])} of 4",
                 ", ".join(r["missing_items"]) or "none", ", ".join(r["partial_items"]) or "none",
-                ", ".join(r["metrics_missing"]) or "none", ", ".join(r["balance_failures"]) or "none",
+                ", ".join(r["metrics_missing"]) or "none", ", ".join(r["flags_missing"]) or "none",
+                ", ".join(r["balance_failures"]) or "none",
             ]
             lines.append("| " + " | ".join(cells) + " |")
         lines.append("")
