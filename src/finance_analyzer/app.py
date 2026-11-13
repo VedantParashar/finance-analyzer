@@ -166,6 +166,29 @@ def ticker_or_explain(choice: str, options: dict[str, str]) -> str | None:
     return None
 
 
+def from_link(text: str) -> str:
+    """Search-box text for a ticker taken from a link: the listed entry when it's an exact ticker."""
+    text = text.strip()[:40]  # a link is outside input: keep it short, then treat it like typed text
+    try:
+        company = edgar.find_ticker(text)
+    except (httpx.HTTPError, RuntimeError):  # the page itself will explain what's wrong
+        return text
+    return option(company) if company else text
+
+
+def open_from_link() -> None:
+    """Act once on ?ticker=AAPL or ?compare=AAPL,KO, so a shared link opens straight on that view."""
+    if st.session_state.get("link_opened"):
+        return
+    st.session_state["link_opened"] = True
+    if "compare" in st.query_params:
+        tickers = [text for text in st.query_params["compare"].split(",") if text.strip()]
+        st.session_state["compare"] = list(dict.fromkeys(map(from_link, tickers)))[:4]  # the box holds four at most
+        st.switch_page(PAGES["compare"])
+    elif "ticker" in st.query_params:
+        st.session_state["company"] = from_link(st.query_params["ticker"])
+
+
 def choose(key: str, value) -> None:
     st.session_state[key] = value
 
@@ -268,6 +291,7 @@ def company_page() -> None:
             company = edgar.find_ticker(example)
             if company:
                 column.button(example, help=company.name, on_click=choose, args=("company", option(company)))
+        st.query_params.pop("ticker", None)
         return
     ticker = ticker_or_explain(choice, options)
     if ticker is None:
@@ -276,6 +300,7 @@ def company_page() -> None:
     if loaded is None:
         return
     rows, metrics, info = loaded
+    st.query_params["ticker"] = ticker  # the browser's address now links straight to this company
 
     st.header(f"{info['name']} ({ticker})")
     st.caption(info["industry"])
@@ -533,7 +558,9 @@ def compare_page() -> None:
     tickers = list(dict.fromkeys(resolved))  # the same company picked twice counts once
     if not 2 <= len(tickers) <= 4:
         st.info("Pick 2 to 4 companies.")
+        st.query_params.pop("compare", None)
         return
+    st.query_params["compare"] = ",".join(tickers)  # the browser's address now links straight to this comparison
     companies = {}
     for ticker in tickers:
         loaded = load_or_explain(ticker)
@@ -606,7 +633,9 @@ def run() -> None:
     use_secret_user_agent()
     PAGES["company"] = st.Page(company_page, title="Company")
     PAGES["compare"] = st.Page(compare_page, title="Compare")
-    st.navigation(list(PAGES.values())).run()
+    page = st.navigation(list(PAGES.values()))
+    open_from_link()
+    page.run()
 
 
 # Streamlit runs this file as __main__; importing it (as the tests do) only defines the pages.
