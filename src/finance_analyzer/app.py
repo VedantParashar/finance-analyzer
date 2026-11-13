@@ -500,7 +500,7 @@ def red_flags_section(metrics: dict, years: list, labels: list[str], currency: s
         line = {"Score": display.LABELS[name]}
         for label, end in zip(labels, years):
             value = metrics[end][name].value
-            line[label] = "—" if value is None else f"{display.format_metric(name, value)} · {display.verdict(name, value).split(' (')[0].split(':')[0]}"
+            line[label] = display.short_verdict(name, value)
         table.append(line)
     st.dataframe(table, hide_index=True)
 
@@ -592,16 +592,23 @@ def compare_page() -> None:
         for ticker, (rows, metrics, _) in companies.items()
     }
     table, missing = [], []
-    for name in names + display.PRICE_METRICS:
+    for name in names + display.RED_FLAGS + display.PRICE_METRICS:
         line = {"Metric": display.LABELS[name]}
         for ticker in companies:
             metric = latest[ticker][name]
-            line[columns[ticker]] = display.format_metric(name, metric.value, currencies[ticker])
+            if name in display.RED_FLAGS:
+                line[columns[ticker]] = display.short_verdict(name, metric.value)
+            else:
+                line[columns[ticker]] = display.format_metric(name, metric.value, currencies[ticker])
             if metric.reason:
                 missing.append(f"{display.LABELS[name]}, {ticker}: {metric.reason}")
         table.append(line)
     st.dataframe(table, hide_index=True)
-    st.caption("The last five rows use today's share price from Yahoo Finance; the rest come from the annual reports.")
+    st.caption(
+        "The four rows before the last five are red-flag scores (prompts to look closer, not verdicts; see the "
+        "company page for each one's meaning). The last five use today's share price from Yahoo Finance; "
+        "the rest come from the annual reports."
+    )
     if missing:
         with st.expander("Why some values are missing"):
             st.markdown("\n".join(f"- {line}" for line in missing))

@@ -21,6 +21,14 @@ LINE_ITEMS = "Line items"
 FIRST_YEAR_COLUMN = 3  # A = name, B = unit or formula text, C onwards = one column per fiscal year
 UNITS = {"USD": ("$M", 1e6, "#,##0"), "USD/shares": ("$ per share", 1, "0.00"), "shares": ("M shares", 1e6, "#,##0")}
 AUTHOR = "Finance Analyzer"
+# Nine pass/fail tests and eight indexes: as Excel formulas they'd be unreadable, so these are written as
+# values, with every input the engine used in the cell's comment.
+RED_FLAG_VALUES = {"piotroski_f", "beneish_m"}
+
+
+def _inputs_comment(metric: Metric, currency: str) -> str:
+    lines = [f"{key}: {display.format_input(key, value, currency)}" for key, value in metric.inputs.items()]
+    return "\n".join(["Calculated by the app from these inputs:", *lines, *metric.notes])
 
 
 def _formulas(cell) -> dict[str, str]:
@@ -60,6 +68,11 @@ def _formulas(cell) -> dict[str, str]:
         "eps_growth": growth("diluted_eps"),
         "eps_cagr_3y": cagr("diluted_eps"),
         "equity_multiplier": f"{avg('total_assets')}/{avg('shareholders_equity')}",
+        # The two red-flag scores simple enough to be a single formula; see RED_FLAG_VALUES for the others.
+        "altman_z": f"6.56*({cell('current_assets')}-{cell('current_liabilities')})/{cell('total_assets')}"
+        f"+3.26*{cell('retained_earnings')}/{cell('total_assets')}+6.72*{cell('operating_income')}/{cell('total_assets')}"
+        f"+1.05*{cell('total_equity')}/{cell('total_liabilities')}",
+        "accruals_ratio": f"({cell('net_income')}-{cell('operating_cash_flow')})/{avg('total_assets')}",
     }
 
 
@@ -97,7 +110,7 @@ def company_workbook(
 
     sheet = book.create_sheet("Metrics")
     sheet.append([f"{ticker} metrics", "Formula", *map(display.fiscal_year, years)])
-    names = [name for group in display.GROUPS.values() for name in group] + ["dupont"]
+    names = [name for group in display.GROUPS.values() for name in group] + ["dupont"] + display.RED_FLAGS
     metric_rows = {name: row_number for row_number, name in enumerate(names, 2)}
     for name in names:
         unit = f" (in {display.symbol(currency)}M)" if name in display.DOLLARS else ""
@@ -120,9 +133,14 @@ def company_workbook(
                 target.value = "n/a"
                 target.comment = Comment(metric.reason, AUTHOR)
                 continue
+            if name in RED_FLAG_VALUES:
+                target.value = metric.value
+                target.number_format = "0" if name == "piotroski_f" else "0.00"
+                target.comment = Comment(_inputs_comment(metric, currency), AUTHOR, height=300, width=380)
+                continue
             target.value = f"={formulas[name]}"
             target.number_format = (
-                "0.00" if name in display.MULTIPLES else "#,##0" if name in display.DOLLARS else "0.0%"
+                "0.00" if name in display.MULTIPLES | {"altman_z"} else "#,##0" if name in display.DOLLARS else "0.0%"
             )
             if metric.notes:
                 target.comment = Comment("\n".join(metric.notes), AUTHOR)

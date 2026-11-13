@@ -115,6 +115,13 @@ def verdict(name: str, value: float) -> str:
     return "⚠ Flag: above 10%" if value > 0.10 else "No flag (10% or below)"
 
 
+def short_verdict(name: str, value: float | None) -> str:
+    """A red-flag score with its verdict in a few words, for tables: "3.20 · Safe zone"."""
+    if value is None:
+        return "—"
+    return f"{format_metric(name, value)} · {verdict(name, value).split(' (')[0].split(':')[0]}"
+
+
 def yoy_delta(name: str, current: float | None, prior: float | None) -> str | None:
     """Change since the prior year: percentage points for ratios, × for multiples, % for dollars."""
     if current is None or prior is None:
