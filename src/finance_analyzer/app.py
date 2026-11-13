@@ -33,6 +33,7 @@ def use_secret_user_agent() -> None:
 EXAMPLES = ["AAPL", "MSFT", "NVDA", "KO", "WMT", "TSLA"]
 COMPARE_EXAMPLES = [["AAPL", "MSFT", "NVDA"], ["KO", "PEP"], ["WMT", "COST", "TGT"]]
 STYLE = Path(__file__).with_name("style.css").read_text()
+REIT_SIC = 6798  # SEC code for real estate investment trusts
 QUOTE_MINUTES = 15  # how long a share price is reused before asking Yahoo Finance again
 
 
@@ -391,7 +392,7 @@ def company_header(ticker: str, info: dict, rows: list[store.StoredLineItem], me
             refresh_button(ticker)
             st.download_button(
                 "Excel",
-                export.company_workbook(ticker, rows, metrics),
+                export.company_workbook(ticker, rows, metrics, reit=info["sic"] == REIT_SIC),
                 file_name=f"{ticker}_financials.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 icon=":material/download:",
@@ -502,6 +503,17 @@ def ratios_tab(
         for column, name in zip(st.columns(4), names):
             with column:
                 metric_card(name, latest[name], prior.get(name), currency, medians.get(name),
+                            [metrics[end][name].value for end in years])
+
+    if info["sic"] == REIT_SIC:
+        st.markdown("**Real estate (REIT)**")
+        st.caption(
+            "Real estate investment trusts report funds from operations (FFO) as their main earnings measure. "
+            "Ratios built for other companies (current ratio, gross margin) often don't apply to them."
+        )
+        for column, name in zip(st.columns(4), display.REIT_METRICS):
+            with column:
+                metric_card(name, latest[name], prior.get(name), currency, None,
                             [metrics[end][name].value for end in years])
 
     st.subheader("Trends")

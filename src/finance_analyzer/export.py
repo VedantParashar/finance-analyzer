@@ -63,6 +63,7 @@ def _formulas(cell) -> dict[str, str]:
         "asset_turnover": f"{revenue}/{avg('total_assets')}",
         "free_cash_flow": fcf,
         "fcf_margin": f"{fcf}/{revenue}",
+        "ffo": f"{cell('net_income')}+{cell('depreciation_amortization')}-{cell('gain_on_sale_of_real_estate')}",
         "revenue_growth": growth("revenue"),
         "revenue_cagr_3y": cagr("revenue"),
         "eps_growth": growth("diluted_eps"),
@@ -77,9 +78,9 @@ def _formulas(cell) -> dict[str, str]:
 
 
 def company_workbook(
-    ticker: str, rows: list[StoredLineItem], metrics: dict[date, dict[str, Metric]]
+    ticker: str, rows: list[StoredLineItem], metrics: dict[date, dict[str, Metric]], reit: bool = False
 ) -> bytes:
-    """The .xlsx file's bytes for one company, every stored year."""
+    """The .xlsx file's bytes for one company, every stored year; with FFO for a REIT."""
     years = sorted(metrics)
     by_key = {(row.item, row.fiscal_year_end): row for row in rows}
     reported = {row.item for row in rows}
@@ -111,6 +112,7 @@ def company_workbook(
     sheet = book.create_sheet("Metrics")
     sheet.append([f"{ticker} metrics", "Formula", *map(display.fiscal_year, years)])
     names = [name for group in display.GROUPS.values() for name in group] + ["dupont"] + display.RED_FLAGS
+    names += display.REIT_METRICS if reit else []
     metric_rows = {name: row_number for row_number, name in enumerate(names, 2)}
     for name in names:
         unit = f" (in {display.symbol(currency)}M)" if name in display.DOLLARS else ""

@@ -32,6 +32,7 @@ LABELS = {
     "piotroski_f": "Piotroski F",
     "beneish_m": "Beneish M",
     "accruals_ratio": "Accruals ratio",
+    "ffo": "FFO (funds from operations)",
     "market_cap": "Market cap",
     "pe": "P/E",
     "pb": "P/B",
@@ -41,6 +42,7 @@ LABELS = {
 PRICE_METRICS = ["market_cap", "pe", "pb", "ev_ebit", "fcf_yield"]  # need today's share price, see prices.py
 
 RED_FLAGS = ["altman_z", "piotroski_f", "beneish_m", "accruals_ratio"]  # screens for trouble, own section
+REIT_METRICS = ["ffo"]  # only for real estate investment trusts (SIC 6798)
 
 # SPEC.md's metric groups; DuPont gets its own section on the page.
 GROUPS = {
@@ -60,7 +62,7 @@ MULTIPLES = {
     "current_ratio", "quick_ratio", "debt_to_equity", "interest_coverage", "asset_turnover", "equity_multiplier",
     "pe", "pb", "ev_ebit",
 }
-DOLLARS = {"free_cash_flow", "market_cap"}  # every other metric is a fraction shown as a percentage
+DOLLARS = {"free_cash_flow", "market_cap", "ffo"}  # every other metric is a fraction shown as a percentage
 
 
 def fiscal_year(end: date) -> str:

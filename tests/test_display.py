@@ -3,13 +3,14 @@ from datetime import date, datetime
 import pytest
 
 from finance_analyzer import display
-from finance_analyzer.metrics import FORMULAS, PRICE_FORMULAS, RED_FLAG_FORMULAS
+from finance_analyzer.metrics import FORMULAS, PRICE_FORMULAS, RED_FLAG_FORMULAS, REIT_FORMULAS
 from finance_analyzer.parse import BalanceCheck
 from finance_analyzer.store import StoredLineItem
 
 
 def test_every_metric_has_a_label_and_every_grouped_metric_exists():
-    assert display.LABELS.keys() == FORMULAS.keys() | RED_FLAG_FORMULAS.keys() | PRICE_FORMULAS.keys()
+    assert display.LABELS.keys() == FORMULAS.keys() | RED_FLAG_FORMULAS.keys() | PRICE_FORMULAS.keys() | REIT_FORMULAS.keys()
+    assert set(display.REIT_METRICS) == REIT_FORMULAS.keys()
     assert set(display.RED_FLAGS) == RED_FLAG_FORMULAS.keys()
     assert set(display.PRICE_METRICS) == PRICE_FORMULAS.keys()
     grouped = [name for names in display.GROUPS.values() for name in names]
@@ -100,7 +101,7 @@ def test_year_end_note_names_each_year_end():
 
 
 def test_every_metric_has_learning_text():
-    assert display.LEARNING.keys() == FORMULAS.keys() | RED_FLAG_FORMULAS.keys() | PRICE_FORMULAS.keys()
+    assert display.LEARNING.keys() == FORMULAS.keys() | RED_FLAG_FORMULAS.keys() | PRICE_FORMULAS.keys() | REIT_FORMULAS.keys()
     for name, text in display.LEARNING.items():
         assert text.keys() == {"meaning", "good", "traps"}, name
         assert all(value.strip() for value in text.values()), name

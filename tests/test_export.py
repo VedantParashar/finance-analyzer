@@ -27,7 +27,9 @@ def evaluate(book, sheet: str, formula: str) -> float:
 def test_every_formula_gives_the_engines_value(data):
     rows = rows_from(data)
     metrics = company_metrics(rows)
-    book = load_workbook(BytesIO(company_workbook("TEST", rows, metrics)))
+    plain = load_workbook(BytesIO(company_workbook("TEST", rows, metrics)))["Metrics"]
+    assert LABELS["ffo"] not in [cell.value for cell in plain["A"]], "FFO only in a REIT's workbook"
+    book = load_workbook(BytesIO(company_workbook("TEST", rows, metrics, reit=True)))
     sheet = book["Metrics"]
     row_of = {cell.value: cell.row for cell in sheet["A"]}
     years = [cell.value for cell in sheet[1]][2:]
@@ -44,7 +46,7 @@ def test_every_formula_gives_the_engines_value(data):
                 assert cell.value == metric.value and cell.comment.text.startswith("Calculated by the app"), name
                 continue
             assert cell.value.startswith("=") and "#REF!" not in cell.value, name
-            scale = 1e6 if name == "free_cash_flow" else 1  # the sheet is in $M
+            scale = 1e6 if name in ("free_cash_flow", "ffo") else 1  # the sheet is in $M
             assert evaluate(book, "Metrics", cell.value[1:]) * scale == pytest.approx(metric.value), (name, end)
             checked += 1
     assert checked >= 17  # every metric the latest year can calculate

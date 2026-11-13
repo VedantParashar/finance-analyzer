@@ -12,7 +12,9 @@ from typing import NamedTuple
 from finance_analyzer.store import StoredLineItem
 
 # Absent can mean "the company has none" for these, but only if it never reports them.
-ZERO_IF_NEVER_REPORTED = {"inventory", "short_term_debt", "long_term_debt", "short_term_investments"}
+ZERO_IF_NEVER_REPORTED = {
+    "inventory", "short_term_debt", "long_term_debt", "short_term_investments", "gain_on_sale_of_real_estate",
+}
 UNUSUAL_TAX_RATE = 0.5  # above this (or below zero), ROIC is still calculated but flagged
 
 
@@ -288,6 +290,16 @@ PRICE_FORMULAS: dict[str, Callable[[_Inputs, float], float]] = {
     "fcf_yield": lambda m, cap: _free_cash_flow(m) / cap,
 }
 
+def _ffo(m: _Inputs) -> float:
+    # shortcut: adds back all depreciation and amortization, as tagged; NAREIT's definition adds back only the
+    # real-estate part, which no REIT tags on its own. The difference is corporate assets, usually small.
+    return m.get("net_income") + m.get("depreciation_amortization") - m.get("gain_on_sale_of_real_estate")
+
+
+# Shown only for real estate investment trusts (SIC 6798), where FFO is the usual measure of earnings.
+REIT_FORMULAS: dict[str, Callable[[_Inputs], float]] = {"ffo": _ffo}
+
+
 # The same formulas in words, for showing next to the numbers in Metric.inputs.
 FORMULA_TEXT = {
     "gross_margin": "(revenue − cost of revenue) ÷ revenue",
@@ -319,6 +331,7 @@ FORMULA_TEXT = {
     "0.892 × sales growth index + 0.115 × depreciation index − 0.172 × SG&A index + 4.679 × accruals to total "
     "assets − 0.327 × leverage index",
     "accruals_ratio": "(net income − operating cash flow) ÷ average total assets",
+    "ffo": "net income + depreciation and amortization − gains on sale of real estate",
     "market_cap": "share price × shares outstanding (from Yahoo Finance)",
     "pe": "market cap ÷ net income (the same as share price ÷ earnings per share)",
     "pb": "market cap ÷ shareholders' equity",
@@ -338,7 +351,7 @@ def company_metrics(rows: Iterable[StoredLineItem]) -> dict[date, dict[str, Metr
     results: dict[date, dict[str, Metric]] = {}
     for end in years:
         results[end] = {}
-        for name, formula in (FORMULAS | RED_FLAG_FORMULAS).items():
+        for name, formula in (FORMULAS | RED_FLAG_FORMULAS | REIT_FORMULAS).items():
             inputs = _Inputs(by_key, reported, years, end)
             results[end][name] = _run(lambda: formula(inputs), inputs)
     return results
@@ -386,7 +399,7 @@ def price_metrics(
     return results
 
 
-NOT_BENCHMARKED = {"free_cash_flow", "dupont"}  # an amount depends on size and currency; DuPont repeats ROE
+NOT_BENCHMARKED = {"free_cash_flow", "dupont", "ffo"}  # an amount depends on size and currency; DuPont repeats ROE
 MIN_FOR_MEDIAN = 3  # with fewer companies a "median" is just one company's number
 
 

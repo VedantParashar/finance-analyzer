@@ -69,6 +69,15 @@ ITEMS = {
         LineItem("diluted_eps", ("EarningsPerShareDiluted",), "USD/shares", "flow"),
         # Weighted average over the year, as used for EPS, not the count on the last day.
         LineItem("diluted_shares", ("WeightedAverageNumberOfDilutedSharesOutstanding",), "shares", "flow"),
+        # For REITs' funds from operations (FFO), which takes property-sale gains out of net income. Tags seen
+        # at Realty Income and Public Storage; most other companies have no such line.
+        LineItem(
+            "gain_on_sale_of_real_estate",
+            ("GainsLossesOnSalesOfInvestmentRealEstate", "GainLossOnSaleOfProperties",
+             "GainLossOnSaleOfRealEstateInvestmentProperty"),
+            "USD",
+            "flow",
+        ),
         # Balance sheet
         LineItem("cash", ("CashAndCashEquivalentsAtCarryingValue",), "USD", "instant"),
         LineItem(
@@ -272,6 +281,7 @@ IFRS_TAGS: dict[str, tuple[str, ...]] = {
     "diluted_eps": ("DilutedEarningsLossPerShare", "DilutedEarningsLossPerShareFromContinuingOperations"),
     # The diluted count only: WeightedAverageShares is the basic count, so it isn't used.
     "diluted_shares": ("AdjustedWeightedAverageShares",),
+    "gain_on_sale_of_real_estate": ("GainsLossesOnDisposalsOfInvestmentProperties",),
     # Balance sheet
     "cash": ("CashAndCashEquivalents",),
     # IFRS has no "marketable securities" line; the second tag can also hold loans and derivatives.
