@@ -400,7 +400,10 @@ def test_compare_shows_table_and_chart_for_each_company():
     assert list(flags.iloc[:, 0]) == ["—", "—", "—", "-3.4% · No flag"]  # the test data lacks the other inputs
     assert len(app.warning) == 1  # JPM's bank banner
     assert not app.info  # same year-ends, so no note
-    app = app.selectbox[0].select("free_cash_flow").run()
+    assert [g.value for g in app.button_group] == ["Profitability", "gross_margin"]  # chart picker defaults
+    app = app.button_group[0].set_value("Cash flow").run()
+    assert app.button_group[1].value == "free_cash_flow"  # a new group starts on its first metric
+    app = app.button_group[1].set_value("fcf_margin").run()
     assert not app.exception
 
 

@@ -3,6 +3,7 @@
 Run from the project folder: uv run --env-file .env finance-analyzer
 """
 
+import html
 import os
 import threading
 from datetime import timedelta
@@ -267,7 +268,7 @@ def financial_table(table: list[dict[str, str]], unit: str | None = None) -> Non
     config |= {column: st.column_config.TextColumn(alignment="right") for column in frame.columns[1:]}
     # One red that reads on the light and the dark background (DESIGN.md: red means down or negative).
     styled = frame.style.map(lambda text: "color: #EF4444" if str(text).startswith("(") else "")
-    st.dataframe(styled, hide_index=True, column_config=config)
+    st.dataframe(styled, hide_index=True, column_config=config, height="content")  # every row, no inner scroll
 
 
 def learn(name: str) -> None:
@@ -695,6 +696,9 @@ def compare_page() -> None:
     if note:
         st.info(note)
 
+    colours = dict(zip(companies, charts.SERIES))  # one colour per company: chip, table column and chart line
+    company_chips({ticker: info["name"] for ticker, (_, _, info) in companies.items()}, colours)
+
     st.subheader("Latest fiscal year")
     columns = {ticker: f"{ticker} {display.fiscal_year(end)} ({end:%b %-d})" for ticker, end in latest_ends.items()}
     names = [name for group in display.GROUPS.values() for name in group]
@@ -702,7 +706,7 @@ def compare_page() -> None:
         ticker: {**metrics[latest_ends[ticker]], **valuation(ticker, rows)[0]}
         for ticker, (rows, metrics, _) in companies.items()
     }
-    table, missing = [], []
+    table, marks, missing = [], [], []
     for name in names + display.RED_FLAGS + display.PRICE_METRICS:
         line = {"Metric": display.LABELS[name]}
         for ticker in companies:
@@ -714,25 +718,34 @@ def compare_page() -> None:
             if metric.reason:
                 missing.append(f"{display.LABELS[name]}, {ticker}: {metric.reason}")
         table.append(line)
-    st.dataframe(table, hide_index=True)
+        comparable = not (mixed and name in display.DOLLARS)  # amounts in different currencies
+        best, worst = display.best_worst(name, {t: latest[t][name].value for t in companies}) if comparable else (None, None)
+        marks.append({columns[best]: "best", columns[worst]: "worst"} if best else {})
+    compare_table(table, marks, {columns[ticker]: colour for ticker, colour in colours.items()})
     st.caption(
-        "The four rows before the last five are red-flag scores (prompts to look closer, not verdicts; see the "
-        "company page for each one's meaning). The last five use today's share price from Yahoo Finance; "
-        "the rest come from the annual reports."
+        "Best and worst in each row are in green and red, where higher or lower is clearly better (market cap, "
+        "the equity multiplier and the red-flag scores aren't ranked). The four rows before the last five are red-flag scores "
+        "(prompts to look closer, not verdicts; see the company page for each one's meaning). The last five use "
+        "today's share price from Yahoo Finance; the rest come from the annual reports."
     )
     if missing:
         with st.expander("Why some values are missing"):
             st.markdown("\n".join(f"- {line}" for line in missing))
 
     st.subheader("Over time")
-    name = st.selectbox("Metric", names, format_func=display.LABELS.get)
+    group = st.segmented_control("Group", list(display.GROUPS), default="Profitability", required=True, key="chart_group")
+    name = st.pills(
+        "Metric", display.GROUPS[group], default=display.GROUPS[group][0], required=True,
+        format_func=display.LABELS.get, key=f"chart_metric_{group}",
+    )
     scale = 1e6 if name in display.DOLLARS else 1  # free cash flow in millions
     figure = go.Figure()
     for ticker, (_, metrics, _) in companies.items():
         years = sorted(metrics)[-YEARS_SHOWN:]
         values = [metrics[end][name].value for end in years]
         figure.add_scatter(
-            name=ticker, x=years, y=[None if v is None else v / scale for v in values], mode="lines+markers"
+            name=ticker, x=years, y=[None if v is None else v / scale for v in values], mode="lines+markers",
+            line_color=colours[ticker],
         )
     charts.style(figure, ".2f" if name in display.MULTIPLES else ",.0f" if name in display.DOLLARS else ".0%")
     # Real year-end dates on the x-axis, so different fiscal calendars line up honestly.
@@ -745,6 +758,38 @@ def compare_page() -> None:
         ),
     )
     st.plotly_chart(figure)
+
+
+def company_chips(names: dict[str, str], colours: dict[str, str]) -> None:
+    """One chip per company, with the colour it has in the table and the chart."""
+    chips = "".join(
+        f'<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;margin:0 8px 8px 0;'
+        f'border:1px solid rgba(100,116,139,0.3);border-radius:999px;font-size:0.9rem">'
+        f'<span style="width:10px;height:10px;border-radius:50%;background:{colours[ticker]}"></span>'
+        f"<b>{ticker}</b>&nbsp;{html.escape(name)}</span>"
+        for ticker, name in names.items()
+    )
+    st.html(f"<div>{chips}</div>")
+
+
+def compare_table(table: list[dict[str, str]], marks: list[dict[str, str]], colours: dict[str, str]) -> None:
+    """The compare table: each company's column tinted with its colour, best and worst in a row marked."""
+    frame = pd.DataFrame(table)
+
+    def style(row):
+        return [
+            f"background-color: {colours[column]}14; "  # 14 = 8% opacity: a tint in the light and dark theme
+            + {"best": "color: #22A55A; font-weight: 600", "worst": "color: #EF4444; font-weight: 600"}.get(
+                marks[row.name].get(column), ""
+            )
+            if column in colours else ""
+            for column in frame.columns
+        ]
+
+    config = {"Metric": st.column_config.TextColumn(pinned=True)}
+    config |= {column: st.column_config.TextColumn(alignment="right") for column in colours}
+    st.dataframe(frame.style.apply(style, axis=1), hide_index=True, column_config=config, height="content")
+
 
 def home_page() -> None:
     with st.container(key="hero"):

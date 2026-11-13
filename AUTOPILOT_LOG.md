@@ -1239,3 +1239,23 @@ Same rules and format as session 2.
   (task 5).
 - **2026-11-13 · checked:** INTC Financials in dark (negatives red in parentheses), AAPL Ratios in
   light (cards line up). 282 tests pass.
+
+## S7 Task 5 — Compare page
+
+- **2026-11-13 · decision:** each company gets a series colour (blue, amber, violet, cyan, in the order
+  picked), used for a chip with its name, an 8% tint on its table column and its chart line.
+- **2026-11-13 · decision (best/worst):** green bold for the best and red bold for the worst value in each
+  row, by a fixed direction per metric in `display.py` (`HIGHER_IS_BETTER`, `LOWER_IS_BETTER`).
+  **Not ranked:** market cap (size, not quality), the equity multiplier (leverage is neither good nor bad
+  alone), free cash flow when currencies differ, and the four red-flag scores: in the first try Apple's
+  Altman Z″ of 3.20 showed red as "worst" while all three were in the safe zone, which misleads; those
+  rows keep their verdicts. A negative P/E, P/B, EV/EBIT or debt/equity (losses or negative equity) is
+  left out of the ranking rather than counted as "cheapest". Ties and single values get no mark.
+  **Owner should review:** "higher is better" for the current and quick ratios and for growth is the
+  textbook reading; very high liquidity can also mean idle cash.
+- **2026-11-13 · decision (chart picker):** a segmented control for the group (Profitability … Growth)
+  and chips for its metrics, instead of a dropdown of 18 names.
+- **2026-11-13 · found:** `st.dataframe` shows about 10 rows and scrolls inside itself; every financial
+  table and the compare table now use `height="content"` and show all rows. This also fixes the line-item
+  table on the company page (task 4).
+- **2026-11-13 · checked:** AAPL, KO, NVDA in light and dark. 283 tests pass.

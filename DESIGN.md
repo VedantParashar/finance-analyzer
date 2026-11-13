@@ -17,7 +17,8 @@ Prefer a theme option or a Streamlit parameter over CSS. CSS only targets Stream
 
 ## Colour
 
-One accent colour. Green and red mean **up and down only**, never decoration or company identity.
+One accent colour. Green and red mean **up and down only** (and, on the compare page, the best and worst
+value in a row), never decoration or company identity.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
@@ -32,7 +33,7 @@ One accent colour. Green and red mean **up and down only**, never decoration or 
 
 **Series colours** (companies on the compare page, several lines in one chart), in this order:
 `#2563EB` blue · `#F59E0B` amber · `#8B5CF6` violet · `#06B6D4` cyan. A company keeps its colour
-everywhere on a page: its chip, its table column and its chart line.
+everywhere on a page: its chip, its table column (an 8% tint) and its chart line.
 
 Warnings (bank and REIT banners, failed balance checks) use Streamlit's own warning colours.
 
