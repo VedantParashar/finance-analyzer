@@ -4,6 +4,46 @@ Every decision made during the Claude Code sessions that built this app, with th
 alternatives rejected, newest session summary first. (Kept as `AUTOPILOT_LOG.md` in the repo root until
 session 8.)
 
+## Summary of session 8 (2026-11-14)
+
+**Built:** all 7 queue tasks, each on its own branch and pull request, stacked in this order (#64 on
+master, each later one on the one before). Nothing is merged. Goal: show that the data can be traced and
+trusted.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | #64 | `trace-sources` | Source column in Financials and a filing link next to every input in "How it's calculated" |
+| 2 | #65 | `methodology` | `docs/METHODOLOGY.md`: 8 rules with real examples (Apple FY2008, NVIDIA, KO, TSMC, Novo); footer link |
+| 3 | #66 | `accuracy` | `scripts/accuracy.py` + 95 figures read from 10 filings: **93 of 95 match** (`docs/ACCURACY.md`) |
+| 4 | #67 | `feedback-links` | Feedback link from `FEEDBACK_URL` (https only, hidden if unset); "Report a wrong number" on every metric |
+| 5 | #68 | `readme` | README rewrite, badges, 20.8 s demo GIF, "How this was built" |
+| 6 | #69 | `repo-hygiene` | log moved here, CODE_OF_CONDUCT, SECURITY, docs index, social preview, 3 good-first-issue labels |
+| 7 | #70 | `case-study` | `docs/case-study-apple-vs-coca-cola.md`, cited, unverified claims marked |
+
+295 tests pass locally (292 → 295 this session; 287 at the start).
+
+**Worth your attention:**
+1. **Please check the accuracy fixtures** (`scripts/accuracy_fixtures.json`). I read all 95 values from
+   the filings' own statement pages and recorded each line label and link; every one is marked "to be
+   checked by owner". None needed "to verify": every figure was found, and 5 are null because the filing
+   prints no such line.
+2. **Two real differences found** (task 3): Walmart's revenue is net sales ($706,413M), not total
+   revenues ($713,163M), because of the revenue tag order. Should total revenues win when both are
+   tagged? Chevron's cash includes restricted cash (its plain cash isn't tagged for FY2025; labelled).
+3. **Read "How this was built"** in the README: it's written in your voice.
+4. **Three GitHub settings for you:** upload `docs/social-preview.png` (Settings → Social preview),
+   turn on private vulnerability reporting (SECURITY.md relies on it), and, if you want the Feedback link,
+   set `FEEDBACK_URL` in the hosted app's secrets.
+5. **Not filed (blocked as not asked):** NVIDIA's FY2008–09 diluted share count is 1,000× too small in
+   the SEC data (filed in thousands). Worth an issue. Also: `pyproject.toml` says 1.2.0 while the latest
+   release is v1.3.0.
+
+**Suggested for `LEARNING.md`:** *accession number* (the SEC's ID for one filing), *restatement*,
+*XBRL* (the tagged data inside a filing), *fixture* (fixed expected values a check compares against),
+*code of conduct*, *social preview*.
+
+---
+
 ## Summary of session 7 (2026-11-13)
 
 **Built:** all 10 queue tasks, each on its own branch and pull request, stacked in this order (#54 on
@@ -1527,3 +1567,18 @@ Same rules and format as session 2.
 - **2026-11-14 · docs/social-preview.png:** 1280×640, made as an HTML page in DESIGN.md's colours and
   Inter and screenshotted (name, pitch, an Apple net-margin card with its two filing links, the URL and
   "93 of 95 figures match the filings"). **Owner action:** upload it in Settings → Social preview.
+
+## S8 Task 7 — Case study: Apple vs Coca-Cola
+
+- **2026-11-14 · decision:** three sections as asked (why Apple's ROE is 142%, the DuPont comparison,
+  Coca-Cola's FY2024 cash flow drop), every figure taken from the app's stored data, every statement
+  about the companies either quoted from a filing with a link or marked "(not verified in a filing)".
+- **2026-11-14 · checked against the filings, and one memory corrected:** the cause of KO's FY2024 drop
+  was searched in the FY2024 10-K text (ko-20241231.htm): "primarily driven by the $6.0 billion IRS Tax
+  Litigation Deposit…", paid 10 September 2024. A first guess from memory (the BodyArmor milestone
+  payment) was wrong, which is why nothing went in unchecked. Also confirmed in the 10-K: the Tax Court
+  opinions concern foreign licensees, the deposit is refundable if the appeal succeeds, Note 21's
+  $5,667M increase in other assets. Apple's buybacks ($86,390M) and dividends ($15,721M) are from the
+  FY2026 cash flow statement read for task 3.
+- **2026-11-14 · marked not verified (2 claims):** why Coca-Cola's balance sheet is asset-heavy, and why
+  its free cash flow stayed low in FY2025 (the FY2025 10-K wasn't read for this).
