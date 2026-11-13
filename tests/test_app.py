@@ -58,7 +58,7 @@ def trailing_rows(ticker):
     ]
 
 
-def parsed_rows(ticker):
+def parsed_rows(ticker, financial=False):
     return [
         LineItemRow(item, end.isoformat(), value if item == "diluted_eps" else value * M, "accn", "")
         for end, items in AAPL.items()
@@ -156,7 +156,7 @@ def test_ambiguous_name_asks_which_company():
     ],
 )
 def test_fund_or_company_without_annual_reports_gets_its_own_message(monkeypatch, error):
-    def fail(ticker):
+    def fail(ticker, financial):
         raise error
 
     monkeypatch.setattr(store, "annual_line_items", fail)

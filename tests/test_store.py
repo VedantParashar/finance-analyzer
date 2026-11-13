@@ -17,10 +17,11 @@ ROWS = [
 def temporary_database(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "DB_PATH", tmp_path / "new_folder" / "test.duckdb")
     monkeypatch.setattr(store, "company_currency", lambda ticker: "USD")
+    monkeypatch.setattr(store, "company_is_financial", lambda ticker: False)
 
 
 def parser_returns(monkeypatch, rows):
-    monkeypatch.setattr(store, "annual_line_items", lambda ticker: rows)
+    monkeypatch.setattr(store, "annual_line_items", lambda ticker, financial: rows)
 
 
 def test_round_trip_keeps_every_field_in_schema_order(monkeypatch):
@@ -64,7 +65,7 @@ def test_failed_download_keeps_saved_data(monkeypatch):
     parser_returns(monkeypatch, ROWS)
     store.load_company("TEST")
 
-    def fail(ticker):
+    def fail(ticker, financial):
         raise RuntimeError("SEC is down")
 
     monkeypatch.setattr(store, "annual_line_items", fail)

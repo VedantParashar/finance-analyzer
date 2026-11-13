@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 import duckdb
 
-from finance_analyzer import parse
+from finance_analyzer import edgar, parse
 from finance_analyzer.edgar import fetch_company_facts
 from finance_analyzer.parse import annual_line_items, company_currency
 from finance_analyzer.schema import ITEMS
@@ -48,11 +48,16 @@ def _connect() -> duckdb.DuckDBPyConnection:
     return connection
 
 
+def company_is_financial(ticker: str) -> bool:
+    """A bank, broker or insurer, by its SEC industry code (from the submissions file, cached on disk)."""
+    return edgar.is_financial(edgar.fetch_company_info(ticker)["sic"])
+
+
 def load_company(ticker: str) -> int:
     """Fetch, parse and save a company, replacing its old rows. Returns the rows saved."""
     ticker = ticker.strip().upper()
     # Parse before touching the database, so a failed download can't affect saved data.
-    rows = annual_line_items(ticker)
+    rows = annual_line_items(ticker, financial=company_is_financial(ticker))
     if not rows:
         raise ValueError(f"No line items found for {ticker}, keeping any saved data")
 
@@ -101,5 +106,5 @@ def trailing_twelve_months(ticker: str) -> list[StoredLineItem]:
     return [
         StoredLineItem(ticker, r.item, date.fromisoformat(r.fiscal_year_end), r.value,
                        ITEMS[r.item].unit.replace("USD", currency), r.accn, r.derivation, now)
-        for r in parse.trailing_twelve_months(facts)
+        for r in parse.trailing_twelve_months(facts, company_is_financial(ticker))
     ]

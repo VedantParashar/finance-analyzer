@@ -16,6 +16,7 @@ from finance_analyzer.schema import (
     LIABILITIES_AND_EQUITY,
     LONG_TERM_DEBT_LAST_RESORT,
     MARKETABLE_SECURITIES_ANY_TERM,
+    OPERATING_EXPENSES,
     MARKETABLE_SECURITIES_NONCURRENT,
     MINORITY_INTEREST,
     NONCURRENT_BONDS,
@@ -405,7 +406,7 @@ def _item_rows(facts: dict, item: LineItem) -> list[LineItemRow]:
     return rows
 
 
-def _line_items(facts: dict) -> list[LineItemRow]:
+def _line_items(facts: dict, financial: bool = False) -> list[LineItemRow]:
     built_from_parts = {
         "temporary_equity": _temporary_equity_rows,
         "short_term_debt": _short_term_debt_rows,
@@ -422,16 +423,54 @@ def _line_items(facts: dict) -> list[LineItemRow]:
         for row in (built_from_parts[item.name](facts) if item.name in built_from_parts else _item_rows(facts, item))
     ]
     rows += _derived_liabilities(facts)
+    rows += _derived_operating_income(facts, rows, financial)
     order = list(ITEMS)
     return sorted(rows, key=lambda row: (order.index(row.item), row.fiscal_year_end))
+
+
+def _derived_operating_income(facts: dict, rows: list[LineItemRow], financial: bool) -> list[LineItemRow]:
+    """Operating income for years with no subtotal reported (#29); reported years are never touched.
+
+    First choice: revenue − cost of revenue − operating expenses. Otherwise EBIT: pretax income + interest
+    expense, a close cousin that also counts other income, and labelled so. Never EBIT for banks, brokers
+    and insurers (financial=True): their interest is an operating cost, so adding it back means nothing.
+    Not used: revenue − total costs and expenses (CostsAndExpenses). At Chevron that total holds every cost
+    before tax, so the result equals pretax income; at Realty Income it includes interest; at Berkshire it
+    doesn't match the revenue figure and gives −$71bn. Nor a sum of whichever cost lines happen to be
+    tagged: those miss lines (Lilly's research costs) and overstate the result.
+    """
+    by_item = defaultdict(dict)
+    for row in rows:
+        by_item[row.item][row.fiscal_year_end] = row
+    operating = _by_end(facts, OPERATING_EXPENSES)
+    revenue, cost, pretax, interest = (by_item[name] for name in ("revenue", "cost_of_revenue", "pretax_income", "interest_expense"))
+    derived = []
+    for end in sorted(set(revenue) | set(pretax)):
+        if end in by_item["operating_income"]:
+            continue
+        if end in revenue and end in cost and end in operating:
+            value, accn = revenue[end].value - cost[end].value - operating[end][0], operating[end][1]
+            derivation = ("operating income = revenue − cost of revenue − operating expenses (no operating income "
+                          "subtotal reported)")
+        elif end in pretax and end in interest and not financial:  # a missing interest figure isn't zero
+            value, accn = pretax[end].value + interest[end].value, pretax[end].accn
+            derivation = ("EBIT = pretax income + interest expense, used because no operating income subtotal is "
+                          "reported; unlike operating income it also counts other income and losses")
+        else:
+            continue
+        derived.append(LineItemRow("operating_income", end, value, accn, derivation))
+    return derived
 
 
 class NoAnnualReports(ValueError):
     """The company has financial data at the SEC, but none of it comes from an annual report we read."""
 
 
-def annual_line_items(ticker: str) -> list[LineItemRow]:
-    """Every standard line item for a ticker, by schema order then oldest year first."""
+def annual_line_items(ticker: str, financial: bool = False) -> list[LineItemRow]:
+    """Every standard line item for a ticker, by schema order then oldest year first.
+
+    financial: the company is a bank, broker or insurer (see edgar.is_financial), which changes one derivation.
+    """
     facts = fetch_company_facts(ticker)
     name = ticker.strip().upper()
     if not any(facts.get("facts", {}).get(taxonomy) for taxonomy in ("us-gaap", "ifrs-full")):
@@ -439,7 +478,7 @@ def annual_line_items(ticker: str) -> list[LineItemRow]:
             f"{name} files with the SEC but reports no financial statements as data. "
             "It's probably an ETF or a fund, which this app can't analyse."
         )
-    rows = _line_items(facts)
+    rows = _line_items(facts, financial)
     if not rows:
         raise NoAnnualReports(
             f"{name} has no annual report (10-K, 20-F or 40-F) in the SEC's data. That usually means a company "
@@ -609,7 +648,7 @@ def _as_years_ending(facts: dict, ends: list[str]) -> dict:
     return restated
 
 
-def trailing_twelve_months(facts: dict) -> list[LineItemRow]:
+def trailing_twelve_months(facts: dict, financial: bool = False) -> list[LineItemRow]:
     """Every line item for the twelve months to the latest quarter end, and to the same quarter in earlier years.
 
     Flow items are the sum of four quarters; balance sheet items are as reported on that date. Each row's
@@ -622,7 +661,7 @@ def trailing_twelve_months(facts: dict) -> list[LineItemRow]:
         for fact in facts.get("facts", {}).get(taxonomy, {}).get("Assets", {}).get("units", {}).get(currency, [])
     )
     ends = _same_quarter_ends(facts, currency)
-    rows = _line_items(_as_years_ending(facts, ends)) if quarterly else []
+    rows = _line_items(_as_years_ending(facts, ends), financial) if quarterly else []
     if not any(row.fiscal_year_end == ends[0] for row in rows):
         raise NoQuarterlyReports(
             "No usable quarterly figures in the SEC's data for this company. Companies that file a 20-F or "

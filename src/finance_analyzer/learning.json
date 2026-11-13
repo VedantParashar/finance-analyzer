@@ -7,7 +7,7 @@
   "operating_margin": {
     "meaning": "Profit from the core business, after cost of revenue and operating costs such as R&D, marketing and administration, per dollar of sales. Interest and taxes are not yet deducted.",
     "good": "Above 15% is generally strong and above 25% exceptional, but low-margin, high-volume businesses (supermarkets, distributors) can be healthy at 3–5%.",
-    "traps": "One-off items like restructuring charges, impairments or asset-sale gains can sit inside operating income and swing the margin for a single year. Check whether a jump repeats the next year."
+    "traps": "One-off items like restructuring charges, impairments or asset-sale gains can sit inside operating income and swing the margin for a single year. Check whether a jump repeats the next year. Some companies (Chevron, Pfizer, Shell and others) don't report an operating income line at all; the app then uses EBIT (pretax income + interest expense), marked as calculated, which also counts other income such as investment gains, so it can sit above a true operating income."
   },
   "net_margin": {
     "meaning": "The share of each sales dollar that ends up as profit for shareholders, after every cost, interest and tax.",

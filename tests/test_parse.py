@@ -691,3 +691,33 @@ def test_revenue_tags_that_differ_by_anything_else_are_left_alone(other):
     facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [year(other)]}}
     row = next(row for row in _line_items(facts) if row.item == "revenue")
     assert (row.value, row.derivation) == (103_536_000, "")
+
+
+def year(val, accn="R"):
+    return [fact("2017-10-01", YEAR_END, val, "10-K", FILED, accn)]
+
+
+def operating_income(**tags):
+    rows = [row for row in _line_items(company(**tags), tags.pop("financial", False)) if row.item == "operating_income"]
+    return [(row.value, row.derivation.split(" =")[0]) for row in rows]
+
+
+def test_reported_operating_income_is_never_replaced():
+    tags = {"OperatingIncomeLoss": year(30), "OperatingExpenses": year(50), "CostOfRevenue": year(10),
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest": year(25),
+            "InterestExpense": year(4)}
+    assert operating_income(**tags) == [(30, "")]
+
+
+def test_operating_income_derived_from_cost_of_revenue_and_operating_expenses():
+    # company() always tags Revenues as 1; the first revenue tag wins over it.
+    tags = {"RevenueFromContractWithCustomerExcludingAssessedTax": year(100), "CostOfRevenue": year(40), "OperatingExpenses": year(35)}
+    assert operating_income(**tags) == [(25, "operating income")]
+
+
+def test_ebit_used_when_no_cost_totals_are_tagged_but_never_for_financial_companies():
+    pretax = "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+    tags = {pretax: year(20), "InterestExpense": year(3)}
+    assert operating_income(**tags) == [(23, "EBIT")]
+    assert operating_income(**tags, financial=True) == []  # a bank's interest is an operating cost
+    assert operating_income(**{pretax: year(20)}) == []  # no interest reported: not assumed to be zero

@@ -1295,3 +1295,33 @@ Same rules and format as session 2.
 - **2026-11-13 · README:** new `landing.png` (light), `company.png` (AAPL overview, light) and
   `compare.png` (AAPL/KO/NVDA, dark, to show both themes), plus a line on switching themes and a link to
   DESIGN.md. The share price in them is the live one on 2026-11-13.
+
+## S7 Task 8 — Operating income where no subtotal is tagged (#29)
+
+- **2026-11-13 · decision (departs from the queue's wording — owner should review):** the queue asked for
+  "revenue − cost of revenue − operating expenses, or tagged components". Checked on the real filings
+  first:
+  - **None of the seven tag `OperatingExpenses`**, so that formula alone fixes none of them. It is kept
+    as the first choice (FASB defines it as excluding cost of sales, so subtracting both is right).
+  - **Revenue − total costs and expenses (`CostsAndExpenses`) was built and rejected.** At Chevron the
+    total holds every cost before tax: the result equals pretax income exactly in 2007–2017. At Realty
+    Income it includes about $0.7bn of interest a year. At Berkshire it doesn't match the revenue figure
+    and gave −$71bn against +$82bn pretax. It would have made operating margin, interest coverage and
+    EV/EBIT wrong for the very companies it targets.
+  - **A sum of the cost lines that happen to be tagged was rejected:** at Lilly, revenue − cost of
+    goods − SG&A is $43.0bn, above its $25.7bn pretax income, because research costs aren't tagged in a
+    form we read.
+  - **Used instead, second:** EBIT = pretax income + interest expense, the option in the issue itself,
+    labelled "EBIT = …, used because no operating income subtotal is reported; unlike operating income
+    it also counts other income and losses". Interest must be reported for that year (a missing figure
+    isn't taken as zero, issue #1). Never for banks, brokers and insurers (SIC 6000–6499): their
+    interest is an operating cost. That needed a `financial` flag from `store` into `parse`, which has
+    no SIC code of its own.
+- **2026-11-13 · checked, all 50 companies in the local cache, before and after:** not one reported
+  operating income changed. New calculated years: CVX, OXY, PFE, LLY, SHEL, CNQ, O (to 2023), and older
+  years of Ford, Target and Koss; Berkshire (insurer) gets them from the opex route only, so none.
+  Latest year: CVX operating margin 11.4%, OXY 19.5%, PFE 16.3%, LLY 40.9%, SHEL 12.9%, CNQ 36.8% (all
+  marked calculated). **Realty Income (O) still has none for 2024–25:** it tags no interest expense for
+  those years under any tag we read. JPM stays "unavailable", as before.
+- **2026-11-13 · learning text:** one sentence added to operating margin's traps about the EBIT
+  fallback. 286 tests pass (3 new).
