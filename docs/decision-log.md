@@ -1682,3 +1682,22 @@ Same rules and format as session 2.
 - **2026-11-14 · docs:** METHODOLOGY.md lists it under "what these rules can't catch". ACCURACY.md is
   written by `scripts/accuracy.py`, so the note went into the Chevron fixture (where the script picks it
   up) rather than into the report by hand, which the next run would overwrite. Rerun: still 93 of 95.
+
+## S10 Task 2 — peers.json rebuilt with the new revenue order
+
+- **2026-11-14 · run:** `scripts/build_peers.py` (45 s, SEC data sets and frames API). Still revenue year
+  2025 and 4,239 companies; 3 added (AGO, MBGL, NTPIF) and 3 dropped (ATXG, FLS, SAFX), from changes in the
+  SEC's lists since the last build; no SIC code changed. **281 companies' revenue changed**, nearly all
+  upwards and by a lot: companies whose contract-revenue tag held only part of their revenue, mostly REITs,
+  insurers and banks. Largest: Rexford $1M → $1,003M, Oscar Health $29M → $11,701M, CareTrust $1M → $476M,
+  Essex $9M → $1,887M, UDR $11M → $1,712M, Barrick $177M → $10,979M, Capital One $8,062M → $53,434M.
+- **2026-11-14 · peers for the six asked for** (the app's own `peers.suggest`, before → after):
+  - **AAPL** DELL, SMCI, OMCL, ZEPP, OSS: unchanged.
+  - **KO** PEP, KDP, STZ, PRMB, BF-B: unchanged.
+  - **WMT** COST, TGT, DG, BJ, DLTR: unchanged (Walmart's own revenue $706,413M → $713,163M).
+  - **NVDA** AVGO, INTC, MU, AMD, AMAT: unchanged.
+  - **JPM** BAC, C, USB, PNC, COF → BAC, C, **COF**, USB, PNC: same banks, Capital One moves up (its
+    revenue $8,062M → $53,434M).
+  - **AMT** NNN, MPT, CUZ, SLG, DEI → **WELL, EQIX, PLD, BSTT, WY**: all five new. American Tower's own
+    revenue went from $936M to $10,645M, so its closest REITs by size are now the large ones.
+- **2026-11-14 · checked:** 299 tests pass (the tests use their own small peers list).
