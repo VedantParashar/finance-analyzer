@@ -10,12 +10,14 @@ MUTED = "#64748B"
 # light and dark text colours), but keeps layout values a figure sets itself.
 LAYOUT = {
     "font": {"family": "Inter, system-ui, sans-serif", "size": 13},
-    "title": {"x": 0, "xanchor": "left", "font": {"size": 15, "weight": 600}},
+    # Title pinned to the top edge and the legend just above the plot, so they never overlap on a phone.
+    "title": {"x": 0, "xanchor": "left", "yref": "container", "y": 1, "yanchor": "top", "pad": {"t": 8},
+              "font": {"size": 15, "weight": 600}},
     "colorway": SERIES,
     "paper_bgcolor": "rgba(0,0,0,0)",
     "plot_bgcolor": "rgba(0,0,0,0)",
     "height": 320,
-    "margin": {"t": 48, "b": 24, "l": 8, "r": 8},
+    "margin": {"t": 72, "b": 24, "l": 8, "r": 8},
     "legend": {"orientation": "h", "x": 0, "y": 1.02, "yanchor": "bottom", "title": None},
     "hovermode": "x unified",
     "bargap": 0.3,
