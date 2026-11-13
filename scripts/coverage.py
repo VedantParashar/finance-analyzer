@@ -13,14 +13,15 @@ from finance_analyzer.metrics import FORMULAS, RED_FLAG_FORMULAS, company_metric
 from finance_analyzer.preload import GROUPS
 from finance_analyzer.schema import ITEMS
 
-# Written by hand after the 2026-11-12 run, red flags after the 2026-11-13 run; update it when the tables change.
+# Written by hand after the 2026-11-12 run, red flags after the first 2026-11-13 run, #29 and FFO after the
+# second; update it when the tables change.
 FINDINGS = """## What the gaps have in common
 
 | Pattern | Companies | Effect | Status |
 |---|---|---|---|
-| No operating income subtotal in the income statement | CVX, OXY, PFE, LLY, SHEL, CNQ, O | operating margin, ROIC, interest coverage unavailable | [#29](https://github.com/VedantParashar/finance-analyzer/issues/29) |
+| No operating income subtotal in the income statement | CVX, OXY, PFE, LLY, SHEL, CNQ, O | operating margin, ROIC, interest coverage were unavailable | fixed by [#29](https://github.com/VedantParashar/finance-analyzer/issues/29) for all but O: EBIT (pretax income + interest) is used, marked as calculated. O tags no interest expense for FY2024–25 |
 | An older year restated in a later filing, line by line | MSFT, WMT, COST, OXY, NEE, AMT, PLOW, SONY, CRWV | that year fails the balance check | [#30](https://github.com/VedantParashar/finance-analyzer/issues/30) |
-| REITs: no current/non-current split, no cost of revenue or capex | O, PLD, AMT | liquidity ratios, gross margin, free cash flow unavailable | [#31](https://github.com/VedantParashar/finance-analyzer/issues/31) |
+| REITs: no current/non-current split, no cost of revenue or capex | O, PLD, AMT | liquidity ratios, gross margin, free cash flow unavailable | [#31](https://github.com/VedantParashar/finance-analyzer/issues/31); FFO is now shown for REITs instead (O and AMT have it for FY2025; PLD tags no gain on sale for FY2025, so it's unavailable) |
 | The SEC's data has only quarterly reports | XOM | can't be loaded | [#32](https://github.com/VedantParashar/finance-analyzer/issues/32) |
 | Cost of revenue and capex split over industry-specific tags | NEE, DUK, OXY, SHEL, CNQ, BABA | gross margin, free cash flow unavailable | [#33](https://github.com/VedantParashar/finance-analyzer/issues/33) |
 | An item reported in earlier years, then absent (probably "none") | GOOGL, CALM, CROX, RIVN, MRNA | quick ratio, debt/equity or ROIC unavailable | [#1](https://github.com/VedantParashar/finance-analyzer/issues/1) |
@@ -54,7 +55,7 @@ Of the five line items added for the scores, SG&A is missing for the two utiliti
 report no such line, and receivables, property and retained earnings for some REITs and foreign filers.
 """
 RECENT_YEARS = 5
-NOT_EXPECTED = {"temporary_equity"}  # most companies have none, so its absence isn't a gap
+NOT_EXPECTED = {"temporary_equity", "gain_on_sale_of_real_estate"}  # most companies have none: not a gap
 
 
 def check(ticker: str) -> dict:
@@ -111,7 +112,8 @@ def main() -> None:
                     for name in RED_FLAG_FORMULAS) + ".",
         "",
         "How to read it: *Missing items* were not found in any of the last five fiscal years; *partly missing*",
-        "in some of them. Temporary equity is left out (most companies have none). *Metrics* counts the 19",
+        "in some of them. Temporary equity and gains on sale of real estate are left out (most companies have none).",
+        "*Metrics* counts the 19",
         "ratios for the latest fiscal year; *Red flags* the four red-flag scores, with the first reason for",
         "each one that's unavailable. Balance failures cover every stored year, with assets minus",
         "(liabilities + equity).",

@@ -1350,3 +1350,13 @@ Same rules and format as session 2.
   narrow range; ticks now use ".1~%" (40%, 2.5%). Belongs with task 1's chart style; it rides here.
 - **2026-11-13 · process:** `gh pr create` hung for over ten minutes on task 8; stopped and rerun (PR
   #61). 287 tests pass (1 new for FFO; the export test now checks FFO's formula too).
+
+## S7 Task 10 — Coverage rerun and CHANGELOG 1.3.0
+
+- **2026-11-13 · coverage:** `scripts/coverage.py` rerun on the same 30 companies. All 19 metrics for the
+  latest year: 10 companies (8 before). Altman Z″ available for 26 of 29 (20 before). CVX and PFE now
+  have all 19; OXY and LLY 18; SHEL 16 and CNQ 15 (13 each before). Nothing measured before got worse.
+  The new gains-on-sale line item is left out of "missing items" like temporary equity (most companies
+  have none). The hand-written findings now mark #29 as fixed except for O, and note FFO under #31.
+- **2026-11-13 · changelog:** a 1.3.0 section marked "unreleased": no version bump in
+  `pyproject.toml`, no tag, as asked.
