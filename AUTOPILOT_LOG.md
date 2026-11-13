@@ -1060,3 +1060,15 @@ Same rules and format as session 2.
   the known issues #29, #31, #33 and #1. **Not filed:** three one-company gaps (NVO property, SONY
   receivables, BABA retained earnings).
 - **2026-11-13 · checked:** 271 tests pass; the script isn't part of them (it needs the network).
+
+## S6 Task 3 — LEARNING.md suggestions added
+
+- **2026-11-13 · done:** the 18 terms suggested in sessions 2–5 (10 suggestion notes in this log, S2
+  tasks 4, 5, 6; S3 tasks 2, 3; S4 task 3; S5 tasks 1–4) are now in `LEARNING.md`.
+- **2026-11-13 · decision:** `LEARNING.md` has no headings; its "sections" are groups of lines: tools,
+  a who-is-each-file-for table, a glossary of `Term: explanation.` lines, then notes on XBRL. Every
+  suggestion is a term, so they went into the glossary group, right after its last line ("Cache: …"),
+  in the order they were suggested and in the same `Term: explanation.` style (with the file's curly
+  quotes). The suggestions' wording is kept, apart from that format.
+- **2026-11-13 · checked:** `git diff` shows 18 lines added and 0 removed or changed.
+  **Not included:** session 1's suggestions (the queue said sessions 2–5).
