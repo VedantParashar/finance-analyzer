@@ -238,6 +238,10 @@ CASH_LAST_RESORT = LineItem(
     "cash", ("CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",), "USD", "instant"
 )
 
+# For companies with no operating income subtotal (#29). By the FASB definition OperatingExpenses excludes
+# cost of sales, so it is used together with it. CostsAndExpenses is not used: see _derived_operating_income.
+OPERATING_EXPENSES = LineItem("operating expenses", ("OperatingExpenses",), "USD", "flow")
+
 # Minority owners' share of equity: taken off total equity when a company doesn't report the parent's
 # share on its own (Rivian from FY2024).
 MINORITY_INTEREST = LineItem("minority_interest", ("MinorityInterest",), "USD", "instant")
