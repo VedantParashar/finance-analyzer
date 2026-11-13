@@ -1155,3 +1155,26 @@ Same rules and format as session 2.
   the stored values differ only in the 16th digit (Excel keeps 15). The Apple and Coca-Cola hand
   calculations from `tests/test_red_flags.py` are now also tested through the workbook. Compare page
   checked in a real browser (AAPL, KO, NVDA), no errors. 277 tests pass (275 before).
+
+## S7 Task 1 — Design system
+
+- **2026-11-13 · decision:** `DESIGN.md` written first; it sets the palette (navy/slate, one blue accent,
+  green and red only for up/down), Inter, 8px radius, the metric-card, table, header, tab, chart and
+  state rules. Every later UI task follows it.
+- **2026-11-13 · decision:** the theme does almost all the work: `.streamlit/config.toml` defines
+  `[theme.light]` and `[theme.dark]` (Streamlit follows the visitor's system setting; its menu switches),
+  Inter from Google Fonts, sizes, radius and the four series colours. `style.css` (about 30 lines) only
+  does what the theme can't: content width, tabular figures, the sticky header and the landing hero.
+  **Why:** a theme option survives Streamlit upgrades; CSS against its internals may not.
+- **2026-11-13 · decision:** Streamlit exposes no theme colours to CSS (checked in the browser: no
+  `--st-*` variables), and `st.context.theme` can be wrong on first load, so every CSS colour is
+  translucent and the sticky header is frosted (blur) instead of solid. **Rejected:** a solid header
+  colour per theme (would be wrong after switching themes in the menu).
+- **2026-11-13 · decision:** the "shared Plotly template" is `charts.style()`, which sets layout values
+  rather than a `template`. **Why:** Streamlit replaces a figure's template with its own theme (which is
+  what makes text readable in dark mode) but keeps layout values the figure sets itself.
+- **2026-11-13 · decision:** the browser tab says "Datadough" (the live app's name) instead of
+  "Finance Analyzer", with a chart icon.
+- **2026-11-13 · checked:** Playwright through `uvx` with the cached Chromium, as in session 2 (the
+  Playwright plugin still wants Google Chrome): Inter is applied, the dark background is `#0B1220`, no
+  console errors. 278 tests pass.
