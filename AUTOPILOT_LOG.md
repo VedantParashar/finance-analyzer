@@ -1,5 +1,49 @@
 # Autopilot log
 
+## Summary of session 7 (2026-11-13)
+
+**Built:** all 10 queue tasks, each on its own branch and pull request, stacked in this order (#54 on
+master, each later one on the one before). Nothing is merged. `DESIGN.md` was written first and every UI
+task follows it.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | #54 | `design-system` | `DESIGN.md`; light and dark theme (navy, one blue accent), Inter, `style.css`, `charts.style()` for every chart |
+| 2 | #55 | `landing-page` | Home page: hero search, example chips, Analyse/Compare/Learn tiles, footer; navigation on top |
+| 3 | #56 | `company-layout` | sticky header (exchange, SIC, price and day change, Refresh, Excel, Share) and six tabs; Overview with KPI cards |
+| 4 | #57 | `components` | cards with sparklines and a "How it's calculated" popover; tables with pinned column, units in header, red negatives |
+| 5 | #58 | `compare-polish` | one colour per company (chip, column, line), best/worst per row, group + metric chart picker |
+| 6 | #59 | `ui-polish` | named loading spinner, empty states, per-company tab titles, chart legend on phones |
+| 7 | #60 | `visual-check` | 32 screenshots (8 views × light/dark × desktop/mobile) reviewed; fixes; new README screenshots |
+| 8 | #61 | `derived-operating-income` | #29: operating income where no subtotal is tagged, labelled as calculated |
+| 9 | #62 | `reit-ffo` | FFO for REITs (SIC 6798), learning text, Excel formula |
+| 10 | #63 | `coverage-1.3.0` | `docs/COVERAGE.md` rerun; CHANGELOG 1.3.0 (unreleased) |
+
+287 tests pass locally (277 before).
+
+**Worth your attention:**
+1. **#29 doesn't use the formula in the queue** (task 8). No affected company tags operating expenses,
+   and "revenue − total costs" proved wrong on real filings (equals pretax income at Chevron, includes
+   interest at Realty Income, −$71bn at Berkshire). Your formula is the first choice; otherwise EBIT
+   (pretax income + interest), the option in the issue itself, clearly labelled, never for banks. 6 of 7
+   companies fixed; not one reported figure changed across 50 companies. Realty Income still lacks it.
+2. **FFO is an approximation** (task 9): all depreciation is added back and impairments aren't, so
+   Simon Property's FY2025 FFO ($6.8bn) looks high. The learning text says so. SPEC.md now lists FFO
+   (beyond the written v1 metrics).
+3. **Compare best/worst directions** (task 5): "higher is better" for current/quick ratio and growth is
+   the textbook reading. Market cap, the equity multiplier and the red-flag scores aren't ranked (a red
+   "worst" on a safe-zone Altman Z″ misled in the first try).
+4. **Tables now show plain millions** (`478,834`, unit in the header), not `$478,834M` (task 4).
+5. **Visual review is mine, against DESIGN.md**, from screenshots in headless Chromium; worth a look in
+   your own browser, especially dark mode and a phone. A running app must be restarted to pick up this
+   session's changes (Streamlit keeps old copies of imported modules).
+
+**Suggested for `LEARNING.md`:** *design system* (one written set of colours, fonts and component rules),
+*theme* (light/dark colour set), *sparkline* (a tiny chart without axes), *EBIT* (earnings before
+interest and taxes), *REIT* and *FFO*, *CSS* (the language for styling web pages).
+
+---
+
 ## Summary of session 6 (2026-11-13)
 
 **Built:** 5 of 6 queue tasks, each on its own branch and pull request, stacked in this order; task 1
