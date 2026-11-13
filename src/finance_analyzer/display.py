@@ -3,10 +3,13 @@
 import json
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlencode
 
 from finance_analyzer.parse import BALANCE_TOLERANCE, BalanceCheck
 from finance_analyzer.schema import ITEMS
 from finance_analyzer.store import StoredLineItem
+
+REPO_URL = "https://github.com/VedantParashar/finance-analyzer"
 
 LABELS = {
     "gross_margin": "Gross margin",
@@ -331,3 +334,13 @@ def best_worst(name: str, values: dict[str, float | None]) -> tuple[str | None, 
         return None, None
     high, low = max(ranked, key=ranked.get), min(ranked, key=ranked.get)
     return (high, low) if name in HIGHER_IS_BETTER else (low, high)
+
+
+def report_url(ticker: str, metric: str, value: str, period: str) -> str:
+    """A new GitHub issue, filled in, for reporting a number that looks wrong."""
+    title = f"Wrong number? {ticker} {metric} {period}".strip()
+    body = (
+        f"**Company:** {ticker}\n**Metric:** {metric}\n**Period:** {period}\n**The app shows:** {value}\n\n"
+        "**What I expected, and where I found it** (a link to the filing or page helps):\n\n"
+    )
+    return f"{REPO_URL}/issues/new?" + urlencode({"title": title, "body": body, "labels": "data-quality"})

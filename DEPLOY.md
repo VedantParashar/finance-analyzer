@@ -34,6 +34,8 @@ an actual deployment needs your login. If a step fails, see "If something goes w
      ```toml
      SEC_USER_AGENT = "Finance Analyzer you@example.com"
      ```
+     Optionally add `FEEDBACK_URL = "https://…"` (a form or page for feedback, https only) to show a
+     "Feedback" link in the company header and the footer.
    - Click **Save**.
 6. Click **Deploy** and wait for the log on the right to finish (a few minutes the first time).
 7. **Check it works:** type `AAPL` on the Company page. You should see Apple's line items, the metric

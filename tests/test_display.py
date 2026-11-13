@@ -174,3 +174,13 @@ def test_source_column_links_the_latest_year_that_has_the_item():
     ]
     table, _ = display.line_item_table(rows, [y1, y2], sources={"OLD": "old-link", "NEW": "new-link"})
     assert [(line["Line item"], line["Source"]) for line in table] == [("Revenue", "new-link"), ("Cash", "old-link")]
+
+
+def test_report_url_opens_a_prefilled_github_issue():
+    from urllib.parse import parse_qs, urlparse
+
+    url = display.report_url("AAPL", "ROE", "142.3%", "FY2026")
+    assert url.startswith("https://github.com/VedantParashar/finance-analyzer/issues/new?")
+    query = parse_qs(urlparse(url).query)
+    assert query["title"] == ["Wrong number? AAPL ROE FY2026"] and query["labels"] == ["data-quality"]
+    assert "**The app shows:** 142.3%" in query["body"][0]

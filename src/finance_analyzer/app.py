@@ -30,6 +30,16 @@ def use_secret_user_agent() -> None:
         return
     if user_agent:
         os.environ["SEC_USER_AGENT"] = user_agent  # edgar.py reads it from here and stays free of Streamlit
+def feedback_url() -> str | None:
+    """FEEDBACK_URL from Streamlit secrets or the environment; None (no link shown) if unset or not https."""
+    try:
+        url = st.secrets.get("FEEDBACK_URL")
+    except FileNotFoundError:  # no secrets file, the usual case on your own computer
+        url = None
+    url = url or os.environ.get("FEEDBACK_URL")
+    return url if url and url.startswith("https://") else None  # a setting that becomes a link: https only
+
+
 EXAMPLES = ["AAPL", "MSFT", "NVDA", "KO", "WMT", "TSLA"]
 COMPARE_EXAMPLES = [["AAPL", "MSFT", "NVDA"], ["KO", "PEP"], ["WMT", "COST", "TGT"]]
 STYLE = Path(__file__).with_name("style.css").read_text()
@@ -243,7 +253,7 @@ def refresh_button(ticker: str) -> None:
 
 def metric_card(
     name: str, metric: Metric, prior: Metric | None, currency: str, benchmark: tuple[float, int] | None = None,
-    history: list[float | None] | None = None, links: dict[str, tuple[str, str]] | None = None,
+    history: list[float | None] | None = None, links: dict[str, tuple[str, str]] | None = None, period: str = "",
 ) -> None:
     with st.container(border=True, height="stretch"):  # cards in a row share the tallest one's height
         st.metric(
@@ -271,6 +281,9 @@ def metric_card(
             for note in metric.notes:
                 st.caption(f"ⓘ {note}")
             learn(name)
+            ticker = st.query_params.get("ticker", "")  # the company page keeps it in the address
+            value = display.format_metric(name, metric.value, currency)
+            st.markdown(f"[:material/flag: Report a wrong number]({display.report_url(ticker, display.LABELS[name], value, period)})")
 
 
 def financial_table(table: list[dict[str, str]], unit: str | None = None) -> None:
@@ -396,7 +409,7 @@ def company_page() -> None:
 def company_header(ticker: str, info: dict, rows: list[store.StoredLineItem], metrics: dict) -> None:
     """Name, ticker, exchange and industry, today's price, and the actions; it stays put while scrolling."""
     with st.container(key="company-header"):
-        left, right = st.columns([1, 1], vertical_alignment="center")
+        left, right = st.columns([2, 3], vertical_alignment="center")  # room for price and four buttons
         with left:
             st.header(f"{info['name']} ({ticker})", anchor=False)
             with st.container(horizontal=True, gap="small"):
@@ -413,6 +426,8 @@ def company_header(ticker: str, info: dict, rows: list[store.StoredLineItem], me
                 icon=":material/download:",
                 help="Download the statements and ratios as an Excel workbook with live formulas.",
             )
+            if feedback_url():
+                st.link_button("Feedback", feedback_url(), icon=":material/feedback:")
             with st.popover("Share", icon=":material/share:"):
                 base = (st.context.url or "").split("?")[0]
                 st.code(f"{base}?ticker={ticker}", language=None)
@@ -456,7 +471,7 @@ def overview_tab(
     for column, name in zip(kpis[2:], ["operating_margin", "free_cash_flow"]):
         with column:
             metric_card(name, latest[name], prior.get(name), currency, medians.get(name),
-                        [metrics[end][name].value for end in years], links)
+                        [metrics[end][name].value for end in years], links, labels[-1])
 
     chart, snapshot = st.columns([3, 2])
     by_million = {key: value / 1e6 for key, value in by_key.items()}
@@ -525,7 +540,7 @@ def ratios_tab(
         for column, name in zip(st.columns(4), names):
             with column:
                 metric_card(name, latest[name], prior.get(name), currency, medians.get(name),
-                            [metrics[end][name].value for end in years], links)
+                            [metrics[end][name].value for end in years], links, labels[-1])
 
     if info["sic"] == REIT_SIC:
         st.markdown("**Real estate (REIT)**")
@@ -536,7 +551,7 @@ def ratios_tab(
         for column, name in zip(st.columns(4), display.REIT_METRICS):
             with column:
                 metric_card(name, latest[name], prior.get(name), currency, None,
-                            [metrics[end][name].value for end in years], links)
+                            [metrics[end][name].value for end in years], links, labels[-1])
 
     st.subheader("Trends")
     left, right = st.columns(2)
@@ -567,7 +582,7 @@ def valuation_tab(
     )
     for column, name in zip(st.columns(5), display.PRICE_METRICS):
         with column:
-            metric_card(name, valuation_metrics[name], None, currency, links=links)
+            metric_card(name, valuation_metrics[name], None, currency, links=links, period=f"{labels[-1]}, today's price")
 
 
 def open_company(text: str) -> None:
@@ -649,7 +664,7 @@ def red_flags_section(
     for column, name in zip(st.columns(4), display.RED_FLAGS):
         with column:
             metric_card(name, metrics[years[-1]][name], None, currency, medians.get(name),
-                        [metrics[end][name].value for end in years], links)
+                        [metrics[end][name].value for end in years], links, labels[-1])
     table = []
     for name in display.RED_FLAGS:
         line = {"Score": display.LABELS[name]}
@@ -889,7 +904,8 @@ def footer() -> None:
         "share prices and exchange rates from Yahoo Finance, through yfinance. Figures can contain errors, so check "
         "the filing before relying on one. For learning only, **not investment advice**. "
         "[How the numbers are chosen](https://github.com/VedantParashar/finance-analyzer/blob/master/docs/METHODOLOGY.md) · "
-        "[Open source on GitHub](https://github.com/VedantParashar/finance-analyzer)."
+        "[Open source on GitHub](https://github.com/VedantParashar/finance-analyzer)"
+        + (f" · [Feedback]({feedback_url()})." if feedback_url() else ".")
     )
 
 
