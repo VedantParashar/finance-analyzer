@@ -149,3 +149,16 @@ def test_amounts_carry_the_reporting_currency():
     assert display.format_input("revenue (FY2024)", 4e9, "EUR") == "EUR 4,000M"
     rows = [StoredLineItem("SAP", "diluted_eps", date(2025, 12, 31), 2.5, "EUR/shares", "a", "", datetime(2026, 1, 1))]
     assert display.currency(rows) == "EUR" and display.currency([]) == "USD"
+
+
+def test_best_worst_follows_each_metrics_direction_and_skips_what_cant_be_ranked():
+    assert display.best_worst("net_margin", {"AAPL": 0.27, "KO": 0.23, "NVDA": 0.55}) == ("NVDA", "KO")
+    assert display.best_worst("debt_to_equity", {"AAPL": 1.5, "KO": 1.6, "NVDA": 0.1}) == ("NVDA", "KO")
+    # A negative P/E means a loss, not a bargain: left out of the ranking.
+    assert display.best_worst("pe", {"A": 30.0, "B": -5.0, "C": 12.0}) == ("C", "A")
+    assert display.best_worst("altman_z", {"A": 3.2, "B": 4.5}) == (None, None)  # red flags keep their verdicts
+    assert display.best_worst("roe", {"A": 0.1, "B": None}) == (None, None)  # one value: nothing to compare
+    assert display.best_worst("roe", {"A": 0.1, "B": 0.1}) == (None, None)  # a tie
+    assert display.best_worst("market_cap", {"A": 1e12, "B": 2e12}) == (None, None)  # size, not quality
+    every_metric = [name for group in display.GROUPS.values() for name in group] + display.RED_FLAGS + display.PRICE_METRICS
+    assert set(every_metric) - display.HIGHER_IS_BETTER - display.LOWER_IS_BETTER == {"equity_multiplier", "market_cap", *display.RED_FLAGS}

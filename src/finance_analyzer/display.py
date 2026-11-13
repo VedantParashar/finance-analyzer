@@ -294,3 +294,29 @@ def ratio_snapshot(latest: dict, medians: dict[str, tuple[float, int]], label: s
         }
         for name in SNAPSHOT
     ]
+
+
+# Which way is better, for marking the best and worst company in a compare row. Not ranked: market cap
+# (size, not quality), the equity multiplier (more leverage is neither good nor bad on its own) and the
+# red-flag scores, whose own verdict says more ("worst" in red on a safe-zone score would mislead).
+HIGHER_IS_BETTER = {
+    "gross_margin", "operating_margin", "net_margin", "roe", "roa", "roic", "current_ratio", "quick_ratio",
+    "interest_coverage", "asset_turnover", "free_cash_flow", "fcf_margin", "revenue_growth", "revenue_cagr_3y",
+    "eps_growth", "eps_cagr_3y", "fcf_yield",
+}
+LOWER_IS_BETTER = {"debt_to_equity", "pe", "pb", "ev_ebit"}
+NEGATIVE_MEANS_TROUBLE = {"debt_to_equity", "pe", "pb", "ev_ebit"}  # losses or negative equity, not "cheap"
+
+
+def best_worst(name: str, values: dict[str, float | None]) -> tuple[str | None, str | None]:
+    """The companies with the best and the worst value in one compare row, or None when it can't be said."""
+    if name not in HIGHER_IS_BETTER | LOWER_IS_BETTER:
+        return None, None
+    ranked = {
+        key: value for key, value in values.items()
+        if value is not None and not (name in NEGATIVE_MEANS_TROUBLE and value < 0)
+    }
+    if len(ranked) < 2 or len(set(ranked.values())) == 1:
+        return None, None
+    high, low = max(ranked, key=ranked.get), min(ranked, key=ranked.get)
+    return (high, low) if name in HIGHER_IS_BETTER else (low, high)
