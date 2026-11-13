@@ -37,7 +37,7 @@ QUOTE_MINUTES = 15  # how long a share price is reused before asking Yahoo Finan
 
 
 # Kept for a day at most, so a long-running app still notices when the SEC files on disk get too old.
-@st.cache_data(ttl=timedelta(days=1), show_spinner="Loading from SEC EDGAR…")
+@st.cache_data(ttl=timedelta(days=1), show_spinner=False)  # load_or_explain() shows a spinner naming the company
 def load(ticker: str) -> tuple[list[store.StoredLineItem], dict, dict]:
     """Rows, metrics by year and company info, (re)loading the company if the SEC download is newer."""
     info = edgar.fetch_company_info(ticker)  # also rejects unknown tickers before any parsing
@@ -201,7 +201,8 @@ def choose(key: str, value) -> None:
 def load_or_explain(ticker: str):
     """load(), or None after showing the user why it failed."""
     try:
-        return load(ticker)
+        with st.spinner(f"Loading {ticker} from SEC EDGAR… (the first time takes a few seconds)"):
+            return load(ticker)
     except (ValueError, RuntimeError) as error:  # fund, no annual reports, or no SEC_USER_AGENT
         st.error(str(error))
     except httpx.HTTPError as error:
@@ -322,6 +323,7 @@ def company_page() -> None:
         return
     rows, metrics, info = loaded
     st.query_params["ticker"] = ticker  # the browser's address now links straight to this company
+    st.set_page_config(page_title=f"{ticker} · {info['name']} · Datadough")  # the browser tab names the company
     company_header(ticker, info, rows, metrics)
 
     currency = display.currency(rows)
@@ -661,18 +663,22 @@ def compare_page() -> None:
         key="compare",
     )
     if not choices:
+        st.info("Pick 2 to 4 companies to see their ratios, red-flag scores and valuation side by side.")
         st.markdown("**Popular comparisons**")
         for column, example in zip(st.columns(len(COMPARE_EXAMPLES)), COMPARE_EXAMPLES):
             found = [company for company in map(edgar.find_ticker, example) if company]
             column.button(" vs ".join(example), on_click=choose, args=("compare", [option(c) for c in found]))
+        st.query_params.pop("compare", None)
+        return
     resolved = [ticker_or_explain(choice, options) for choice in choices]
     if None in resolved:
         return
     tickers = list(dict.fromkeys(resolved))  # the same company picked twice counts once
     if not 2 <= len(tickers) <= 4:
-        st.info("Pick 2 to 4 companies.")
+        st.info(f"Pick 2 to 4 companies. Add at least one more to compare with {tickers[0]}.")
         st.query_params.pop("compare", None)
         return
+    st.set_page_config(page_title=f"{' vs '.join(tickers)} · Datadough")  # the browser tab names the comparison
     st.query_params["compare"] = ",".join(tickers)  # the browser's address now links straight to this comparison
     companies = {}
     for ticker in tickers:

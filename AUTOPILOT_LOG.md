@@ -1259,3 +1259,23 @@ Same rules and format as session 2.
   table and the compare table now use `height="content"` and show all rows. This also fixes the line-item
   table on the company page (task 4).
 - **2026-11-13 · checked:** AAPL, KO, NVDA in light and dark. 283 tests pass.
+
+## S7 Task 6 — Polish
+
+- **2026-11-13 · loading:** the spinner names the company ("Loading AAPL from SEC EDGAR… (the first time
+  takes a few seconds)"), on the company and the compare page. Streamlit already greys out stale content
+  while a page reruns, which serves as the skeleton. **Rejected:** hand-made skeleton boxes (more code
+  for a second or two of waiting).
+- **2026-11-13 · empty and error states:** the empty compare page now says what to do before offering
+  the popular comparisons; with one company it says to add another and names it. The company page's
+  empty state and every error message (unknown ticker, fund, no annual reports, SEC unreachable, no
+  price) were already plain-English and are unchanged.
+- **2026-11-13 · titles and icon:** the browser tab reads "AAPL · Apple Inc. · Datadough" on a company and
+  "AAPL vs KO vs NVDA · Datadough" on a comparison (`st.set_page_config` again once the page knows),
+  "Datadough" elsewhere; the icon is Material "query_stats".
+- **2026-11-13 · mobile:** at 390px the page doesn't scroll sideways (checked: page width = window width);
+  cards and header stack, tabs scroll inside their bar. **Fixed:** the chart legend overlapped the chart
+  title on narrow screens; the title is now pinned to the top edge and the legend sits under it.
+- **2026-11-13 · number formatting:** checked by eye on every page; cards use `$478,834M`, tables plain
+  millions with the unit in the header, ratios `24.3%` / `1.07×`, deltas `+1.2 pp`. All of it still comes
+  from `display.py`. 283 tests pass.
