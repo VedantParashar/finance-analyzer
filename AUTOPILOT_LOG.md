@@ -806,3 +806,47 @@ Same rules and format as session 2.
   appear in its "missing items" columns.
 - **LEARNING.md suggestion:** "Accrual": profit counts a sale when it's made, cash flow when the money
   arrives. The gap between the two is accruals; a big gap means profit is ahead of cash.
+
+## S5 Task 2 — Peer suggestions
+
+- **2026-11-12 · decision (the one to review): peers come from a file shipped with the app,
+  `src/finance_analyzer/peers.json`, not from live SEC calls.** It lists 4,239 companies as
+  ticker → [SIC code, revenue in US dollars for fiscal 2025] and is 99 KB.
+  **Why:** the SEC has no "every company with this industry code" lookup that also gives revenue.
+  Doing it live would mean paging through the SEC's company browser and then downloading each
+  candidate's full facts (several MB each) just to rank them. With the file, suggestions are instant
+  and need no network. **The cost:** it goes stale. Industry codes rarely change, but revenue is a year
+  old by the time the next annual reports arrive, and a company that listed after the file was built
+  isn't suggested. `scripts/build_peers.py` rebuilds it (about a minute, 280 MB of downloads); run it
+  about once a year. **Rejected:** peers only from companies already in the app's database (far too few).
+- **2026-11-12 · where the file's data comes from:** SIC codes from the SEC's four latest quarterly
+  "Financial Statement Data Sets"; revenue from the SEC "frames" API, which returns one fact for every
+  company in a single call, tried in the schema's revenue tag order. One ticker per company (the first
+  in the SEC's list), so Alphabet appears once.
+- **2026-11-12 · the rule:** same 4-digit SIC code first, closest revenue first; if that gives fewer
+  than 5, topped up from the same 3-digit group (marked "wider industry group" in the button's
+  tooltip). "Closest" is by ratio, so half the size and double the size count as equally far.
+  A company never gets itself or its own other share class (GOOG/GOOGL).
+- **2026-11-12 · decision, foreign filers:** a company that reports in another currency (TSMC, SAP) has
+  no dollar revenue in the file, so closeness can't be measured; it gets the five **largest** companies
+  with its code instead, and the caption says "largest first". Such companies are also rarely suggested
+  *as* peers (only when they tag a dollar figure, as Alibaba does).
+- **2026-11-12 · one click:** each peer is a button showing ticker and revenue; clicking opens the
+  compare page with the company and that peer. A sixth button, "Compare X with the first 3", fills all
+  four compare slots. (Compare takes at most 4 companies, so "company + all 5 peers" isn't possible.)
+- **2026-11-12 · bad SEC data found and handled:** Tigo Energy (TYGO) tagged its FY2025 revenue twice,
+  once as $103.5M and once as $103.5bn, which made it NVIDIA's "closest peer". The build script now
+  takes the smaller figure when two revenue tags differ by exactly 1,000× or 1,000,000×. **Not fixed:**
+  the app's own company page for TYGO would still show the $103.5bn figure; it's one filer's error and
+  I didn't file an issue for it.
+- **2026-11-12 · examples (live file):** KO → PEP, KDP, STZ, PRMB, BF-B. WMT → COST, TGT, DG, BJ, DLTR.
+  NVDA → AVGO, INTC, MU, AMD, AMAT. JPM → BAC, C, USB, PNC, COF. AAPL → DELL, SMCI, then three tiny
+  companies: Apple's SIC code (3571, electronic computers) simply has few members, and SIC codes are
+  coarse (Microsoft is "prepackaged software", Alphabet "computer programming services").
+- **2026-11-12 · checked:** in a real browser, KO → click PEP and TSM → "first 3" both open the compare
+  page loaded. 248 tests pass (241 before). **Not checked:** `scripts/build_peers.py` has no automated
+  test (it is all downloads); ExxonMobil and other companies with no revenue in the frames feed are
+  missing from the file, so they are never suggested as peers.
+- **`SPEC.md`:** peer suggestions added under Screens.
+- **LEARNING.md suggestion:** "SIC code": a 4-digit industry number the SEC gives every filer. The first
+  3 digits are a wider group, the first 2 wider still (20 = food, 2080 = beverages).

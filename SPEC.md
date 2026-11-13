@@ -39,6 +39,7 @@ Finance and business students doing case studies, stock pitches and theses.
 **Screens**
 - Single-company dashboard with 5-year trends
 - Compare 2–4 companies
+- Peer suggestions on the company page: 5 companies with the same SEC industry (SIC) code, closest in revenue
 - Excel export with live formulas
 
 **Data checks**

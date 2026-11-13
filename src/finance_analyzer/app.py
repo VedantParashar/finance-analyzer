@@ -10,10 +10,11 @@ import httpx
 import plotly.graph_objects as go
 import streamlit as st
 
-from finance_analyzer import display, edgar, export, parse, prices, store
+from finance_analyzer import display, edgar, export, parse, peers, prices, store
 from finance_analyzer.metrics import FORMULA_TEXT, Metric, company_metrics, price_metrics
 
 YEARS_SHOWN = 5
+PAGES: dict[str, object] = {}  # filled by run(); lets one page send the user to another
 
 
 def use_secret_user_agent() -> None:
@@ -318,7 +319,40 @@ def company_page() -> None:
 
     dupont_section(metrics, years, labels)
     red_flags_section(metrics, years, labels, currency, info)
+    peers_section(ticker, info)
     data_checks_section(ticker, rows)
+
+
+def open_compare(tickers: list[str]) -> None:
+    """Fill the compare page's search box with these tickers and go there."""
+    found = [company for company in map(edgar.find_ticker, tickers) if company]
+    st.session_state["compare"] = [option(company) for company in found]
+    st.switch_page(PAGES["compare"])
+
+
+def peers_section(ticker: str, info: dict) -> None:
+    st.subheader("Peers")
+    own = edgar.find_ticker(ticker)
+    share_classes = {c.ticker for c in edgar.list_companies() if c.cik == own.cik}  # GOOGL and GOOG are one company
+    suggested = peers.suggest(share_classes, info["sic"])
+    if not suggested:
+        st.caption(f"No other company with revenue in US dollars shares {ticker}'s SEC industry code ({info['sic']}).")
+        return
+    ranked = "closest in revenue first" if share_classes & peers.COMPANIES.keys() else "largest first"
+    st.caption(
+        f"Companies with the same SEC industry code as {ticker} ({info['sic']}, {info['industry']}), {ranked}. "
+        f"Revenue is for fiscal {peers.REVENUE_YEAR}. Click one to compare it with {ticker}."
+    )
+    for column, peer in zip(st.columns(len(suggested)), suggested):
+        company = edgar.find_ticker(peer.ticker)
+        note = "" if peer.same_code else f" Wider industry group ({info['sic'] // 10}x), not the same code."
+        if column.button(
+            f"{peer.ticker} · {display.money(peer.revenue)}", key=f"peer-{peer.ticker}",
+            help=f"{company.name if company else peer.ticker}.{note}",
+        ):
+            open_compare([ticker, peer.ticker])
+    if len(suggested) > 1 and st.button(f"Compare {ticker} with the first {min(3, len(suggested))}"):
+        open_compare([ticker] + [peer.ticker for peer in suggested[:3]])
 
 
 def data_checks_section(ticker: str, rows: list[store.StoredLineItem]) -> None:
@@ -494,7 +528,9 @@ def compare_page() -> None:
 def run() -> None:
     st.set_page_config(page_title="Finance Analyzer", layout="wide")
     use_secret_user_agent()
-    st.navigation([st.Page(company_page, title="Company"), st.Page(compare_page, title="Compare")]).run()
+    PAGES["company"] = st.Page(company_page, title="Company")
+    PAGES["compare"] = st.Page(compare_page, title="Compare")
+    st.navigation(list(PAGES.values())).run()
 
 
 # Streamlit runs this file as __main__; importing it (as the tests do) only defines the pages.

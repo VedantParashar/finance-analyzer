@@ -11,7 +11,7 @@ from streamlit.proto.WidgetStates_pb2 import WidgetState
 from streamlit.testing.v1 import AppTest
 from streamlit.testing.v1.element_tree import Selectbox
 
-from finance_analyzer import edgar, parse, prices, store
+from finance_analyzer import edgar, parse, peers, prices, store
 from finance_analyzer.parse import BalanceCheck, LineItemRow
 from test_metrics import AAPL, M
 
@@ -25,8 +25,8 @@ INFO = {
 }
 
 
-COMPANIES = [edgar.Company(ticker, info["name"], "0000000001") for ticker, info in INFO.items()] + [
-    edgar.Company("APLE", "Apple Hospitality REIT, Inc.", "0000000002"),  # so "apple" matches two names
+COMPANIES = [edgar.Company(ticker, info["name"], f"{number:010}") for number, (ticker, info) in enumerate(INFO.items(), 1)] + [
+    edgar.Company("APLE", "Apple Hospitality REIT, Inc.", "0000000099"),  # so "apple" matches two names
 ]
 
 
@@ -64,6 +64,7 @@ def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(prices, "fetch_exchange_rate", lambda currency: prices.Rate(0.9, datetime(2026, 11, 12, 9, 0)))
     monkeypatch.setattr(edgar, "fetch_company_info", lambda ticker: INFO.get(ticker, INFO["AAPL"]))
     monkeypatch.setattr(edgar, "list_companies", lambda: COMPANIES)
+    monkeypatch.setattr(peers, "COMPANIES", {"AAPL": [3571, 4e11], "SAP": [3571, 3e10], "GS": [3572, 5e10]})
     monkeypatch.setattr(Selectbox, "_widget_state", property(typed_or_picked))
     st.cache_data.clear()
 
@@ -125,7 +126,7 @@ def test_company_page_loads_and_shows_every_section():
     assert app.header[0].value == "Apple Inc. (AAPL)"
     assert [s.value for s in app.subheader] == [
         "Line items", "Metrics for FY2026", "Valuation at today's price", "Trends", "DuPont breakdown", "Red flags",
-        "Data checks",
+        "Peers", "Data checks",
     ]
     # every grouped metric card, five valuation cards, four DuPont tiles, four red-flag cards
     assert len(app.metric) == 18 + 5 + 4 + 4
@@ -141,6 +142,23 @@ def test_company_page_loads_and_shows_every_section():
     assert cards["Altman Z″"] == "—"
     assert "Not available: retained_earnings not reported for FY2026" in [c.value for c in app.caption]
     assert list(app.dataframe[2].value["Score"]) == ["Altman Z″", "Piotroski F", "Beneish M", "Accruals ratio"]
+
+
+def test_peers_are_suggested_and_one_click_opens_compare():
+    app = company("aapl")
+    buttons = {b.label: b for b in app.button}
+    assert {"SAP · $30,000M", "GS · $50,000M", "Compare AAPL with the first 2"} <= buttons.keys()
+    assert any("same SEC industry code as AAPL (3571, Electronic Computers), closest in revenue first" in c.value for c in app.caption)
+    app = buttons["SAP · $30,000M"].click().run()
+    assert not app.exception and app.title[0].value == "Compare"
+    assert app.multiselect[0].value == ["AAPL — Apple Inc.", "SAP — SAP SE"]
+    assert list(app.dataframe[0].value.columns)[1:] == ["AAPL FY2026 (Sep 26)", "SAP FY2026 (Sep 26)"]
+
+
+def test_a_company_with_no_peers_says_so():
+    app = company("JPM")
+    assert not app.exception
+    assert "No other company with revenue in US dollars shares JPM's SEC industry code (6021)." in [c.value for c in app.caption]
 
 
 def test_company_page_still_works_when_yfinance_fails(monkeypatch):
