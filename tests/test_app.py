@@ -184,6 +184,23 @@ def test_a_company_without_quarterly_reports_stays_on_fiscal_years():
     assert list(app.dataframe[0].value.columns)[-1] == "FY2026"
 
 
+def test_industry_medians_appear_once_three_companies_in_the_group_are_stored():
+    app = company("aapl")
+    captions = [c.value for c in app.caption]
+    assert any("No industry medians yet" in c and "starts with 35. So far: AAPL." in c for c in captions)
+    assert not any(c.startswith("Industry median:") for c in captions)
+    for ticker in ("SAP", "GS"):  # both are in SIC group 35 in the test's peers file
+        store.load_company(ticker)
+    st.cache_data.clear()
+    app = company("aapl")
+    captions = [c.value for c in app.caption]
+    assert any("among the 3 companies loaded into this app so far" in c and "(AAPL, GS, SAP)" in c for c in captions)
+    # All three hold the same test figures, so each median equals Apple's own value.
+    assert "Industry median: 27.6% (3 companies)" in captions  # net margin
+    assert "Industry median: 1.02× (3 companies)" in captions  # current ratio
+    assert not any("Industry median: $" in c for c in captions)  # no median for free cash flow, an amount
+
+
 def test_peers_are_suggested_and_one_click_opens_compare():
     app = company("aapl")
     buttons = {b.label: b for b in app.button}

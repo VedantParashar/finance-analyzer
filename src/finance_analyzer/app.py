@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from finance_analyzer import display, edgar, export, parse, peers, prices, store
-from finance_analyzer.metrics import FORMULA_TEXT, Metric, company_metrics, price_metrics
+from finance_analyzer.metrics import FORMULA_TEXT, MIN_FOR_MEDIAN, Metric, company_metrics, industry_medians, price_metrics
 
 YEARS_SHOWN = 5
 ANNUAL, TTM = "Fiscal years", "Trailing 12 months"
@@ -56,6 +56,28 @@ def trailing(ticker: str) -> tuple[list[store.StoredLineItem], dict, dict]:
     """Rows and metrics for the trailing twelve months, and the single quarters behind them."""
     rows = store.trailing_twelve_months(ticker)
     return rows, company_metrics(rows), parse.quarterly_values(edgar.fetch_company_facts(ticker))
+
+
+def sic_code(ticker: str) -> int:
+    """A stored company's SIC code: from the peers file when it's there (no download), else from the SEC."""
+    if ticker in peers.COMPANIES:
+        return peers.COMPANIES[ticker][0]
+    try:
+        return edgar.fetch_company_info(ticker)["sic"]
+    except (httpx.HTTPError, ValueError, RuntimeError):
+        return 0
+
+
+# `viewing` is only part of the cache key: a company seen for the first time has just been saved and must count.
+@st.cache_data(ttl=timedelta(days=1), show_spinner=False)
+def industry(group: int, viewing: str) -> tuple[list[str], dict[str, tuple[float, int]]]:
+    """The stored companies whose SIC code starts with these two digits, and the median of each of their metrics."""
+    tickers = [ticker for ticker in store.stored_tickers() if sic_code(ticker) // 100 == group]
+    latest = []
+    for ticker in tickers:
+        metrics = company_metrics(store.get_company(ticker))
+        latest.append(metrics[max(metrics)])  # each company's latest fiscal year
+    return tickers, industry_medians(latest)
 
 
 # Only successes are cached: an exception passes straight through, so the next page run tries again.
@@ -183,7 +205,9 @@ def refresh_button(ticker: str, rows: list[store.StoredLineItem]) -> None:
     )
 
 
-def metric_card(name: str, metric: Metric, prior: Metric | None, currency: str) -> None:
+def metric_card(
+    name: str, metric: Metric, prior: Metric | None, currency: str, benchmark: tuple[float, int] | None = None
+) -> None:
     with st.container(border=True):
         st.metric(
             display.LABELS[name],
@@ -193,6 +217,8 @@ def metric_card(name: str, metric: Metric, prior: Metric | None, currency: str) 
         )
         if name in display.RED_FLAGS and metric.value is not None:
             st.caption(display.verdict(name, metric.value))
+        if benchmark:
+            st.caption(f"Industry median: {display.format_metric(name, benchmark[0])} ({benchmark[1]} companies)")
         if metric.reason:
             st.caption(f"Not available: {metric.reason}")
         for note in metric.notes:
@@ -312,11 +338,23 @@ def company_page() -> None:
 
     st.subheader(f"Metrics for {labels[-1]}")
     st.caption(f"Changes are against {labels[-2]}." if len(labels) > 1 else "No prior year stored.")
+    in_industry, medians = industry(info["sic"] // 100, ticker) if info["sic"] else ([], {})
+    if medians:
+        st.caption(
+            f"Industry median: the middle value among the {len(in_industry)} companies loaded into this app so far "
+            f"whose SEC industry code starts with {info['sic'] // 100} ({', '.join(in_industry)}), each for its "
+            "latest fiscal year. It is a small sample, not the whole industry."
+        )
+    else:
+        st.caption(
+            f"No industry medians yet: they need at least {MIN_FOR_MEDIAN} companies loaded into this app whose SEC "
+            f"industry code starts with {info['sic'] // 100}. So far: {', '.join(in_industry) or 'none'}."
+        )
     for group, names in display.GROUPS.items():
         st.markdown(f"**{group}**")
         for column, name in zip(st.columns(4), names):
             with column:
-                metric_card(name, latest[name], prior.get(name), currency)
+                metric_card(name, latest[name], prior.get(name), currency, medians.get(name))
 
     st.subheader("Valuation at today's price")
     valuation_metrics, price_note = valuation(ticker, rows)
@@ -356,7 +394,7 @@ def company_page() -> None:
     )
 
     dupont_section(metrics, years, labels)
-    red_flags_section(metrics, years, labels, currency, info)
+    red_flags_section(metrics, years, labels, currency, info, medians)
     peers_section(ticker, info)
     data_checks_section(ticker, annual_rows)
 
@@ -419,7 +457,7 @@ def data_checks_section(ticker: str, rows: list[store.StoredLineItem]) -> None:
         st.markdown(f"✓ **Missing years:** none, every year from {first} to {last} is stored.")
 
 
-def red_flags_section(metrics: dict, years: list, labels: list[str], currency: str, info: dict) -> None:
+def red_flags_section(metrics: dict, years: list, labels: list[str], currency: str, info: dict, medians: dict) -> None:
     st.subheader("Red flags")
     st.caption(
         "Four well-known screens for financial trouble or low-quality earnings. They are prompts to read the "
@@ -430,7 +468,7 @@ def red_flags_section(metrics: dict, years: list, labels: list[str], currency: s
         st.caption("These scores were built for industrial and commercial companies and don't apply to banks, brokers or insurers.")
     for column, name in zip(st.columns(4), display.RED_FLAGS):
         with column:
-            metric_card(name, metrics[years[-1]][name], None, currency)
+            metric_card(name, metrics[years[-1]][name], None, currency, medians.get(name))
     table = []
     for name in display.RED_FLAGS:
         line = {"Score": display.LABELS[name]}

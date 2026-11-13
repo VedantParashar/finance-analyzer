@@ -901,3 +901,35 @@ Same rules and format as session 2.
   **Not checked:** TTM figures against another source.
 - **LEARNING.md suggestion:** "TTM (trailing twelve months)": the last four quarters added together, so
   the figure is always a full year but as fresh as the latest quarterly report.
+
+## S5 Task 4 — Industry benchmarks
+
+- **2026-11-12 · what it does:** each metric card on the company page gets a line "Industry median: 4.2%
+  (3 companies)": the middle value of that metric across the companies saved in the app's database whose
+  SIC code starts with the same two digits, each taken for its latest fiscal year. A caption above the
+  cards names the companies in the sample and says it's a small sample, not the whole industry.
+- **2026-11-12 · decision:** a median is shown only when at least 3 companies have a value for that
+  metric (the company itself counts). **Why:** with one or two companies the "median" is just one
+  company's number, or the average of two, dressed up as an industry figure. Below 3 the page says how
+  many are loaded so far and which.
+- **2026-11-12 · decision:** no median for free cash flow (an amount: it depends on size and currency),
+  for the DuPont tile (it repeats ROE) or for the five valuation ratios (they'd need a share price for
+  every company in the group on each page view). The red-flag scores do get one.
+- **2026-11-12 · decision:** a stored company's SIC code is read from `peers.json` when it's there (no
+  download), otherwise from the SEC company info already cached on disk when the company was loaded.
+- **2026-11-12 · limits worth knowing:**
+  - The sample is whatever has been loaded, so it changes as people use the app and differs between
+    your computer and the live site. Task 6's pre-load gives the live site a fixed starting set.
+  - Two-digit SIC groups are wide, as specified: group 35 puts Apple with ASML and Douglas Dynamics
+    (snow ploughs); group 73 puts Microsoft with Mastercard and Reddit.
+  - Medians are remembered for a day per company viewed, so a company loaded later joins the figure on
+    other companies' pages only after that, or after "Refresh data".
+  - In the trailing-twelve-months view the company's own figures are TTM while the medians stay on
+    fiscal years.
+  - Ratios mix currencies and year-ends freely; that's fine for ratios.
+- **2026-11-12 · checked:** Walmart in a real browser (group 53: COST, TGT, WMT). In my local database 8
+  groups have 3 or more companies. 262 tests pass (260 before). **Not checked:** speed with hundreds of
+  stored companies; each first view recalculates the metrics of every company in the group.
+- **`SPEC.md`:** benchmark line added under Screens.
+- **LEARNING.md suggestion:** "Median": line the values up in order and take the middle one. Unlike an
+  average, one extreme company can't drag it.
