@@ -69,10 +69,14 @@ class _Inputs:
             self.notes.append(text)
 
 
-def _divide(numerator: float, denominator: float, name: str) -> float:
-    if denominator <= 0:
+def _positive(value: float, name: str) -> float:
+    if value <= 0:
         raise _CannotCalculate(f"{name} is zero or negative")
-    return numerator / denominator
+    return value
+
+
+def _divide(numerator: float, denominator: float, name: str) -> float:
+    return numerator / _positive(denominator, name)
 
 
 def _yoy(m: _Inputs, item: str) -> float:
@@ -166,6 +170,106 @@ FORMULAS: dict[str, Callable[[_Inputs], float]] = {
     "dupont": _dupont,
 }
 
+
+def _altman_z(m: _Inputs) -> float:
+    """Altman's Z″ (1995): the version that uses book equity, so it needs no share price and works every year."""
+    assets = _positive(m.get("total_assets"), "total assets")
+    parts = {
+        "working capital ÷ total assets": (m.get("current_assets") - m.get("current_liabilities")) / assets,
+        "retained earnings ÷ total assets": m.get("retained_earnings") / assets,
+        "operating income ÷ total assets": m.get("operating_income") / assets,
+        "total equity ÷ total liabilities": _divide(m.get("total_equity"), m.get("total_liabilities"), "total liabilities"),
+    }
+    m.used.update(parts)
+    return sum(weight * part for weight, part in zip((6.56, 3.26, 6.72, 1.05), parts.values()))
+
+
+def _piotroski_f(m: _Inputs) -> float:
+    """Piotroski's nine pass/fail tests (2000); returns how many passed. Needs the two prior years."""
+
+    def per_opening_assets(item: str, back: int) -> float:
+        return m.get(item, back) / _positive(m.get("total_assets", back + 1), "opening total assets")
+
+    def leverage(back: int) -> float:
+        average = (m.get("total_assets", back) + m.get("total_assets", back + 1)) / 2
+        return m.get("long_term_debt", back) / _positive(average, "average total assets")
+
+    def current_ratio(back: int) -> float:
+        return _divide(m.get("current_assets", back), m.get("current_liabilities", back), "current liabilities")
+
+    def gross_margin(back: int) -> float:
+        revenue = _positive(m.get("revenue", back), "revenue")
+        return (revenue - m.get("cost_of_revenue", back)) / revenue
+
+    tests = {
+        "net income is positive": m.get("net_income") > 0,
+        "operating cash flow is positive": m.get("operating_cash_flow") > 0,
+        "return on assets rose": per_opening_assets("net_income", 0) > per_opening_assets("net_income", 1),
+        "operating cash flow exceeds net income": m.get("operating_cash_flow") > m.get("net_income"),
+        # "Did not rise" rather than "fell", so a company with no debt in either year isn't marked down.
+        "long-term debt did not rise against assets": leverage(0) <= leverage(1),
+        "current ratio rose": current_ratio(0) > current_ratio(1),
+        # The diluted average share count stands in for shares outstanding, which the schema doesn't hold.
+        "no new shares issued": m.get("diluted_shares") <= m.get("diluted_shares", 1),
+        "gross margin rose": gross_margin(0) > gross_margin(1),
+        "asset turnover rose": per_opening_assets("revenue", 0) > per_opening_assets("revenue", 1),
+    }
+    m.used.update({f"test {number}: {name}": float(passed) for number, (name, passed) in enumerate(tests.items(), 1)})
+    return float(sum(tests.values()))
+
+
+def _beneish_m(m: _Inputs) -> float:
+    """Beneish's eight-variable M-score (1999): each index compares this year with the last."""
+
+    def ratio(name: str, numerator: float, denominator: float) -> float:
+        return _divide(numerator, denominator, name)
+
+    def per_revenue(item: str, back: int) -> float:
+        return m.get(item, back) / _positive(m.get("revenue", back), "revenue")
+
+    def gross_margin(back: int) -> float:
+        return 1 - per_revenue("cost_of_revenue", back)
+
+    def soft_assets(back: int) -> float:  # the share of assets that is neither current nor property
+        hard = m.get("current_assets", back) + m.get("property_plant_equipment", back)
+        return 1 - hard / _positive(m.get("total_assets", back), "total assets")
+
+    def depreciation_rate(back: int) -> float:
+        depreciation = m.get("depreciation_amortization", back)
+        return ratio("depreciation + property", depreciation, depreciation + m.get("property_plant_equipment", back))
+
+    def leverage(back: int) -> float:
+        debt = m.get("long_term_debt", back) + m.get("current_liabilities", back)
+        return debt / _positive(m.get("total_assets", back), "total assets")
+
+    indexes = {
+        "receivables index": ratio("prior-year receivables", per_revenue("receivables", 0), per_revenue("receivables", 1)),
+        "gross margin index": ratio("gross margin", gross_margin(1), gross_margin(0)),
+        "asset quality index": ratio("prior-year other assets", soft_assets(0), soft_assets(1)),
+        "sales growth index": ratio("prior-year revenue", m.get("revenue"), m.get("revenue", 1)),
+        "depreciation index": ratio("depreciation", depreciation_rate(1), depreciation_rate(0)),
+        "SG&A index": ratio(
+            "prior-year SG&A", per_revenue("selling_general_admin", 0), per_revenue("selling_general_admin", 1)
+        ),
+        "accruals to total assets": (m.get("net_income") - m.get("operating_cash_flow")) / m.get("total_assets"),
+        "leverage index": ratio("prior-year leverage", leverage(0), leverage(1)),
+    }
+    m.used.update(indexes)
+    weights = (0.92, 0.528, 0.404, 0.892, 0.115, -0.172, 4.679, -0.327)
+    return -4.84 + sum(weight * index for weight, index in zip(weights, indexes.values()))
+
+
+# Screens for trouble, not verdicts. Calculated every year like FORMULAS, shown in their own section.
+RED_FLAG_FORMULAS: dict[str, Callable[[_Inputs], float]] = {
+    "altman_z": _altman_z,
+    "piotroski_f": _piotroski_f,
+    "beneish_m": _beneish_m,
+    "accruals_ratio": lambda m: _divide(
+        m.get("net_income") - m.get("operating_cash_flow"), m.average("total_assets"), "average total assets"
+    ),
+}
+
+
 def _enterprise_value(m: _Inputs, market_cap: float) -> float:
     value = market_cap + _total_debt(m) - m.get("cash") - m.get("short_term_investments")
     m.used["enterprise value"] = value
@@ -206,6 +310,14 @@ FORMULA_TEXT = {
     "eps_cagr_3y": "(diluted EPS ÷ diluted EPS 3 years earlier)^(1/3) − 1",
     "equity_multiplier": "average total assets ÷ average shareholders' equity",
     "dupont": "net margin × asset turnover × equity multiplier (= ROE)",
+    "altman_z": "6.56 × (working capital ÷ total assets) + 3.26 × (retained earnings ÷ total assets) + 6.72 × "
+    "(operating income ÷ total assets) + 1.05 × (total equity ÷ total liabilities), where working capital = "
+    "current assets − current liabilities. This is Altman's Z″, the version that uses book equity",
+    "piotroski_f": "one point for each of nine tests passed, comparing this year with the last (listed below)",
+    "beneish_m": "−4.84 + 0.92 × receivables index + 0.528 × gross margin index + 0.404 × asset quality index + "
+    "0.892 × sales growth index + 0.115 × depreciation index − 0.172 × SG&A index + 4.679 × accruals to total "
+    "assets − 0.327 × leverage index",
+    "accruals_ratio": "(net income − operating cash flow) ÷ average total assets",
     "market_cap": "share price × shares outstanding (from Yahoo Finance)",
     "pe": "market cap ÷ net income (the same as share price ÷ earnings per share)",
     "pb": "market cap ÷ shareholders' equity",
@@ -225,7 +337,7 @@ def company_metrics(rows: Iterable[StoredLineItem]) -> dict[date, dict[str, Metr
     results: dict[date, dict[str, Metric]] = {}
     for end in years:
         results[end] = {}
-        for name, formula in FORMULAS.items():
+        for name, formula in (FORMULAS | RED_FLAG_FORMULAS).items():
             inputs = _Inputs(by_key, reported, years, end)
             results[end][name] = _run(lambda: formula(inputs), inputs)
     return results

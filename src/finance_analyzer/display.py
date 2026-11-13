@@ -28,6 +28,10 @@ LABELS = {
     "eps_growth": "EPS growth",
     "eps_cagr_3y": "EPS CAGR (3y)",
     "dupont": "ROE (DuPont)",
+    "altman_z": "Altman Z″",
+    "piotroski_f": "Piotroski F",
+    "beneish_m": "Beneish M",
+    "accruals_ratio": "Accruals ratio",
     "market_cap": "Market cap",
     "pe": "P/E",
     "pb": "P/B",
@@ -35,6 +39,8 @@ LABELS = {
     "fcf_yield": "FCF yield",
 }
 PRICE_METRICS = ["market_cap", "pe", "pb", "ev_ebit", "fcf_yield"]  # need today's share price, see prices.py
+
+RED_FLAGS = ["altman_z", "piotroski_f", "beneish_m", "accruals_ratio"]  # screens for trouble, own section
 
 # SPEC.md's metric groups; DuPont gets its own section on the page.
 GROUPS = {
@@ -84,9 +90,24 @@ def format_metric(name: str, value: float | None, currency: str = "USD") -> str:
         return f"{value:.2f}×"
     if name == "market_cap":
         return money(value)  # from Yahoo Finance, always in dollars
+    if name == "piotroski_f":
+        return f"{value:.0f} of 9"
+    if name in ("altman_z", "beneish_m"):
+        return f"{value:.2f}"
     if name in DOLLARS:
         return money(value, currency)
     return f"{value:.1%}"
+
+
+def verdict(name: str, value: float) -> str:
+    """What a red-flag score says, using each author's published cut-offs."""
+    if name == "altman_z":
+        return "Safe zone (above 2.6)" if value > 2.6 else "Grey zone (1.1 to 2.6)" if value >= 1.1 else "Distress zone (below 1.1)"
+    if name == "piotroski_f":
+        return "Strong (7 to 9)" if value >= 7 else "Weak (0 to 3)" if value <= 3 else "Average (4 to 6)"
+    if name == "beneish_m":
+        return "⚠ Flag: above −1.78" if value > -1.78 else "No flag (−1.78 or below)"
+    return "⚠ Flag: above 10%" if value > 0.10 else "No flag (10% or below)"
 
 
 def yoy_delta(name: str, current: float | None, prior: float | None) -> str | None:
@@ -124,6 +145,10 @@ def format_input(key: str, value: float, currency: str = "USD") -> str:
         return money(value, currency)
     if base in {"asset turnover", "equity multiplier"}:
         return f"{value:.2f}×"
+    if base.startswith("test "):
+        return "pass (1 point)" if value else "fail (0 points)"
+    if base.endswith(" index"):
+        return f"{value:.3f}"
     return f"{value:.1%}"  # tax rate, net margin
 
 

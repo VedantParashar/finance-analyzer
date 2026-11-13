@@ -118,5 +118,25 @@
     "meaning": "Free cash flow yield: the cash the business produced last year after investment, as a percentage of what the whole company costs today. Think of it as the cash return you would get if you owned all of it.",
     "good": "Above about 4–5% is often seen as attractive, and it is worth comparing with the yield on government bonds. Fast-growing companies usually have low yields because investors are paying for future cash.",
     "traps": "Free cash flow swings from year to year with investment and payment timing, so one year can mislead. A very high yield can be a warning that the market expects cash flow to fall. It can be negative."
+  },
+  "altman_z": {
+    "meaning": "A single score for how likely a company is to run into financial distress, built from four ratios: short-term cushion (working capital), profits kept over its life (retained earnings), current profitability (operating income) and how much equity stands behind its liabilities. This is Altman's Z″ version, which uses the equity on the balance sheet, so it can be calculated for every year without a share price.",
+    "good": "Above 2.6 is the safe zone, 1.1 to 2.6 is a grey zone, and below 1.1 is the distress zone. Watch the direction over several years as much as the level.",
+    "traps": "It is not the classic 1968 Z-score (cut-offs 1.81 and 2.99), which uses market value and sales, so the numbers don't match most finance sites. It was built from industrial companies and doesn't apply to banks, insurers or REITs. Companies that borrow to buy back shares (negative retained earnings or equity) and steady, heavily indebted utilities score low without being close to failing. A low score is a reason to read the debt notes, not a prediction."
+  },
+  "piotroski_f": {
+    "meaning": "Nine pass/fail tests of whether a company's finances got stronger this year: four on profitability (is it profitable, does it produce cash, did return on assets rise, is cash flow higher than profit), three on debt and funding (less long-term debt against assets, a better current ratio, no new shares) and two on efficiency (higher gross margin, higher asset turnover). One point per test passed.",
+    "good": "7 to 9 is strong, 4 to 6 average, 0 to 3 weak. Piotroski designed it to separate improving from deteriorating companies among cheap (low price-to-book) stocks.",
+    "traps": "Every test is yes or no, so a tiny change counts the same as a huge one: a great company whose margin slipped from 46.9% to 46.8% loses a point. It measures improvement, not quality: a superb company that merely stayed superb can score 4. The app uses the diluted average share count for the 'no new shares' test, and counts an unchanged debt ratio as a pass. It needs three years in a row, and gross margin, so it's unavailable for companies that don't report cost of revenue."
+  },
+  "beneish_m": {
+    "meaning": "A score for whether a company's reported profit shows the patterns found in companies that were later caught manipulating earnings. It combines eight year-on-year comparisons: receivables growing faster than sales, falling gross margin, more 'soft' assets, fast sales growth, slower depreciation, rising overheads, rising debt, and profit running ahead of cash.",
+    "good": "Below −1.78 raises no flag (more negative is better). Above −1.78 means the pattern resembles past manipulators and the accounts deserve a closer read. Some analysts use a stricter cut-off of −2.22.",
+    "traps": "A flag is not an accusation: fast-growing companies and companies that made a big acquisition often score above −1.78 for honest reasons, because their sales, receivables and assets all jump. The model was built on 1980s–90s manufacturers and doesn't apply to banks or insurers. The app uses net income (not income from continuing operations), and depreciation including amortization where that's what the company reports."
+  },
+  "accruals_ratio": {
+    "meaning": "The share of this year's profit that did not arrive as cash, measured against the company's assets. Profit includes accruals (sales not yet collected, costs not yet paid); cash flow doesn't. A high ratio means profit is running ahead of cash.",
+    "good": "Around zero or negative is healthy: cash flow covers or exceeds profit. Above about 10% is a warning that earnings quality is poor; research by Richard Sloan found such companies tended to disappoint later.",
+    "traps": "This is the simple cash-flow version, (net income − operating cash flow) ÷ average assets; other versions also subtract investing cash flow and give different numbers. Very negative values aren't automatically good: they often just mean heavy depreciation or stock-based pay. One-off gains (selling a business) raise profit without operating cash and can trip the flag for a single year."
   }
 }

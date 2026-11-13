@@ -124,9 +124,11 @@ def test_company_page_loads_and_shows_every_section():
     assert store.get_company("AAPL"), "the company was saved on first view"
     assert app.header[0].value == "Apple Inc. (AAPL)"
     assert [s.value for s in app.subheader] == [
-        "Line items", "Metrics for FY2026", "Valuation at today's price", "Trends", "DuPont breakdown", "Data checks"
+        "Line items", "Metrics for FY2026", "Valuation at today's price", "Trends", "DuPont breakdown", "Red flags",
+        "Data checks",
     ]
-    assert len(app.metric) == 18 + 5 + 4  # every grouped metric card, five valuation cards, four DuPont tiles
+    # every grouped metric card, five valuation cards, four DuPont tiles, four red-flag cards
+    assert len(app.metric) == 18 + 5 + 4 + 4
     cards = {m.label: m.value for m in app.metric}
     assert (cards["Market cap"], cards["P/E"], cards["FCF yield"]) == ("$3,700,000M", "27.99×", "3.7%")
     assert any("Share price $250.00 from Yahoo Finance" in c.value for c in app.caption)
@@ -134,6 +136,11 @@ def test_company_page_loads_and_shows_every_section():
     assert not app.warning
     assert app.get("download_button"), "Excel export offered"
     assert any("What it means" in m.value for m in app.markdown), "learning text on the cards"
+    # The test data has no cash-flow history or retained earnings, so one score works and the rest say why.
+    assert cards["Accruals ratio"] == "-3.4%" and "No flag (10% or below)" in [c.value for c in app.caption]
+    assert cards["Altman Z″"] == "—"
+    assert "Not available: retained_earnings not reported for FY2026" in [c.value for c in app.caption]
+    assert list(app.dataframe[2].value["Score"]) == ["Altman Z″", "Piotroski F", "Beneish M", "Accruals ratio"]
 
 
 def test_company_page_still_works_when_yfinance_fails(monkeypatch):
