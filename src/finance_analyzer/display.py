@@ -262,3 +262,18 @@ def year_end_note(latest_ends: dict[str, date]) -> str:
         return ""
     ends = ", ".join(f"{ticker} {fiscal_year(end)} ends {end:%b %-d, %Y}" for ticker, end in latest_ends.items())
     return f"Fiscal years end on different dates ({ends}), so the latest years cover different months."
+
+
+SNAPSHOT = ["roe", "roic", "gross_margin", "net_margin", "current_ratio", "debt_to_equity", "revenue_growth"]
+
+
+def ratio_snapshot(latest: dict, medians: dict[str, tuple[float, int]], label: str) -> list[dict[str, str]]:
+    """Key ratios for the overview: the company's value next to its industry median ("—" without one)."""
+    return [
+        {
+            "Ratio": LABELS[name],
+            label: format_metric(name, latest[name].value),
+            "Industry median": format_metric(name, medians[name][0]) if name in medians else "—",
+        }
+        for name in SNAPSHOT
+    ]

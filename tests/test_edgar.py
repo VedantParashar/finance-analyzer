@@ -36,9 +36,14 @@ def test_fetch_company_facts_reads_from_cache(fake_cache):
 
 def test_fetch_company_info_reads_name_and_industry(fake_cache, tmp_path):
     (tmp_path / "submissions").mkdir()
-    submissions = {"name": "Apple Inc.", "sic": "3571", "sicDescription": "Electronic Computers"}
+    submissions = {"name": "Apple Inc.", "sic": "3571", "sicDescription": "Electronic Computers", "exchanges": ["Nasdaq"]}
     (tmp_path / "submissions" / "CIK0000320193.json").write_text(json.dumps(submissions))
-    assert edgar.fetch_company_info("AAPL") == {"name": "Apple Inc.", "sic": 3571, "industry": "Electronic Computers"}
+    assert edgar.fetch_company_info("AAPL") == {
+        "name": "Apple Inc.", "sic": 3571, "industry": "Electronic Computers", "exchange": "Nasdaq",
+    }
+    del submissions["exchanges"]  # some companies list no exchange
+    (tmp_path / "submissions" / "CIK0000320193.json").write_text(json.dumps(submissions))
+    assert edgar.fetch_company_info("AAPL")["exchange"] == ""
 
 
 @pytest.mark.parametrize(

@@ -89,6 +89,11 @@ def offline(monkeypatch, tmp_path):
     st.cache_data.clear()
 
 
+def table(app, first_column):
+    """The first table on the page whose first column has this name, e.g. "Line item"."""
+    return next(frame.value for frame in app.dataframe if frame.value.columns[0] == first_column)
+
+
 def company(ticker):
     app = AppTest.from_file(APP, default_timeout=30).run()
     return app.selectbox[0].set_value(ticker).run()
@@ -164,12 +169,17 @@ def test_company_page_loads_and_shows_every_section():
     assert not app.exception and not app.error
     assert store.get_company("AAPL"), "the company was saved on first view"
     assert app.header[0].value == "Apple Inc. (AAPL)"
+    assert [t.label for t in app.tabs] == ["Overview", "Financials", "Ratios", "Red flags", "Valuation", "Data checks"]
     assert [s.value for s in app.subheader] == [
-        "Line items", "Metrics for FY2026", "Valuation at today's price", "Trends", "DuPont breakdown", "Red flags",
-        "Peers", "Data checks",
+        "Key ratios vs industry", "Peers", "Metrics for FY2026", "Trends", "DuPont breakdown",
     ]
-    # every grouped metric card, five valuation cards, four DuPont tiles, four red-flag cards
-    assert len(app.metric) == 18 + 5 + 4 + 4
+    # the share price, four overview cards, every grouped metric card, five valuation cards, four DuPont tiles,
+    # four red-flag cards
+    assert len(app.metric) == 1 + 4 + 18 + 5 + 4 + 4
+    cards = {m.label: m for m in app.metric}
+    assert (cards["Share price"].value, cards["Revenue"].value, cards["Revenue"].delta) == ("$250.00", "$478,834M", "+15.1%")
+    snapshot = table(app, "Ratio")
+    assert list(snapshot.columns) == ["Ratio", "FY2026", "Industry median"] and snapshot.iloc[0, 2] == "—"
     cards = {m.label: m.value for m in app.metric}
     assert (cards["Market cap"], cards["P/E"], cards["FCF yield"]) == ("$3,700,000M", "27.99×", "3.7%")
     assert any("Share price $250.00 from Yahoo Finance" in c.value for c in app.caption)
@@ -181,19 +191,19 @@ def test_company_page_loads_and_shows_every_section():
     assert cards["Accruals ratio"] == "-3.4%" and "No flag (10% or below)" in [c.value for c in app.caption]
     assert cards["Altman Z″"] == "—"
     assert "Not available: retained_earnings not reported for FY2026" in [c.value for c in app.caption]
-    assert list(app.dataframe[2].value["Score"]) == ["Altman Z″", "Piotroski F", "Beneish M", "Accruals ratio"]
+    assert list(table(app, "Score")["Score"]) == ["Altman Z″", "Piotroski F", "Beneish M", "Accruals ratio"]
 
 
 def test_trailing_twelve_months_view_swaps_the_figures_and_shows_the_quarters():
     app = company("aapl")
-    assert list(app.dataframe[0].value.columns)[-1] == "FY2026"
-    app = app.radio[0].set_value("Trailing 12 months").run()
+    assert list(table(app, "Line item").columns)[-1] == "FY2026"
+    app = app.button_group[0].set_value("Trailing 12 months").run()
     assert not app.exception and not app.error
     assert any("Twelve months to Jun 27, 2026" in i.value for i in app.info)
-    assert list(app.dataframe[0].value.columns)[-2:] == ["12m to Jun 2025", "12m to Jun 2026"]
-    assert app.dataframe[0].value.iloc[0, -1] == "$526,717M"  # revenue, 478,834 × 1.1
+    assert list(table(app, "Line item").columns)[-2:] == ["12m to Jun 2025", "12m to Jun 2026"]
+    assert table(app, "Line item").iloc[0, -1] == "$526,717M"  # revenue, 478,834 × 1.1
     assert "Metrics for 12m to Jun 2026" in [s.value for s in app.subheader]
-    quarters = app.dataframe[1].value
+    quarters = [frame.value for frame in app.dataframe if frame.value.columns[0] == "Line item"][1]
     assert list(quarters.columns) == ["Line item", "Mar 28, 2026", "Jun 27, 2026"]
     assert list(quarters.iloc[0]) == ["Revenue", "$100,000M", "$110,000M *"]
     assert any("Profit, equity, debt and cash flow are for the 12m to Jun 2026." in c.value for c in app.caption)
@@ -203,10 +213,10 @@ def test_trailing_twelve_months_view_swaps_the_figures_and_shows_the_quarters():
 
 def test_a_company_without_quarterly_reports_stays_on_fiscal_years():
     app = company("SAP")
-    app = app.radio[0].set_value("Trailing 12 months").run()
+    app = app.button_group[0].set_value("Trailing 12 months").run()
     assert not app.exception and not app.error
     assert any("No usable quarterly figures" in i.value and "Showing fiscal years." in i.value for i in app.info)
-    assert list(app.dataframe[0].value.columns)[-1] == "FY2026"
+    assert list(table(app, "Line item").columns)[-1] == "FY2026"
 
 
 def test_industry_medians_appear_once_three_companies_in_the_group_are_stored():
@@ -294,6 +304,14 @@ def test_company_page_still_works_when_yfinance_fails(monkeypatch):
     assert [cards[label] for label in ("Market cap", "P/E", "P/B", "EV / EBIT", "FCF yield")] == ["unavailable"] * 5
     assert cards["Net margin"] == "27.6%", "everything else still works"
     assert any("Share price unavailable: Yahoo Finance didn't return a price" in c.value for c in app.caption)
+    assert "Share price unavailable" in [c.value for c in app.caption], "the header says so too"
+
+
+def test_header_shows_todays_price_change_when_yahoo_has_the_previous_close(monkeypatch):
+    quote = prices.Quote(250.0, 3.7e12, datetime(2026, 11, 11, 15, 30), previous_close=245.0)
+    monkeypatch.setattr(prices, "fetch_quote", lambda ticker: quote)
+    price = next(m for m in company("AAPL").metric if m.label == "Share price")
+    assert (price.value, price.delta) == ("$250.00", "+5.00 (+2.04%) today")
 
 
 def test_refresh_button_downloads_again_and_reloads_the_company(monkeypatch):
@@ -467,7 +485,7 @@ def test_foreign_filer_shows_its_currency_and_converts_market_cap_for_valuation(
     assert cards["Free cash flow"] == "EUR 136,056M" and cards["Net margin"] == "27.6%"
     # $3,700,000M × 0.9 = EUR 3,330,000M; ÷ net income of 132,175M = 25.19
     assert cards["Market cap"] == "$3,700,000M" and cards["P/E"] == "25.19×"
-    assert app.dataframe[0].value.iloc[0, -1] == "EUR 478,834M"  # revenue in the line-item table
+    assert table(app, "Line item").iloc[0, -1] == "EUR 478,834M"  # revenue in the line-item table
     assert any("converted into EUR at 1 USD = 0.9000 EUR (Yahoo Finance, Nov 12, 2026)" in c.value for c in app.caption)
     assert any("market cap = EUR 3,330,000M" in m.value for m in app.markdown)
     assert any("EUR per US dollar = 0.9000" in m.value for m in app.markdown)

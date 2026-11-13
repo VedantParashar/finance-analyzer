@@ -1197,3 +1197,26 @@ Same rules and format as session 2.
 - **2026-11-13 · scope:** a landing page isn't one of SPEC.md's screens; it adds no feature, only a way
   in, so SPEC.md is unchanged.
 - **2026-11-13 · checked:** screenshots at 1400px light and 390px dark; no console errors. 280 tests pass.
+
+## S7 Task 3 — Company page layout
+
+- **2026-11-13 · decision:** the page is now a header plus six tabs (`st.tabs`): Overview · Financials ·
+  Ratios · Red flags · Valuation · Data checks. Every tab opens with a one-line caption. The search box
+  stays at the top, label hidden. The Period switch became a segmented control above the tabs, because it
+  changes every tab.
+- **2026-11-13 · decision (header):** name and ticker, badges for the exchange and the SIC industry, the
+  share price with today's change, Refresh, Excel and a Share popover holding the link (`st.code` has a
+  copy button). Sticky while scrolling on desktop; normal flow on phones, where a sticky block would take
+  half the screen. **New data:** `Quote.previous_close` (Yahoo's `previousClose`; a missing one only hides
+  the day change) and `exchange` from the SEC submissions file (empty when the SEC lists none).
+- **2026-11-13 · decision (Overview):** four cards with sparklines and year-on-year arrows (revenue, net
+  income, operating margin, free cash flow), the revenue and net-income bar chart, a "Key ratios vs
+  industry" table (seven ratios, company and median), and the peers. **Why these four:** size, profit,
+  efficiency and cash, the first things a case study asks.
+- **2026-11-13 · decision:** the "SEC data loaded…" note moved from under the Refresh button into the Data
+  checks tab, which is about where the data came from.
+- **2026-11-13 · decision:** tab contents all run on every page view (Streamlit's default), so switching
+  tabs is instant and the tests see every tab. **Rejected:** lazy tabs (a rerun on each click).
+- **2026-11-13 · found while checking:** a running server keeps old copies of imported modules, so after
+  this change the app must be restarted (a fresh deploy does this anyway).
+- **2026-11-13 · checked:** AAPL Overview, Financials and Ratios in the browser; 282 tests pass.

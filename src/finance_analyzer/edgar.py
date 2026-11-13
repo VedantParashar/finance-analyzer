@@ -171,10 +171,11 @@ def refresh(ticker: str) -> None:
 
 
 def fetch_company_info(ticker: str) -> dict:
-    """The company's name and SIC industry code (a 4-digit number the SEC uses to classify businesses)."""
+    """The company's name, SIC industry code (a 4-digit number the SEC uses to classify businesses) and exchange."""
     cik = get_cik(ticker)
     data = _get_json(SUBMISSIONS_URL.format(cik=cik), _submissions_path(cik))
-    return {"name": data["name"], "sic": int(data["sic"] or 0), "industry": data["sicDescription"]}
+    exchange = (data.get("exchanges") or [""])[0] or ""  # e.g. "Nasdaq"; some companies list none
+    return {"name": data["name"], "sic": int(data["sic"] or 0), "industry": data["sicDescription"], "exchange": exchange}
 
 
 def is_financial(sic: int) -> bool:
