@@ -206,12 +206,18 @@ def quarterly_table(values: dict[str, dict[str, tuple[float, bool]]], currency: 
     return table
 
 
+def source_label(form: str, filed: str) -> str:
+    """Where a figure was read: "10-K, filed 2025-10-31"."""
+    return f"{form}, filed {filed}"
+
+
 def line_item_table(
-    rows: list[StoredLineItem], years: list[date], period=fiscal_year
+    rows: list[StoredLineItem], years: list[date], period=fiscal_year, sources: dict[str, str] | None = None
 ) -> tuple[list[dict[str, str]], list[str]]:
     """One row per line item, one column per year, in millions (see table_unit); derived values end in " *".
 
-    Also returns the derivations, one line each, for the footnote.
+    With sources (accession number → link), a last "Source" column links the filing of the latest year
+    shown that has the item. Also returns the derivations, one line each, for the footnote.
     """
     by_key = {(row.item, row.fiscal_year_end): row for row in rows}
     table, derivations = [], []
@@ -227,6 +233,9 @@ def line_item_table(
             line[period(end)] = table_number(row.unit, row.value) + (" *" if row.derivation else "")
             if row.derivation:
                 derivations.append(f"{label(item)}, {period(end)}: {row.derivation}")
+        if sources is not None:
+            latest = next(by_key[(item, end)] for end in reversed(years) if (item, end) in by_key)
+            line["Source"] = sources.get(latest.accn, "")
         table.append(line)
     return table, derivations
 

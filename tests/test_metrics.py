@@ -266,3 +266,8 @@ def test_ffo_adds_back_depreciation_and_takes_out_property_sale_gains():
     never = company_metrics(rows_from({date(2025, 12, 31): {"net_income": 1000, "depreciation_amortization": 2524}}))
     ffo = never[date(2025, 12, 31)]["ffo"]
     assert ffo.value == pytest.approx(3524 * M) and "gain_on_sale_of_real_estate assumed 0 (never reported)" in ffo.notes
+
+
+def test_each_input_records_the_filing_it_came_from():
+    roa = company_metrics(rows_from(AAPL))[date(2026, 9, 26)]["roa"]
+    assert roa.sources["net_income"] == "accn" and roa.sources["total_assets (FY2025)"] == "accn"

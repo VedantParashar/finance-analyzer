@@ -1404,3 +1404,22 @@ Same rules and format as session 2.
   have none). The hand-written findings now mark #29 as fixed except for O, and note FFO under #31.
 - **2026-11-13 · changelog:** a 1.3.0 section marked "unreleased": no version bump in
   `pyproject.toml`, no tag, as asked.
+
+## S8 Task 1 — Trace any number to its SEC filing
+
+- **2026-11-14 · decision:** no database change. Each stored row already keeps its accession number;
+  the form and filing date come from the company-facts file already cached on disk (every fact carries
+  `accn`, `form`, `filed`), and the CIK from the SEC ticker list. URL: the filing's index page,
+  `https://www.sec.gov/Archives/edgar/data/{cik}/{accn without dashes}/{accn}-index.htm` (checked: the
+  SEC answers 200 for Apple's latest 10-K). **Rejected:** new `form`/`filed` columns in DuckDB (a
+  migration for data we can read from a file we already have).
+- **2026-11-14 · decision:** the metrics engine records, for every input, the accession number of the
+  row it read (`Metric.sources`), so the "How it's calculated" popover links each number to its filing
+  ("net income = $132,175M · 10-K, filed 2026-11-03"). Averages link both years. Market cap and exchange
+  rates have no link (Yahoo Finance). **Rejected:** working out the row from the input's name in the page
+  (guessing what the engine already knows).
+- **2026-11-14 · decision:** Financials gets a "Source" column linking the filing of the latest year shown
+  that has the item (interest expense at Apple links the FY2023 10-K, the last one that reported it).
+  Derivation text stays in the footnote under the table and in the popover notes. In the TTM view the
+  link is the latest 10-Q behind the four quarters.
+- **2026-11-14 · checked:** AAPL Financials in the browser. 292 tests pass (5 new).

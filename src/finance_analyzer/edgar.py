@@ -14,6 +14,7 @@ MAX_AGE = timedelta(days=7)  # older cached files are downloaded again, so new f
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
+FILING_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{folder}/{accn}-index.htm"
 
 
 def _downloaded_at(cache_path: Path) -> datetime:
@@ -133,6 +134,11 @@ def get_cik(ticker: str) -> str:
     if company is None:
         raise UnknownTicker(f"No company found for ticker {ticker.strip().upper()!r}.")
     return company.cik
+
+
+def filing_url(cik: str, accn: str) -> str:
+    """The SEC page listing every document of one filing; an accession number looks like 0000320193-25-000079."""
+    return FILING_URL.format(cik=int(cik), folder=accn.replace("-", ""), accn=accn)
 
 
 def _update_facts(cik: str, ticker: str) -> None:

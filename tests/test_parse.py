@@ -721,3 +721,8 @@ def test_ebit_used_when_no_cost_totals_are_tagged_but_never_for_financial_compan
     assert operating_income(**tags) == [(23, "EBIT")]
     assert operating_income(**tags, financial=True) == []  # a bank's interest is an operating cost
     assert operating_income(**{pretax: year(20)}) == []  # no interest reported: not assumed to be zero
+
+
+def test_filings_map_each_accession_number_to_its_form_and_date():
+    facts = company(Assets=[instant(YEAR_END, 500, FILED, "A-1")])
+    assert parse.filings(facts) == {"A-1": ("10-K", FILED), "R": ("10-K", "2018-11-05")}

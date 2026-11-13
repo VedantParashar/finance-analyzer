@@ -172,3 +172,9 @@ def test_fund_without_statements_gets_a_clear_error(fake_cache, tmp_path, monkey
     monkeypatch.setattr(edgar.httpx, "get", not_found)
     with pytest.raises(edgar.NoFinancialStatements, match="AAPL is listed with the SEC but has no financial statements"):
         edgar.fetch_company_facts("aapl")
+
+
+def test_filing_url_points_at_the_filing_index_on_the_sec_site():
+    assert edgar.filing_url("0000320193", "0000320193-25-000079") == (
+        "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.htm"
+    )

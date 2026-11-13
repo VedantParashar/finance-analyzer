@@ -23,6 +23,7 @@ class Metric(NamedTuple):
     inputs: dict[str, float]  # every number used, for showing the formula filled in
     reason: str = ""  # why value is None
     notes: tuple[str, ...] = ()  # caveats that didn't stop the calculation
+    sources: dict[str, str] = {}  # inputs key → accession number of the filing it was read from (never mutated)
 
 
 class _CannotCalculate(Exception):
@@ -35,6 +36,7 @@ class _Inputs:
     def __init__(self, rows: dict[tuple[str, date], StoredLineItem], reported: set[str], years: list[date], end: date):
         self._rows, self._reported, self._years, self._end = rows, reported, years, end
         self.used: dict[str, float] = {}
+        self.sources: dict[str, str] = {}
         self.notes: list[str] = []
 
     def _year(self, years_back: int) -> date:
@@ -58,6 +60,7 @@ class _Inputs:
                 return 0
             raise _CannotCalculate(f"{item} not reported for FY{end.year}")
         self.used[key] = row.value
+        self.sources[key] = row.accn
         if row.derivation:
             self.note(f"{key}: {row.derivation}")
         return row.value
@@ -362,7 +365,7 @@ def _run(calculate: Callable[[], float], inputs: _Inputs) -> Metric:
         value, reason = calculate(), ""
     except _CannotCalculate as error:
         value, reason = None, str(error)
-    return Metric(value, inputs.used, reason, tuple(inputs.notes))
+    return Metric(value, inputs.used, reason, tuple(inputs.notes), inputs.sources)
 
 
 def price_metrics(
