@@ -1072,3 +1072,17 @@ Same rules and format as session 2.
   quotes). The suggestions' wording is kept, apart from that format.
 - **2026-11-13 · checked:** `git diff` shows 18 lines added and 0 removed or changed.
   **Not included:** session 1's suggestions (the queue said sessions 2–5).
+
+## S6 Task 4 — Changelog 1.2.0 and version bump
+
+- **2026-11-13 · done:** `CHANGELOG.md` has a 1.2.0 section for session 5: red-flag scores and the five
+  line items behind them, peers, TTM, industry benchmarks, shareable links, pre-load, and known limits.
+  `pyproject.toml` is 1.2.0 and `uv lock` changed only the project's own version line.
+- **2026-11-13 · decision:** dated 2026-11-13, the day session 5 was merged into `master`. No git tag
+  (none exists for earlier versions either).
+- **2026-11-13 · decision:** 1.2.0 covers session 5 only, as asked. This session's changes (coverage
+  rerun, LEARNING.md, TYGO, red flags on compare and in Excel) aren't in it; the 1.2.0 known limits
+  still say red flags are missing from compare and Excel, which is true of 1.2.0 itself. They'd go in
+  the next version's notes.
+- **2026-11-13 · included as a known limit:** the live app asks for a login (see S6 task 1).
+- **2026-11-13 · checked:** 271 tests pass.

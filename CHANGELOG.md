@@ -2,6 +2,36 @@
 
 What each version added, newest first. Dates are year-month-day.
 
+## 1.2.0 — 2026-11-13
+
+Red-flag scores, peers, the trailing twelve months, industry benchmarks and shareable links.
+
+### Added
+- **Red-flag scores**, every year, in a "Red flags" section on the company page: Altman Z″, Piotroski F
+  (out of 9), Beneish M and the accruals ratio, each with its verdict ("Safe zone", "⚠ Flag"), every
+  input and learning text. Altman Z is the Z″ version, which uses balance-sheet equity instead of a
+  share price, so its cut-offs (2.6 and 1.1) differ from the classic Z-score's.
+- **Five new line items** that the scores need: SG&A, receivables, property/plant/equipment, retained
+  earnings, and depreciation & amortization.
+- **Peer suggestions:** five companies with the same SEC industry (SIC) code, closest in revenue first;
+  one click opens the compare page. They come from a file shipped with the app (`peers.json`), rebuilt
+  about once a year with `scripts/build_peers.py`.
+- **Trailing twelve months (TTM):** a "Period" toggle on the company page switches every figure to the
+  last four quarters, built from quarterly reports (Q4 = full year − first nine months), with the
+  single quarters in an expander. Foreign filers file no quarterly data and stay on fiscal years.
+- **Industry benchmarks:** each metric card shows the median for stored companies in the same 2-digit
+  SIC group, once there are at least 3 of them.
+- **Shareable links:** `?ticker=AAPL` opens a company and `?compare=AAPL,KO` a comparison; the address
+  follows what's on screen, so copying it shares the view.
+- **Pre-load on the hosted app:** after a restart, the 30 stress-test companies load in the background,
+  so their first view takes about 1 second instead of 2 (measured locally).
+
+### Known limits
+- Red-flag scores aren't on the compare page or in the Excel export yet.
+- Industry medians use only the companies loaded into the app, so the sample is small and varies.
+- In TTM view, banks and a few companies that tag quarterly figures differently have fewer metrics.
+- The live app currently asks visitors to log in (found 2026-11-13); its sharing setting needs checking.
+
 ## 1.1.0 — 2026-11-12
 
 Search that picks the right company, valuation ratios for foreign companies, and TSMC's debt fixed.
