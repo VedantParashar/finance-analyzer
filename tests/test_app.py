@@ -42,6 +42,18 @@ def typed_or_picked(box):
     return state
 
 
+def trailing_rows(ticker):
+    """The same Apple figures as if each twelve months ended three months before the fiscal year end."""
+    if ticker == "SAP":
+        raise parse.NoQuarterlyReports("No usable quarterly figures in the SEC's data for this company.")
+    return [
+        store.StoredLineItem(ticker, item, end.replace(month=6, day=27), (value if item == "diluted_eps" else value * M) * 1.1,
+                             "USD", "accn", "", datetime(2026, 11, 12))
+        for end, items in AAPL.items()
+        for item, value in items.items()
+    ]
+
+
 def parsed_rows(ticker):
     return [
         LineItemRow(item, end.isoformat(), value if item == "diluted_eps" else value * M, "accn", "")
@@ -59,6 +71,9 @@ def offline(monkeypatch, tmp_path):
     # FY2026 balances, FY2025 is off by $65M; the two older years have no balance sheet at all.
     checks = [BalanceCheck("2025-09-27", False, 65 * M, False), BalanceCheck("2026-09-26", True, 0, False)]
     monkeypatch.setattr(edgar, "fetch_company_facts", lambda ticker: {})
+    monkeypatch.setattr(store, "trailing_twelve_months", trailing_rows)
+    quarter = {"2026-03-28": (100_000 * M, False), "2026-06-27": (110_000 * M, True)}
+    monkeypatch.setattr(parse, "quarterly_values", lambda facts: {"revenue": quarter, "net_income": {}})
     monkeypatch.setattr(parse, "balance_checks", lambda facts: checks)
     monkeypatch.setattr(prices, "fetch_quote", lambda ticker: prices.Quote(250.0, 3.7e12, datetime(2026, 11, 11, 15, 30)))
     monkeypatch.setattr(prices, "fetch_exchange_rate", lambda currency: prices.Rate(0.9, datetime(2026, 11, 12, 9, 0)))
@@ -142,6 +157,31 @@ def test_company_page_loads_and_shows_every_section():
     assert cards["Altman Z″"] == "—"
     assert "Not available: retained_earnings not reported for FY2026" in [c.value for c in app.caption]
     assert list(app.dataframe[2].value["Score"]) == ["Altman Z″", "Piotroski F", "Beneish M", "Accruals ratio"]
+
+
+def test_trailing_twelve_months_view_swaps_the_figures_and_shows_the_quarters():
+    app = company("aapl")
+    assert list(app.dataframe[0].value.columns)[-1] == "FY2026"
+    app = app.radio[0].set_value("Trailing 12 months").run()
+    assert not app.exception and not app.error
+    assert any("Twelve months to Jun 27, 2026" in i.value for i in app.info)
+    assert list(app.dataframe[0].value.columns)[-2:] == ["12m to Jun 2025", "12m to Jun 2026"]
+    assert app.dataframe[0].value.iloc[0, -1] == "$526,717M"  # revenue, 478,834 × 1.1
+    assert "Metrics for 12m to Jun 2026" in [s.value for s in app.subheader]
+    quarters = app.dataframe[1].value
+    assert list(quarters.columns) == ["Line item", "Mar 28, 2026", "Jun 27, 2026"]
+    assert list(quarters.iloc[0]) == ["Revenue", "$100,000M", "$110,000M *"]
+    assert any("Profit, equity, debt and cash flow are for the 12m to Jun 2026." in c.value for c in app.caption)
+    # P/E uses the twelve-month profit: 3,700,000 ÷ (132,175 × 1.1)
+    assert {m.label: m.value for m in app.metric}["P/E"] == "25.45×"
+
+
+def test_a_company_without_quarterly_reports_stays_on_fiscal_years():
+    app = company("SAP")
+    app = app.radio[0].set_value("Trailing 12 months").run()
+    assert not app.exception and not app.error
+    assert any("No usable quarterly figures" in i.value and "Showing fiscal years." in i.value for i in app.info)
+    assert list(app.dataframe[0].value.columns)[-1] == "FY2026"
 
 
 def test_peers_are_suggested_and_one_click_opens_compare():

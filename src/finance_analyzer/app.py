@@ -14,6 +14,7 @@ from finance_analyzer import display, edgar, export, parse, peers, prices, store
 from finance_analyzer.metrics import FORMULA_TEXT, Metric, company_metrics, price_metrics
 
 YEARS_SHOWN = 5
+ANNUAL, TTM = "Fiscal years", "Trailing 12 months"
 PAGES: dict[str, object] = {}  # filled by run(); lets one page send the user to another
 
 
@@ -48,6 +49,13 @@ def balance_checks(ticker: str) -> list[parse.BalanceCheck]:
     """The balance check for each year, from the SEC download already cached on disk by load()."""
     # Re-reads the facts because the check needs the reported balance sheet total, which isn't a stored item.
     return parse.balance_checks(edgar.fetch_company_facts(ticker))
+
+
+@st.cache_data(ttl=timedelta(days=1), show_spinner="Building the last twelve months…")
+def trailing(ticker: str) -> tuple[list[store.StoredLineItem], dict, dict]:
+    """Rows and metrics for the trailing twelve months, and the single quarters behind them."""
+    rows = store.trailing_twelve_months(ticker)
+    return rows, company_metrics(rows), parse.quarterly_values(edgar.fetch_company_facts(ticker))
 
 
 # Only successes are cached: an exception passes straight through, so the next page run tries again.
@@ -261,17 +269,46 @@ def company_page() -> None:
     )
     refresh_button(ticker, rows)
 
+    annual_rows, quarters = rows, None
+    period = st.radio(
+        "Period", [ANNUAL, TTM], horizontal=True, key="period",
+        help="Trailing 12 months (TTM) adds up the last four quarters, so it includes results reported since "
+        "the last annual report.",
+    )
+    if period == TTM:
+        try:
+            rows, metrics, quarters = trailing(ticker)
+        except parse.NoQuarterlyReports as error:
+            st.info(f"{error} Showing fiscal years.")
+    name_period = display.twelve_months if quarters is not None else display.fiscal_year
     years = sorted(metrics)[-YEARS_SHOWN:]
-    labels = [display.fiscal_year(end) for end in years]
+    labels = [name_period(end) for end in years]
+    if quarters is not None:
+        note = (
+            f"Twelve months to {years[-1]:%b %-d, %Y}, compared with the same twelve months in earlier years. "
+            "Income and cash flow items add up four quarters; balance sheet items are as of that date. "
+            "Where a message says “FY”, read it as the twelve months ending in that year."
+        )
+        if years[-1] == max(row.fiscal_year_end for row in annual_rows):
+            note += " The latest report is the annual one, so these match the latest fiscal year."
+        st.info(note)
     latest = metrics[years[-1]]
     prior = metrics[years[-2]] if len(years) > 1 else {}
 
     st.subheader("Line items")
-    table, derivations = display.line_item_table(rows, years)
+    table, derivations = display.line_item_table(rows, years, name_period)
     st.dataframe(table, hide_index=True)
     if derivations:
         with st.expander("\\* Values we calculated rather than read straight from the filing"):
             st.markdown("\n".join(f"- {line}" for line in derivations))
+    if quarters is not None:
+        with st.expander("The single quarters behind these figures"):
+            st.dataframe(display.quarterly_table(quarters, currency), hide_index=True)
+            st.caption(
+                "\\* Calculated. Companies report some items only for the year so far, so a quarter is that figure "
+                "minus the quarters before it. The fourth quarter is never reported on its own: it is the full "
+                "year minus the first nine months. Columns are quarter end dates."
+            )
 
     st.subheader(f"Metrics for {labels[-1]}")
     st.caption(f"Changes are against {labels[-2]}." if len(labels) > 1 else "No prior year stored.")
@@ -284,6 +321,7 @@ def company_page() -> None:
     st.subheader("Valuation at today's price")
     valuation_metrics, price_note = valuation(ticker, rows)
     st.caption(
+        f"{price_note} Profit, equity, debt and cash flow are for the {labels[-1]}." if quarters is not None else
         f"{price_note} Profit, equity, debt and cash flow are from {labels[-1]}, the last full fiscal year, so "
         "these differ from sites that use the last twelve months."
     )
@@ -320,7 +358,7 @@ def company_page() -> None:
     dupont_section(metrics, years, labels)
     red_flags_section(metrics, years, labels, currency, info)
     peers_section(ticker, info)
-    data_checks_section(ticker, rows)
+    data_checks_section(ticker, annual_rows)
 
 
 def open_compare(tickers: list[str]) -> None:
