@@ -74,13 +74,15 @@ def test_line_item_table_marks_derived_values_and_gaps():
         row("diluted_eps", y2, 3.04, "USD/shares"),
         row("total_liabilities", y2, 70e6, derivation="liabilities = total − equity"),
         row("cash", date(2020, 12, 31), 5e6),  # outside the years shown
+        row("net_income", y2, -1_234e6),
     ]
     table, derivations = display.line_item_table(rows, [y1, y2])
-    assert table == [
-        {"Line item": "Revenue", "FY2024": "$100M", "FY2025": "$120M"},
-        {"Line item": "Diluted EPS", "FY2024": "—", "FY2025": "$3.04"},
-        {"Line item": "Total liabilities", "FY2024": "—", "FY2025": "$70M *"},
+    assert table[:3] == [
+        {"Line item": "Revenue", "FY2024": "100", "FY2025": "120"},
+        {"Line item": "Net income", "FY2024": "—", "FY2025": "(1,234)"},  # negative: in parentheses
+        {"Line item": "Diluted EPS (per share)", "FY2024": "—", "FY2025": "3.04"},
     ]
+    assert table[3] == {"Line item": "Total liabilities", "FY2024": "—", "FY2025": "70 *"}
     assert derivations == ["Total liabilities, FY2025: liabilities = total − equity"]
 
 

@@ -1220,3 +1220,22 @@ Same rules and format as session 2.
 - **2026-11-13 · found while checking:** a running server keeps old copies of imported modules, so after
   this change the app must be restarted (a fresh deploy does this anyway).
 - **2026-11-13 · checked:** AAPL Overview, Financials and Ratios in the browser; 282 tests pass.
+
+## S7 Task 4 — Components: metric cards and financial tables
+
+- **2026-11-13 · decision (cards):** every metric card is a bordered `st.metric` with the year-on-year
+  delta chip, a sparkline of the years shown (Streamlit's own `chart_data`; missing years left out, none
+  under two values), at most the median/verdict/"not available" captions, and a "How it's calculated" ⓘ
+  popover that holds the formula with the company's numbers, the learning text and the derivation notes
+  that used to sit on the card. Rows of cards now line up. The DuPont expander became the same popover.
+- **2026-11-13 · decision (tables):** one helper, `financial_table()`, for the line items, the quarters,
+  the key-ratio snapshot, the red-flag history and DuPont: first column pinned, figures right-aligned,
+  the unit in the first header (`Line item · $M`, `EUR M` for others), negatives as `(1,234)` in red.
+  Amounts in tables are now plain millions (`478,834`); EPS and share-count rows say their own unit in the
+  row name ("Diluted EPS (per share)", "Diluted shares (millions)"). Cards keep `$478,834M`.
+- **2026-11-13 · decision:** the table red is one colour, `#EF4444`, because a table's cell colours can't
+  follow the theme; it reads on white and on navy. Recorded in DESIGN.md.
+- **2026-11-13 · not changed:** the balance-check table (words, not figures) and the compare table
+  (task 5).
+- **2026-11-13 · checked:** INTC Financials in dark (negatives red in parentheses), AAPL Ratios in
+  light (cards line up). 282 tests pass.

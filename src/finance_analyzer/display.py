@@ -168,19 +168,36 @@ def label(item: str) -> str:
     return item.replace("_", " ").capitalize().replace("eps", "EPS")
 
 
+def row_label(item: str) -> str:
+    """A table row's name, with its unit when it differs from the table's (amounts in millions)."""
+    unit = ITEMS[item].unit
+    return label(item) + (" (per share)" if unit.endswith("/shares") else " (millions)" if unit == "shares" else "")
+
+
+def table_number(unit: str, value: float) -> str:
+    """A value in a financial table, whose header carries the unit: millions, negatives in parentheses."""
+    text = f"{abs(value):,.2f}" if unit.endswith("/shares") else f"{abs(value) / 1e6:,.0f}"
+    return f"({text})" if value < 0 else text
+
+
+def table_unit(currency: str) -> str:
+    """The unit for a financial table's header: "$M", or "EUR M" for other currencies."""
+    return f"{symbol(currency)}M"
+
+
 def quarterly_table(values: dict[str, dict[str, tuple[float, bool]]], currency: str) -> list[dict[str, str]]:
-    """One row per flow item, one column per single quarter (by its end date); calculated values end in " *"."""
+    """One row per flow item, one column per single quarter (by its end date), in millions; calculated values end in " *"."""
     ends = sorted({end for by_end in values.values() for end in by_end})
     table = []
     for item, by_end in values.items():
         if not by_end:
             continue
-        line = {"Line item": label(item)}
+        line = {"Line item": row_label(item)}
         for end in ends:
             column = f"{date.fromisoformat(end):%b %-d, %Y}"
             if end in by_end:
                 value, derived = by_end[end]
-                line[column] = format_value(ITEMS[item].unit.replace("USD", currency), value) + (" *" if derived else "")
+                line[column] = table_number(ITEMS[item].unit, value) + (" *" if derived else "")
             else:
                 line[column] = "—"
         table.append(line)
@@ -190,7 +207,7 @@ def quarterly_table(values: dict[str, dict[str, tuple[float, bool]]], currency: 
 def line_item_table(
     rows: list[StoredLineItem], years: list[date], period=fiscal_year
 ) -> tuple[list[dict[str, str]], list[str]]:
-    """One row per line item, one column per year; derived values end in " *".
+    """One row per line item, one column per year, in millions (see table_unit); derived values end in " *".
 
     Also returns the derivations, one line each, for the footnote.
     """
@@ -199,13 +216,13 @@ def line_item_table(
     for item in ITEMS:
         if not any((item, end) in by_key for end in years):
             continue
-        line = {"Line item": label(item)}
+        line = {"Line item": row_label(item)}
         for end in years:
             row = by_key.get((item, end))
             if row is None:
                 line[period(end)] = "—"
                 continue
-            line[period(end)] = format_value(row.unit, row.value) + (" *" if row.derivation else "")
+            line[period(end)] = table_number(row.unit, row.value) + (" *" if row.derivation else "")
             if row.derivation:
                 derivations.append(f"{label(item)}, {period(end)}: {row.derivation}")
         table.append(line)
