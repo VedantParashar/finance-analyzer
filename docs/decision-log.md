@@ -1,4 +1,8 @@
-# Autopilot log
+# Decision log
+
+Every decision made during the Claude Code sessions that built this app, with the reasons and the
+alternatives rejected, newest session summary first. (Kept as `AUTOPILOT_LOG.md` in the repo root until
+session 8.)
 
 ## Summary of session 7 (2026-11-13)
 
@@ -1502,3 +1506,24 @@ Same rules and format as session 2.
   the demo types the ticker.
 - **2026-11-14 · noticed:** `pyproject.toml` says 1.2.0 while GitHub's latest release is v1.3.0; not
   changed (not asked).
+
+## S8 Task 6 — Repo hygiene
+
+- **2026-11-14 · moved:** `AUTOPILOT_LOG.md` → `docs/decision-log.md` with `git mv` (history kept),
+  retitled "Decision log" with a line saying where it used to be. The only live reference was the
+  README; old pull request descriptions still say `AUTOPILOT_LOG.md` and can't be changed.
+- **2026-11-14 · CODE_OF_CONDUCT.md:** adopts the Contributor Covenant 2.1 by link with a short
+  summary; reports go to the maintainer through GitHub. **SECURITY.md:** reports through GitHub's
+  private vulnerability reporting, with what's in scope for this app (link parameters, the feedback
+  setting, the hosted app's secrets). **Why no email in either:** the owner's address is private;
+  GitHub channels work without it. **Owner action:** turn on private vulnerability reporting
+  (Settings → Code security), or SECURITY.md's "Report a vulnerability" button won't be there.
+- **2026-11-14 · "good first issue" on 3 issues:** #37 (warn when the latest year is stale: a small UI
+  change), #2 (check the temporary-equity rule on more companies: investigation), #6 (confirm NVIDIA's
+  FY2026 tag in the 10-K: investigation). **Not labelled:** #30, #33, #27, #1 and #5 need changes to
+  the parser's rules, which isn't a first issue.
+- **2026-11-14 · docs/README.md:** an index of every document and image (it lists the case study from
+  task 7, which arrives in the next pull request).
+- **2026-11-14 · docs/social-preview.png:** 1280×640, made as an HTML page in DESIGN.md's colours and
+  Inter and screenshotted (name, pitch, an Apple net-margin card with its two filing links, the URL and
+  "93 of 95 figures match the filings"). **Owner action:** upload it in Settings → Social preview.

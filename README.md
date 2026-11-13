@@ -96,7 +96,7 @@ Datadough was built with [Claude Code](https://claude.com/claude-code), Anthropi
 which wrote most of the code, tests and documents. I'm the owner and a beginner programmer: I wrote the
 spec and each session's task list, made the design decisions, and reviewed and merged every pull
 request. Each decision Claude made on its own, with its reasons and the alternatives it rejected, is
-recorded in the [decision log](AUTOPILOT_LOG.md); the terms I learned along the way are in
+recorded in the [decision log](docs/decision-log.md); the terms I learned along the way are in
 [LEARNING.md](LEARNING.md).
 
 ## Contributing and license
