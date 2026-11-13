@@ -1478,3 +1478,27 @@ Same rules and format as session 2.
   to the cards.
 - **2026-11-14 · fixed while checking:** with four buttons the Share button wrapped onto a second line;
   the header's columns are now 2:3. 295 tests pass (3 new).
+
+## S8 Task 5 — README rewrite and demo GIF
+
+- **2026-11-14 · decision:** README order as asked: one-line pitch ("Company financials you can trace
+  back to the filing"), the Try-it button, badges (CI from `ci.yml`, latest GitHub release, license,
+  Python 3.12), the demo, "What makes it different" (trace, METHODOLOGY, ACCURACY with the measured
+  93 of 95, honest gaps / COVERAGE), features, supported companies, data sources, run locally,
+  limitations, "How this was built", contributing. The title is now **Datadough**, the live app's name.
+  Stale facts fixed on the way (29 line items, 19 ratios, the popover instead of the old expander).
+  **Dropped:** the Mermaid "How it works" diagram and the long run-it/Docker walkthrough (CONTRIBUTING
+  and DEPLOY cover them); the three screenshots stay in `docs/screenshots/`.
+- **2026-11-14 · "How this was built":** says plainly that Claude Code wrote most of the code, tests and
+  documents, and that the owner wrote the spec and task lists, made the design decisions and reviewed and
+  merged every pull request, with a link to the decision log. **Owner should review** the wording: it's
+  written in your voice.
+- **2026-11-14 · demo GIF (`docs/demo.gif`, 960×540, 20.8 s, 290 KB):** Playwright drives the real app
+  (type AAPL → company page → "How it's calculated" with the filing links → Financials' Source column →
+  AAPL/KO/NVDA compare), saving a screenshot about every 0.15 s; Pillow (through `uvx`, not a project
+  dependency) drops repeated frames and writes the GIF. No ffmpeg on this machine. Loading pauses are
+  capped at 2.6 s per frame so the demo stays near 20 s. The recording script isn't committed, as in
+  session 2. **Found while recording:** typing "Apple" + Enter asks AAPL or APLE (correct behaviour), so
+  the demo types the ticker.
+- **2026-11-14 · noticed:** `pyproject.toml` says 1.2.0 while GitHub's latest release is v1.3.0; not
+  changed (not asked).
