@@ -216,8 +216,8 @@ def bank_banner(ticker: str, info: dict) -> None:
         )
 
 
-def refresh_button(ticker: str, rows: list[store.StoredLineItem]) -> None:
-    if st.button("Refresh data", help="Download this company's filings from the SEC again and reload it."):
+def refresh_button(ticker: str) -> None:
+    if st.button("Refresh", icon=":material/refresh:", help="Download this company's filings from the SEC again and reload it."):
         try:
             edgar.refresh(ticker)
         except (httpx.HTTPError, RuntimeError) as error:
@@ -225,14 +225,11 @@ def refresh_button(ticker: str, rows: list[store.StoredLineItem]) -> None:
         else:
             st.cache_data.clear()  # load() then sees a download newer than the stored rows and reloads them
             st.rerun()
-    st.caption(
-        f"SEC data loaded {rows[0].loaded_at:%b %-d, %Y at %H:%M} UTC. It refreshes by itself once it's "
-        f"{edgar.MAX_AGE.days} days old."
-    )
 
 
 def metric_card(
-    name: str, metric: Metric, prior: Metric | None, currency: str, benchmark: tuple[float, int] | None = None
+    name: str, metric: Metric, prior: Metric | None, currency: str, benchmark: tuple[float, int] | None = None,
+    history: list[float | None] | None = None,
 ) -> None:
     with st.container(border=True):
         st.metric(
@@ -240,6 +237,7 @@ def metric_card(
             display.format_metric(name, metric.value, currency),
             delta=display.yoy_delta(name, metric.value, prior.value if prior else None),
             delta_color="inverse" if name == "debt_to_equity" else "normal",
+            chart_data=sparkline(history),
         )
         if name in display.RED_FLAGS and metric.value is not None:
             st.caption(display.verdict(name, metric.value))
@@ -272,8 +270,13 @@ def trend_chart(title: str, labels: list[str], series: dict[str, list], kind: st
     return charts.style(figure, tickformat, title)
 
 
+def sparkline(values: list[float | None] | None) -> list[float] | None:
+    """The values a card's sparkline draws: missing years left out, and none at all for fewer than two."""
+    shown = [value for value in values or [] if value is not None]
+    return shown if len(shown) > 1 else None
+
+
 def company_page() -> None:
-    st.title("Company")
     options = options_or_explain()
     if options is None:
         return
@@ -281,11 +284,13 @@ def company_page() -> None:
         "Company",
         options,
         index=None,
-        placeholder="Type a ticker or a company name, e.g. AAPL or Apple",
+        placeholder="Search any company or ticker, e.g. AAPL or Apple",
         accept_new_options=True,
+        label_visibility="collapsed",
         key="company",
     )
     if not choice:
+        st.title("Company")
         st.info("Search for a company to see five years of statements and ratios from its SEC filings.")
         st.markdown("**Popular examples**")
         for column, example in zip(st.columns(len(EXAMPLES)), EXAMPLES):
@@ -302,9 +307,8 @@ def company_page() -> None:
         return
     rows, metrics, info = loaded
     st.query_params["ticker"] = ticker  # the browser's address now links straight to this company
+    company_header(ticker, info, rows, metrics)
 
-    st.header(f"{info['name']} ({ticker})")
-    st.caption(info["industry"])
     currency = display.currency(rows)
     if currency != "USD":
         st.info(
@@ -313,17 +317,10 @@ def company_page() -> None:
             f"{currency} at today's exchange rate."
         )
     bank_banner(ticker, info)
-    st.download_button(
-        "Download Excel with live formulas",
-        export.company_workbook(ticker, rows, metrics),
-        file_name=f"{ticker}_financials.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-    refresh_button(ticker, rows)
 
     annual_rows, quarters = rows, None
-    period = st.radio(
-        "Period", [ANNUAL, TTM], horizontal=True, key="period",
+    period = st.segmented_control(
+        "Period", [ANNUAL, TTM], default=ANNUAL, required=True, key="period",
         help="Trailing 12 months (TTM) adds up the last four quarters, so it includes results reported since "
         "the last annual report.",
     )
@@ -344,10 +341,112 @@ def company_page() -> None:
         if years[-1] == max(row.fiscal_year_end for row in annual_rows):
             note += " The latest report is the annual one, so these match the latest fiscal year."
         st.info(note)
-    latest = metrics[years[-1]]
-    prior = metrics[years[-2]] if len(years) > 1 else {}
+    in_industry, medians = industry(info["sic"] // 100, ticker) if info["sic"] else ([], {})
 
-    st.subheader("Line items")
+    overview, financials, ratios, flags, value, checks = st.tabs(
+        ["Overview", "Financials", "Ratios", "Red flags", "Valuation", "Data checks"]
+    )
+    with overview:
+        overview_tab(ticker, info, rows, metrics, years, labels, currency, medians)
+    with financials:
+        financials_tab(rows, years, name_period, quarters, currency)
+    with ratios:
+        ratios_tab(info, rows, metrics, years, labels, currency, in_industry, medians)
+    with flags:
+        red_flags_section(metrics, years, labels, currency, info, medians)
+    with value:
+        valuation_tab(ticker, rows, labels, currency, quarters is not None)
+    with checks:
+        data_checks_section(ticker, annual_rows)
+
+
+def company_header(ticker: str, info: dict, rows: list[store.StoredLineItem], metrics: dict) -> None:
+    """Name, ticker, exchange and industry, today's price, and the actions; it stays put while scrolling."""
+    with st.container(key="company-header"):
+        left, right = st.columns([1, 1], vertical_alignment="center")
+        with left:
+            st.header(f"{info['name']} ({ticker})", anchor=False)
+            with st.container(horizontal=True, gap="small"):
+                for text in filter(None, [info.get("exchange"), f"SIC {info['sic']} · {info['industry']}"]):
+                    st.badge(text, color="gray")
+        with right, st.container(horizontal=True, horizontal_alignment="right", vertical_alignment="center"):
+            price_tile(ticker)
+            refresh_button(ticker)
+            st.download_button(
+                "Excel",
+                export.company_workbook(ticker, rows, metrics),
+                file_name=f"{ticker}_financials.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                icon=":material/download:",
+                help="Download the statements and ratios as an Excel workbook with live formulas.",
+            )
+            with st.popover("Share", icon=":material/share:"):
+                base = (st.context.url or "").split("?")[0]
+                st.code(f"{base}?ticker={ticker}", language=None)
+                st.caption("Anyone with this link opens this company's page.")
+
+
+def price_tile(ticker: str) -> None:
+    """Today's share price and change, or a short note when Yahoo Finance has none."""
+    try:
+        latest = quote(ticker)
+    except prices.PriceUnavailable:
+        st.caption("Share price unavailable")
+        return
+    change = None
+    if latest.previous_close:
+        move = latest.price - latest.previous_close
+        change = f"{move:+,.2f} ({move / latest.previous_close:+.2%}) today"
+    st.metric("Share price", f"${latest.price:,.2f}", delta=change, width="content")
+
+
+def overview_tab(
+    ticker: str, info: dict, rows: list[store.StoredLineItem], metrics: dict, years: list, labels: list[str],
+    currency: str, medians: dict,
+) -> None:
+    st.caption(
+        f"The headline numbers for {labels[-1]}"
+        + (f", with the change from {labels[-2]} and the last {len(years)} years as a sparkline." if len(labels) > 1 else ".")
+    )
+    by_key = {(row.item, row.fiscal_year_end): row.value for row in rows}
+    latest, prior = metrics[years[-1]], metrics[years[-2]] if len(years) > 1 else {}
+    kpis = st.columns(4)
+    for column, (label, item) in zip(kpis, [("Revenue", "revenue"), ("Net income", "net_income")]):
+        values = [by_key.get((item, end)) for end in years]
+        with column.container(border=True):
+            st.metric(
+                label,
+                display.money(values[-1], currency) if values[-1] is not None else "—",
+                delta=display.yoy_delta("free_cash_flow", values[-1], values[-2] if len(values) > 1 else None),
+                chart_data=sparkline(values),
+            )
+    for column, name in zip(kpis[2:], ["operating_margin", "free_cash_flow"]):
+        with column:
+            metric_card(name, latest[name], prior.get(name), currency, medians.get(name),
+                        [metrics[end][name].value for end in years])
+
+    chart, snapshot = st.columns([3, 2])
+    by_million = {key: value / 1e6 for key, value in by_key.items()}
+    chart.plotly_chart(
+        trend_chart(
+            f"Revenue and net income ({display.symbol(currency)}M)",
+            labels,
+            {label: [by_million.get((item, end)) for end in years] for label, item in
+             [("Revenue", "revenue"), ("Net income", "net_income")]},
+            "bar",
+            "$,.0f" if currency == "USD" else ",.0f",
+        )
+    )
+    with snapshot:
+        st.subheader("Key ratios vs industry")
+        st.dataframe(display.ratio_snapshot(latest, medians, labels[-1]), hide_index=True)
+        if not medians:
+            st.caption("No industry median yet: it needs more companies from this industry loaded into the app.")
+    peers_section(ticker, info)
+
+
+def financials_tab(rows: list[store.StoredLineItem], years: list, name_period, quarters: dict | None, currency: str) -> None:
+    st.caption("The line items behind every ratio, as reported in the annual reports (10-K, 20-F or 40-F).")
     table, derivations = display.line_item_table(rows, years, name_period)
     st.dataframe(table, hide_index=True)
     if derivations:
@@ -362,9 +461,13 @@ def company_page() -> None:
                 "year minus the first nine months. Columns are quarter end dates."
             )
 
+
+def ratios_tab(
+    info: dict, rows: list[store.StoredLineItem], metrics: dict, years: list, labels: list[str], currency: str,
+    in_industry: list[str], medians: dict,
+) -> None:
     st.subheader(f"Metrics for {labels[-1]}")
     st.caption(f"Changes are against {labels[-2]}." if len(labels) > 1 else "No prior year stored.")
-    in_industry, medians = industry(info["sic"] // 100, ticker) if info["sic"] else ([], {})
     if medians:
         st.caption(
             f"Industry median: the middle value among the {len(in_industry)} companies loaded into this app so far "
@@ -376,37 +479,17 @@ def company_page() -> None:
             f"No industry medians yet: they need at least {MIN_FOR_MEDIAN} companies loaded into this app whose SEC "
             f"industry code starts with {info['sic'] // 100}. So far: {', '.join(in_industry) or 'none'}."
         )
+    latest, prior = metrics[years[-1]], metrics[years[-2]] if len(years) > 1 else {}
     for group, names in display.GROUPS.items():
         st.markdown(f"**{group}**")
         for column, name in zip(st.columns(4), names):
             with column:
-                metric_card(name, latest[name], prior.get(name), currency, medians.get(name))
-
-    st.subheader("Valuation at today's price")
-    valuation_metrics, price_note = valuation(ticker, rows)
-    st.caption(
-        f"{price_note} Profit, equity, debt and cash flow are for the {labels[-1]}." if quarters is not None else
-        f"{price_note} Profit, equity, debt and cash flow are from {labels[-1]}, the last full fiscal year, so "
-        "these differ from sites that use the last twelve months."
-    )
-    for column, name in zip(st.columns(5), display.PRICE_METRICS):
-        with column:
-            metric_card(name, valuation_metrics[name], None, currency)
+                metric_card(name, latest[name], prior.get(name), currency, medians.get(name),
+                            [metrics[end][name].value for end in years])
 
     st.subheader("Trends")
-    by_key = {(row.item, row.fiscal_year_end): row.value / 1e6 for row in rows}
     left, right = st.columns(2)
     left.plotly_chart(
-        trend_chart(
-            f"Revenue and net income ({display.symbol(currency)}M)",
-            labels,
-            {label: [by_key.get((item, end)) for end in years] for label, item in
-             [("Revenue", "revenue"), ("Net income", "net_income")]},
-            "bar",
-            "$,.0f" if currency == "USD" else ",.0f",
-        )
-    )
-    right.plotly_chart(
         trend_chart(
             "Margins",
             labels,
@@ -415,14 +498,22 @@ def company_page() -> None:
             ".0%",
         )
     )
-    left.plotly_chart(
+    right.plotly_chart(
         trend_chart("Return on equity", labels, {"ROE": [metrics[end]["roe"].value for end in years]}, "line", ".0%")
     )
-
     dupont_section(metrics, years, labels)
-    red_flags_section(metrics, years, labels, currency, info, medians)
-    peers_section(ticker, info)
-    data_checks_section(ticker, annual_rows)
+
+
+def valuation_tab(ticker: str, rows: list[store.StoredLineItem], labels: list[str], currency: str, twelve_months: bool) -> None:
+    valuation_metrics, price_note = valuation(ticker, rows)
+    st.caption(
+        f"{price_note} Profit, equity, debt and cash flow are for the {labels[-1]}." if twelve_months else
+        f"{price_note} Profit, equity, debt and cash flow are from {labels[-1]}, the last full fiscal year, so "
+        "these differ from sites that use the last twelve months."
+    )
+    for column, name in zip(st.columns(5), display.PRICE_METRICS):
+        with column:
+            metric_card(name, valuation_metrics[name], None, currency)
 
 
 def open_company(text: str) -> None:
@@ -464,11 +555,12 @@ def peers_section(ticker: str, info: dict) -> None:
 
 
 def data_checks_section(ticker: str, rows: list[store.StoredLineItem]) -> None:
-    st.subheader("Data checks")
     st.caption(
-        "Two checks on the downloaded data, for every year stored (not just the five shown above): "
+        "Two checks on the downloaded data, for every year stored (not just the five shown elsewhere): "
         "does the balance sheet add up, and is any year missing? The oldest year usually can't be checked: "
-        "a company's first filings in this format repeat earlier income statements but not the balance sheet."
+        "a company's first filings in this format repeat earlier income statements but not the balance sheet. "
+        f"SEC data loaded {rows[0].loaded_at:%b %-d, %Y at %H:%M} UTC; it refreshes by itself once it's "
+        f"{edgar.MAX_AGE.days} days old."
     )
     table = display.balance_check_table(rows, balance_checks(ticker))
     gaps = display.missing_years(sorted({row.fiscal_year_end for row in rows}))
@@ -490,7 +582,6 @@ def data_checks_section(ticker: str, rows: list[store.StoredLineItem]) -> None:
 
 
 def red_flags_section(metrics: dict, years: list, labels: list[str], currency: str, info: dict, medians: dict) -> None:
-    st.subheader("Red flags")
     st.caption(
         "Four well-known screens for financial trouble or low-quality earnings. They are prompts to read the "
         "annual report more closely, not verdicts: each one misfires on some kinds of company (see "

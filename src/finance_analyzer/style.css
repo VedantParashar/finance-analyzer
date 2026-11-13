@@ -2,7 +2,7 @@
    here is translucent and reads on the light and the dark background alike. */
 
 /* Content width: wide layout, but capped so lines and tables stay readable on large screens. */
-.block-container { max-width: 1280px; padding-top: 2rem; }
+.block-container { max-width: 1280px; }
 
 /* Columns of digits line up. */
 [data-testid="stMetricValue"], [data-testid="stMetricDelta"], [data-testid="stDataFrame"] {

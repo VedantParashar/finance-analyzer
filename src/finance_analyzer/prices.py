@@ -14,6 +14,7 @@ class Quote(NamedTuple):
     price: float  # last traded price of one share, in dollars
     market_cap: float  # price × shares outstanding, in dollars
     fetched_at: datetime  # UTC
+    previous_close: float | None = None  # yesterday's closing price, for today's change; None if Yahoo lacks it
 
 
 class Rate(NamedTuple):
@@ -35,7 +36,11 @@ def fetch_quote(ticker: str) -> Quote:
         raise PriceUnavailable("Yahoo Finance returned no price or market cap")
     if currency != "USD":  # the statements are in dollars, so a ratio against another currency would be wrong
         raise PriceUnavailable(f"Yahoo Finance quotes this share in {currency}, not USD")
-    return Quote(float(price), float(market_cap), datetime.now(UTC))
+    try:
+        previous = float(info["previousClose"]) or None
+    except Exception:  # only the day change needs it, so a missing close mustn't lose the price
+        previous = None
+    return Quote(float(price), float(market_cap), datetime.now(UTC), previous)
 
 
 def fetch_exchange_rate(currency: str) -> Rate:

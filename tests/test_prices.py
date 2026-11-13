@@ -22,7 +22,12 @@ def fake_yfinance(monkeypatch, fast_info):
 def test_fetch_quote_returns_price_and_market_cap(monkeypatch):
     fake_yfinance(monkeypatch, {"lastPrice": 250.0, "marketCap": 3.7e12, "currency": "USD"})
     quote = prices.fetch_quote("AAPL")
-    assert (quote.price, quote.market_cap) == (250.0, 3.7e12)
+    assert (quote.price, quote.market_cap, quote.previous_close) == (250.0, 3.7e12, None)  # no close: no day change
+
+
+def test_fetch_quote_includes_the_previous_close_for_the_day_change(monkeypatch):
+    fake_yfinance(monkeypatch, {"lastPrice": 250.0, "marketCap": 3.7e12, "currency": "USD", "previousClose": 245.0})
+    assert prices.fetch_quote("AAPL").previous_close == 245.0
 
 
 @pytest.mark.parametrize(
