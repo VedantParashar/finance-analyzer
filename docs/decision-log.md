@@ -4,6 +4,34 @@ Every decision made during the Claude Code sessions that built this app, with th
 alternatives rejected, newest session summary first. (Kept as `AUTOPILOT_LOG.md` in the repo root until
 session 8.)
 
+## Summary of session 9 (2026-11-14)
+
+**Built:** all 3 queue tasks, each on its own branch and pull request, stacked in this order (#71 on
+master). Nothing is merged.
+
+| # | PR | Branch | What |
+|---|---|---|---|
+| 1 | #71 | `revenue-total-first` | total revenues before contract revenue; 8 of 55 companies change; accuracy still 93 of 95 |
+| 2 | #73 | `nvda-share-scale` | issue #72 filed; share counts filed in thousands fixed via net income ÷ EPS (4 rows) |
+| 3 | #74 | `version-1.3.0` | version 1.3.0 + `uv lock`; CHANGELOG 1.3.0 dated, 1.4.0 (unreleased) for sessions 8–9 |
+
+299 tests pass locally (295 before).
+
+**Worth your attention:**
+1. **Chevron's revenue got worse by the usual definition** (task 1). Its `Revenues` tag is "Total
+   Revenues and Other Income" ($189,031M against $184,432M of sales), so the new rule counts equity-affiliate
+   and other income. That's why accuracy stays 93 of 95: Walmart now matches, Chevron doesn't. A narrow
+   fix is described in S9 Task 1 if you want it. The other seven changes are improvements, two of them
+   large: American Tower's revenue was about 10× too small, Mastercard's was gross instead of net.
+2. **The share-count rule isn't the one in the queue** (task 2): "exactly 1,000× the adjacent years"
+   can't work because counts change every year. It uses EPS = net income ÷ shares instead, which is
+   exact. It found two more slips: Advance Auto Parts FY2008 and Crocs FY2012.
+3. **1.4.0 includes session 8** (task 3): v1.3.0 was tagged before session 8's pull requests merged.
+4. **Local data:** companies already saved keep the old figures until reloaded (Refresh). `peers.json`
+   keeps last year's revenue under the old order until `scripts/build_peers.py` is run.
+
+---
+
 ## Summary of session 8 (2026-11-14)
 
 **Built:** all 7 queue tasks, each on its own branch and pull request, stacked in this order (#64 on
@@ -1633,3 +1661,13 @@ Same rules and format as session 2.
   also found two slips nobody had spotted: **Advance Auto Parts FY2008** 0.10M → 95M and **Crocs
   FY2012** 0.09M → 91M. 299 tests pass (4 new: NVIDIA's two years, a correct count, a count that fits
   neither). METHODOLOGY.md's "what these rules can't catch" updated.
+
+## S9 Task 3 — Version 1.3.0 and CHANGELOG 1.4.0
+
+- **2026-11-14 · version:** `pyproject.toml` 1.2.0 → 1.3.0 and `uv lock` (one line in each), matching the
+  existing GitHub release v1.3.0.
+- **2026-11-14 · decision:** the v1.3.0 tag points at the merge of #63 (session 7), so session 8's work
+  (#64–#70: trace, methodology, accuracy, feedback, README, repo hygiene, case study) is in no release and
+  had no changelog entry. CHANGELOG 1.3.0 now carries its date (2026-11-13, the release date) instead of
+  "unreleased", and **1.4.0 (unreleased) covers sessions 8 and 9**. **Rejected:** a separate entry for
+  session 8 (there's no release between them).
