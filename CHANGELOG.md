@@ -2,7 +2,7 @@
 
 What each version added, newest first. Dates are year-month-day.
 
-## 1.4.0 — unreleased
+## 1.4.0 — 2026-11-14
 
 Data you can trace and check: every number links to its filing, the rules and the measured accuracy are
 written down, and three kinds of wrong figures are fixed.
@@ -26,13 +26,17 @@ written down, and three kinds of wrong figures are fixed.
   FY2018–19 (net instead of gross revenue), Occidental and Chevron (its "total revenues and other income"
   now counts, which includes non-revenue income).
 
+- **Peer suggestions** rebuilt with the new revenue order: 281 of 4,239 companies' revenue changes, so some
+  peers change (American Tower's are now large REITs; Capital One moves up among JPMorgan's).
+
 ### Fixed
 - **Share counts filed in thousands** are multiplied back when net income ÷ EPS shows it (#72): NVIDIA
   FY2008–09, Advance Auto Parts FY2008 and Crocs FY2012.
 
 ### Known limits
-- Chevron's revenue now includes other income (see above).
-- `peers.json` keeps last year's revenue under the old tag order until it's rebuilt.
+- Chevron's revenue now includes $4,599M of other income in FY2025, because its total-revenues tag does
+  ([#75](https://github.com/VedantParashar/finance-analyzer/issues/75)); documented in METHODOLOGY.md and
+  ACCURACY.md.
 - Companies already saved in a local database keep their old figures until they're reloaded (Refresh,
   or the 7-day refresh). The hosted app starts empty after a restart.
 
