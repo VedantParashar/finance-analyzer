@@ -1614,3 +1614,22 @@ Same rules and format as session 2.
   a year, as before); companies already saved in a local database keep the old revenue until they're
   reloaded (Refresh, or the 7-day refresh); the hosted app starts empty after a restart, so it's
   unaffected. 295 tests pass.
+
+## S9 Task 2 — NVIDIA's share count filed in thousands (#72)
+
+- **2026-11-14 · issue #72 filed** with the evidence: NVIDIA's FY2008 and FY2009 diluted counts are
+  606,732 and 548,126 in the SEC data (10-Ks filed 2010 and 2011), where net income ÷ diluted EPS gives
+  about 609 million and 600 million. FY2010–11 had the same slip but were restated in full units by the
+  2012 10-K, which the latest-filing rule already uses.
+- **2026-11-14 · decision (the rule differs from the queue's suggestion, on evidence):** "exactly 1,000×
+  the adjacent years" doesn't fit: share counts move from year to year (548,126 against 549.6 million
+  the next year is 1,003×), so an exact-ratio test would miss it and a loose one would guess. The exact
+  check is the definition of EPS: a count is multiplied by 1,000 only when it doesn't reproduce the
+  same year's filed EPS (net income ÷ count) and 1,000 times it does, within cent rounding or 2%
+  (net income vs income to common shareholders). A count that fits neither is left alone. Labelled
+  "filed in thousands of shares, ×1,000 (net income ÷ diluted EPS gives that count)".
+- **2026-11-14 · checked, all 55 cached companies before and after:** 4 rows change, no others.
+  NVIDIA FY2008 24.27M → 24,269M and FY2009 21.93M → 21,925M (after the ×40 split adjustment). The rule
+  also found two slips nobody had spotted: **Advance Auto Parts FY2008** 0.10M → 95M and **Crocs
+  FY2012** 0.09M → 91M. 299 tests pass (4 new: NVIDIA's two years, a correct count, a count that fits
+  neither). METHODOLOGY.md's "what these rules can't catch" updated.
