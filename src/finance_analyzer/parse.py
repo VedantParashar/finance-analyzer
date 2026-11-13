@@ -343,6 +343,34 @@ def _shareholders_equity_rows(facts: dict) -> list[LineItemRow]:
     return rows
 
 
+SCALE_SLIPS = (1_000, 1_000_000)  # thousands or millions typed as units: the usual XBRL scaling mistake
+
+
+def _revenue_rows(facts: dict) -> list[LineItemRow]:
+    """Revenue, but where another revenue tag gives the same year 1,000× or 1,000,000× smaller, the smaller one.
+
+    A few filers tag one figure twice with the scale wrong on one of them (Tigo Energy, FY2025: $103.5M
+    also filed as $103.5bn). A real business doesn't report two revenues a round thousand times apart.
+    Same rule as scripts/build_peers.py.
+    """
+    others: dict[str, list[float]] = defaultdict(list)  # year end -> every revenue figure for that year
+    for fact in _candidates(facts, ITEMS["revenue"]):
+        if _is_full_year(fact):
+            others[fact["end"]].append(fact["val"])
+    rows = []
+    for row in _item_rows(facts, ITEMS["revenue"]):
+        smaller = next(
+            (other for other in others[row.fiscal_year_end] for scale in SCALE_SLIPS
+             if other > 0 and math.isclose(other * scale, row.value, rel_tol=0.001)),
+            None,
+        )
+        if smaller is not None:
+            times = f"{row.value / smaller:,.0f}"
+            row = row._replace(value=smaller, derivation=f"revenue was also tagged {times}× larger; the smaller figure is used")
+        rows.append(row)
+    return rows
+
+
 def _sga_rows(facts: dict) -> list[LineItemRow]:
     """The SG&A total where reported, otherwise selling/marketing plus administrative costs."""
     rows = _item_rows(facts, ITEMS["selling_general_admin"])
@@ -386,6 +414,7 @@ def _line_items(facts: dict) -> list[LineItemRow]:
         "cash": _cash_rows,
         "shareholders_equity": _shareholders_equity_rows,
         "selling_general_admin": _sga_rows,
+        "revenue": _revenue_rows,
     }
     rows = [
         row
